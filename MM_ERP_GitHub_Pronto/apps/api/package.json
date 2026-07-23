@@ -1,0 +1,28 @@
+{
+  "name": "api",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --trace-deprecation --env-file=.env src/main.js",
+    "start": "node --env-file=.env src/main.js",
+    "lint": "eslint . --quiet"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.0.1",
+    "express-rate-limit": "^8.3.1",
+    "google-auth-library": "^9.14.1",
+    "googleapis": "^140.0.0",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "pocketbase": "^0.26.8"
+  },
+  "devDependencies": {
+    "globals": "^15.14.0",
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "eslint-plugin-import": "^2.32.0"
+  }
+}
