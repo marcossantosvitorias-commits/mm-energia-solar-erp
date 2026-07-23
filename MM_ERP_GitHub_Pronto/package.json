@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "concurrently --kill-others --raw \"npm run dev --prefix apps/web\" \"npm run dev --prefix apps/api\" \"npm run dev --prefix apps/pocketbase\"",
-    "build": "node tools/generate-llms.js || true && vite build",
-    "start": "vite preview --host :: --port 3000",
+    "build": "npm run build --prefix apps/web",
+    "start": "npm run start --prefix apps/web",
     "lint": "concurrently --raw \"npm run lint --prefix apps/web\" \"npm run lint --prefix apps/api\""
   },
   "devDependencies": {
