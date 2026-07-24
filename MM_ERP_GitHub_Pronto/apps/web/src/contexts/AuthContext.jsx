@@ -2,31 +2,23 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const AuthContext = createContext(null);
-const LOCAL_SESSION_KEY = 'mm-erp-emergency-session';
-const EMERGENCY_EMAIL = 'marcossantosvitorias@gmail.com';
-const EMERGENCY_PASSWORD_SHA256 = '1034567cfa576b6464a58ab42ae019a08d10619f8f471c5f5610af0640807dfd';
 
-function readLocalSession() {
-  try {
-    const raw = window.localStorage.getItem(LOCAL_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function sha256(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-}
+const TEMPORARY_ADMIN = {
+  id: 'temporary-admin-access',
+  name: 'Marcos Santos',
+  email: 'marcossantosvitorias@gmail.com',
+  role: 'admin',
+  active: true,
+  temporaryAccess: true,
+};
 
 async function normalizeUser(authUser) {
   if (!authUser) return null;
   const { data: profile, error } = await supabase
-    .from('profiles').select('name, role, active').eq('id', authUser.id).maybeSingle();
+    .from('profiles')
+    .select('name, role, active')
+    .eq('id', authUser.id)
+    .maybeSingle();
   if (error) throw error;
   return {
     id: authUser.id,
@@ -39,12 +31,14 @@ async function normalizeUser(authUser) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => (isSupabaseConfigured ? null : readLocalSession()));
+  const [user, setUser] = useState(() => (isSupabaseConfigured ? null : TEMPORARY_ADMIN));
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
     let active = true;
+
     if (!isSupabaseConfigured) {
+      setUser(TEMPORARY_ADMIN);
       setLoading(false);
       return undefined;
     }
@@ -66,6 +60,7 @@ export function AuthProvider({ children }) {
         if (active) setLoading(false);
       }
     });
+
     return () => {
       active = false;
       listener.subscription.unsubscribe();
@@ -73,48 +68,48 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async ({ email, password }) => {
-    const normalizedEmail = email?.trim().toLowerCase();
-    if (!normalizedEmail || !password?.trim()) return { ok: false, message: 'Informe e-mail e senha.' };
-
     if (!isSupabaseConfigured) {
-      const passwordHash = await sha256(password);
-      if (normalizedEmail !== EMERGENCY_EMAIL || passwordHash !== EMERGENCY_PASSWORD_SHA256) {
-        return { ok: false, message: 'E-mail ou senha inválidos.' };
-      }
+      setUser(TEMPORARY_ADMIN);
+      return { ok: true, temporaryAccess: true };
+    }
 
-      const emergencyUser = {
-        id: 'local-admin-emergency',
-        name: 'Marcos Santos',
-        email: EMERGENCY_EMAIL,
-        role: 'admin',
-        active: true,
-        emergencyMode: true,
-      };
-      window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(emergencyUser));
-      setUser(emergencyUser);
-      return { ok: true, emergencyMode: true };
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail || !password?.trim()) {
+      return { ok: false, message: 'Informe e-mail e senha.' };
     }
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
       if (error) throw error;
+
       const current = await normalizeUser(data.user);
       if (!current?.active) {
         await supabase.auth.signOut();
         return { ok: false, message: 'Este usuário está desativado.' };
       }
+
       setUser(current);
       return { ok: true };
     } catch (error) {
       const invalid = error?.message?.toLowerCase().includes('invalid login credentials');
-      return { ok: false, message: invalid ? 'E-mail ou senha inválidos.' : 'Não foi possível acessar o Supabase.' };
+      return {
+        ok: false,
+        message: invalid ? 'E-mail ou senha inválidos.' : 'Não foi possível acessar o Supabase.',
+      };
     }
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured) await supabase.auth.signOut();
-    window.localStorage.removeItem(LOCAL_SESSION_KEY);
-    setUser(null);
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+      setUser(null);
+      return;
+    }
+
+    setUser(TEMPORARY_ADMIN);
   };
 
   const hasRole = (...roles) => Boolean(user && roles.includes(user.role));
@@ -127,6 +122,7 @@ export function AuthProvider({ children }) {
     logout,
     hasRole,
     databaseConfigured: isSupabaseConfigured,
+    temporaryAccess: !isSupabaseConfigured,
   }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
