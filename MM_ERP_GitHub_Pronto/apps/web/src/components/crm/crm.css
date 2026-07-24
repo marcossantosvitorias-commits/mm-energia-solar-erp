@@ -1,0 +1,58 @@
+.crm-message {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #eef4fb;
+  color: #24476b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.crm-search {
+  min-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #d8dee7;
+  border-radius: 10px;
+  background: #fff;
+  color: #69758a;
+}
+
+.crm-search input {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.crm-client-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.finance-table td small {
+  display: block;
+  margin-top: 5px;
+  color: #7c8798;
+  font-size: 11px;
+}
+
+.finance-actions {
+  gap: 10px;
+}
+
+@media (max-width: 760px) {
+  .crm-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .finance-panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
