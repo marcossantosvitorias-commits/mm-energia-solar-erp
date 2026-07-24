@@ -72,6 +72,27 @@ function receivableRow(item, userId) {
   };
 }
 
+function productRow(item, userId) {
+  return {
+    external_id: String(item.externalId || item.id || `${item.fornecedor || 'local'}-${item.marca || ''}-${item.modelo || ''}`),
+    bling_id: item.blingId ? String(item.blingId) : null,
+    sku: item.sku || null,
+    product_type: item.tipo || 'Outro',
+    brand: item.marca || null,
+    model: item.modelo || item.nome || 'Produto migrado',
+    power_w: Number(item.potencia || 0),
+    supplier: item.fornecedor || null,
+    cost_price: Number(item.custo || 0),
+    sale_price: Number(item.precoVenda || 0),
+    stock_quantity: Number(item.estoque || 0),
+    warehouse: item.deposito || null,
+    ncm: item.ncm || null,
+    unit: item.unidade || 'UN',
+    origin: item.origem || 'Migração do navegador',
+    created_by: userId,
+  };
+}
+
 async function upsertBatch(table, rows, conflictColumn) {
   const validRows = rows.filter((row) => Object.values(row).some((value) => value !== null && value !== undefined && value !== ''));
   if (!validRows.length) return { table, saved: 0 };
@@ -97,6 +118,7 @@ export async function migrateLocalDataToSupabase() {
   results.push(await upsertBatch('financial_transactions', asArray(local['mm-erp-movimentacoes-v2']).map((item) => transactionRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('accounts_payable', asArray(local['mm-erp-contas-pagar-v2']).map((item) => payableRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('accounts_receivable', asArray(local['mm-erp-contas-receber-v2']).map((item) => receivableRow(item, userId)), 'external_id'));
+  results.push(await upsertBatch('erp_products', asArray(local['mm-erp-equipamentos-v1']).map((item) => productRow(item, userId)), 'external_id'));
 
   const summary = {
     exportedAt: snapshot.exportedAt,
