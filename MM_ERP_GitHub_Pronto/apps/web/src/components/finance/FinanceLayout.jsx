@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import './finance.css';
 import './auth-layout.css';
+import '../crm/crm.css';
 
 const mainItems = [
   { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
