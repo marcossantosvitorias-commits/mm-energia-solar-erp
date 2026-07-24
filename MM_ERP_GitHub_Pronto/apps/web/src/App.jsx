@@ -25,6 +25,7 @@ import PrecificacaoKitsPage from './pages/PrecificacaoKitsPage.jsx';
 import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
 import EquipamentosPage from './pages/EquipamentosPage.jsx';
 import TributosPage from './pages/TributosPage.jsx';
+import ClientesPage from './pages/ClientesPage.jsx';
 
 const privateRoute = (element) => (
   <ProtectedRoute>{element}</ProtectedRoute>
@@ -47,6 +48,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
 
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
+          <Route path="/app/clientes" element={privateRoute(<ClientesPage />)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />)} />
           <Route path="/app/precos" element={privateRoute(<PrecificacaoKitsPage />)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />)} />
