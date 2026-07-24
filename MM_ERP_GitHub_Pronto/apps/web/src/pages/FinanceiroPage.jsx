@@ -11,6 +11,11 @@ import {
   formatarData,
   exportarCSV,
 } from '../components/finance/storage.js';
+import {
+  importarOFX,
+  importarContasCSV,
+  mesclarSemDuplicar,
+} from '../components/finance/importers.js';
 
 const CHAVE_MOVIMENTACOES = 'mm-erp-movimentacoes-v2';
 const CHAVE_PAGAR = 'mm-erp-contas-pagar-v2';
@@ -108,6 +113,47 @@ function FinanceiroPage() {
     }
 
     return true;
+  }
+
+  async function importarExtrato(event) {
+    const arquivo = event.target.files?.[0];
+    event.target.value = '';
+    if (!arquivo) return;
+
+    try {
+      const conteudo = await arquivo.text();
+      const { movimentacoes: importadas, ignorados } = importarOFX(conteudo);
+      const resultado = mesclarSemDuplicar(movimentacoes, importadas);
+
+      setMovimentacoes(resultado.dados);
+      alert(
+        `${resultado.adicionados} lançamentos importados. ` +
+        `${resultado.duplicados} duplicados ignorados. ` +
+        `${ignorados.length} transferências ContaMax desconsideradas.`
+      );
+    } catch (erro) {
+      alert(`Não foi possível importar o OFX: ${erro.message}`);
+    }
+  }
+
+  async function importarContas(event) {
+    const arquivo = event.target.files?.[0];
+    event.target.value = '';
+    if (!arquivo) return;
+
+    try {
+      const conteudo = await arquivo.text();
+      const importadas = importarContasCSV(conteudo);
+      const resultado = mesclarSemDuplicar(contasPagar, importadas);
+
+      setContasPagar(resultado.dados);
+      alert(
+        `${resultado.adicionados} contas importadas. ` +
+        `${resultado.duplicados} duplicadas ignoradas.`
+      );
+    } catch (erro) {
+      alert(`Não foi possível importar as contas: ${erro.message}`);
+    }
   }
 
   function salvarMovimento(event) {
@@ -483,6 +529,11 @@ function FinanceiroPage() {
             <h2>Fluxo de caixa</h2>
 
             <div className="finance-panel-actions">
+              <label className="finance-secondary-button finance-import-button">
+                Importar OFX
+                <input type="file" accept=".ofx,application/x-ofx" onChange={importarExtrato} />
+              </label>
+
               <select className="finance-filter" value={filtroTipo} onChange={(event) => setFiltroTipo(event.target.value)}>
                 <option value="todos">Todos</option>
                 <option value="entrada">Entradas</option>
@@ -566,24 +617,30 @@ function FinanceiroPage() {
         <section className="finance-panel">
           <div className="finance-panel-header">
             <h2>Contas a pagar</h2>
-            <button
-              className="finance-secondary-button"
-              onClick={() =>
-                exportarCSV(
-                  'contas-pagar-mm.csv',
-                  contasPagar.map((item) => ({
-                    Vencimento: formatarData(item.vencimento),
-                    Descrição: item.descricao,
-                    Fornecedor: item.fornecedor,
-                    Categoria: item.categoria,
-                    Valor: item.valor,
-                    Situação: item.status,
-                  }))
-                )
-              }
-            >
-              Exportar CSV
-            </button>
+            <div className="finance-panel-actions">
+              <label className="finance-secondary-button finance-import-button">
+                Importar CSV
+                <input type="file" accept=".csv,text/csv" onChange={importarContas} />
+              </label>
+              <button
+                className="finance-secondary-button"
+                onClick={() =>
+                  exportarCSV(
+                    'contas-pagar-mm.csv',
+                    contasPagar.map((item) => ({
+                      Vencimento: formatarData(item.vencimento),
+                      Descrição: item.descricao,
+                      Fornecedor: item.fornecedor,
+                      Categoria: item.categoria,
+                      Valor: item.valor,
+                      Situação: item.status,
+                    }))
+                  )
+                }
+              >
+                Exportar CSV
+              </button>
+            </div>
           </div>
 
           <FinanceTable columns={colunasPagar} rows={contasPagar} emptyText="Nenhuma conta cadastrada." />

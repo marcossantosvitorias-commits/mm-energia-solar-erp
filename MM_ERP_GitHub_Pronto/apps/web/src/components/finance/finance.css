@@ -369,6 +369,17 @@ textarea {
   color: #24476b;
 }
 
+.finance-import-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.finance-import-button input {
+  display: none;
+}
+
 .finance-success {
   padding: 8px 10px;
   background: #def7e8;
