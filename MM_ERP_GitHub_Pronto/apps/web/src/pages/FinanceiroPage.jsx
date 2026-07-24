@@ -16,20 +16,56 @@ import {
   importarContasCSV,
   mesclarSemDuplicar,
 } from '../components/finance/importers.js';
+import {
+  movimentacoesSantanderJulho2026,
+  contasPagarSantander2026,
+} from '../components/finance/seedSantanderJul2026.js';
 
 const CHAVE_MOVIMENTACOES = 'mm-erp-movimentacoes-v2';
 const CHAVE_PAGAR = 'mm-erp-contas-pagar-v2';
 const CHAVE_RECEBER = 'mm-erp-contas-receber-v2';
+const CHAVE_CARGA_SANTANDER = 'mm-erp-carga-santander-julho-2026-v1';
+
+function carregarComCargaInicial(chave, carga, tipo) {
+  const atuais = carregarDados(chave, []);
+  const chaveMigracao = `${CHAVE_CARGA_SANTANDER}-${tipo}`;
+
+  try {
+    if (localStorage.getItem(chaveMigracao)) return atuais;
+
+    if (
+      tipo === 'movimentacoes' &&
+      atuais.some((item) => item.origem === 'OFX Santander')
+    ) {
+      localStorage.setItem(chaveMigracao, 'concluida');
+      return atuais;
+    }
+
+    const resultado = mesclarSemDuplicar(atuais, carga).dados;
+    localStorage.setItem(chaveMigracao, 'concluida');
+    return resultado;
+  } catch {
+    return atuais;
+  }
+}
 
 function FinanceiroPage() {
   const [secao, setSecao] = useState('dashboard');
 
   const [movimentacoes, setMovimentacoes] = useState(() =>
-    carregarDados(CHAVE_MOVIMENTACOES, [])
+    carregarComCargaInicial(
+      CHAVE_MOVIMENTACOES,
+      movimentacoesSantanderJulho2026,
+      'movimentacoes'
+    )
   );
 
   const [contasPagar, setContasPagar] = useState(() =>
-    carregarDados(CHAVE_PAGAR, [])
+    carregarComCargaInicial(
+      CHAVE_PAGAR,
+      contasPagarSantander2026,
+      'contas-pagar'
+    )
   );
 
   const [contasReceber, setContasReceber] = useState(() =>
