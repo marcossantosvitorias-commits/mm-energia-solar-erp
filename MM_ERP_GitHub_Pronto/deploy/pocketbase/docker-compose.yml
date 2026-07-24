@@ -1,0 +1,42 @@
+services:
+  pocketbase:
+    build:
+      context: ../../apps/pocketbase
+      dockerfile: Dockerfile
+      args:
+        PB_VERSION: ${PB_VERSION:-0.39.9}
+    container_name: mm-erp-pocketbase
+    restart: unless-stopped
+    environment:
+      PB_ENCRYPTION_KEY: ${PB_ENCRYPTION_KEY}
+    volumes:
+      - pocketbase_data:/pb/pb_data
+    networks:
+      - mm_erp_network
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: mm-erp-caddy
+    restart: unless-stopped
+    depends_on:
+      - pocketbase
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      POCKETBASE_DOMAIN: ${POCKETBASE_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - mm_erp_network
+
+volumes:
+  pocketbase_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  mm_erp_network:
+    driver: bridge
