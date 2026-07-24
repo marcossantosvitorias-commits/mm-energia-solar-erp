@@ -7,6 +7,7 @@ import {
   PackageSearch,
   Scale,
   UserRound,
+  UsersRound,
   Globe2,
   LogOut,
   Menu,
@@ -18,6 +19,7 @@ import './auth-layout.css';
 
 const mainItems = [
   { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound },
   { to: '/app', label: 'Financeiro', icon: WalletCards, end: true },
   { to: '/app/precos', label: 'Preço dos kits', icon: Calculator },
   { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch },
