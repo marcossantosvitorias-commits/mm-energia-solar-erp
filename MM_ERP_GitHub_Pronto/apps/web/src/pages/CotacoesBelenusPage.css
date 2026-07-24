@@ -119,6 +119,24 @@
   line-height: 1.45;
 }
 
+.belenus-engineering-share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  grid-column: 1 / -1;
+  padding: 13px;
+  border: 1px solid #ead274;
+  border-radius: 10px;
+  color: #685400;
+  background: #fff9dc;
+  font-size: 12px;
+}
+
+.belenus-engineering-share strong {
+  color: #071d3b;
+  font-size: 16px;
+}
+
 .belenus-rates {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
