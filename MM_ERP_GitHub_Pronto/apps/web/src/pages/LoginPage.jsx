@@ -4,7 +4,7 @@ import { LockKeyhole, Mail, SunMedium } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function LoginPage() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, loading, login, isDemoMode } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -12,16 +12,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  if (isAuthenticated) {
+  if (!loading && isAuthenticated) {
     return <Navigate to="/app/dashboard" replace />;
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSubmitting(true);
 
-    const result = login({ email, password });
+    const result = await login({ email, password });
 
     if (!result.ok) {
       setError(result.message);
@@ -84,6 +84,7 @@ export default function LoginPage() {
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="voce@mmenergiasolar.com.br"
                     autoComplete="email"
+                    required
                   />
                 </div>
               </label>
@@ -99,6 +100,7 @@ export default function LoginPage() {
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Digite sua senha"
                     autoComplete="current-password"
+                    required
                   />
                 </div>
               </label>
@@ -112,14 +114,16 @@ export default function LoginPage() {
               <button
                 className="w-full rounded-xl bg-amber-400 px-4 py-3.5 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || loading}
               >
                 {submitting ? 'Entrando...' : 'Entrar'}
               </button>
             </form>
 
             <p className="mt-6 text-xs leading-relaxed text-slate-500">
-              Esta primeira versão usa sessão local para estruturar as rotas privadas. A autenticação segura com banco de dados será conectada na próxima etapa.
+              {isDemoMode
+                ? 'Modo de desenvolvimento ativo. Configure VITE_POCKETBASE_URL para usar autenticação real.'
+                : 'Acesso protegido por autenticação PocketBase.'}
             </p>
           </div>
         </section>
