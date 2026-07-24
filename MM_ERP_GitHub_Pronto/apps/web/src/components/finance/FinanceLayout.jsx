@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, WalletCards, Calculator, PackageSearch, Scale, UserRound, Globe2, Menu, X } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  WalletCards,
+  Calculator,
+  PackageSearch,
+  Scale,
+  UserRound,
+  Globe2,
+  LogOut,
+  Menu,
+  X,
+} from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext.jsx';
 import './finance.css';
 
 const mainItems = [
@@ -14,6 +26,8 @@ const mainItems = [
 
 function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
   const [menuAberto, setMenuAberto] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const pessoal = theme === 'marcos';
   const financeSections = [
     ['dashboard', 'Visão geral'],
@@ -23,9 +37,24 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
     ['relatorios', 'Relatórios'],
   ];
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const displayName = pessoal ? 'Marcos Santos' : (user?.name || 'MM Energia Solar');
+  const displayRole = pessoal ? 'Conta pessoal' : (user?.role === 'admin' ? 'Administrador' : 'Usuário');
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
   return (
     <div className={`finance-shell ${pessoal ? 'theme-marcos' : 'theme-empresa'}`}>
-      <button className="finance-mobile-toggle" onClick={() => setMenuAberto(v => !v)} aria-label="Abrir menu">
+      <button className="finance-mobile-toggle" onClick={() => setMenuAberto((v) => !v)} aria-label="Abrir menu">
         {menuAberto ? <X size={22} /> : <Menu size={22} />}
       </button>
 
@@ -54,8 +83,15 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
           </nav>
         )}
 
-        <nav className="finance-account-nav"><a href="/"><Globe2 size={17} /> <span>Voltar ao site</span></a></nav>
-        <div className="finance-user"><div className="finance-avatar">{pessoal ? 'MS' : 'MM'}</div><div><strong>{pessoal ? 'Marcos Santos' : 'MM Energia Solar'}</strong><span>{pessoal ? 'Conta pessoal' : 'Administrador'}</span></div></div>
+        <nav className="finance-account-nav">
+          <a href="/"><Globe2 size={17} /> <span>Voltar ao site</span></a>
+          <button type="button" onClick={handleLogout}><LogOut size={17} /> <span>Sair do sistema</span></button>
+        </nav>
+
+        <div className="finance-user">
+          <div className="finance-avatar">{initials || 'MM'}</div>
+          <div><strong>{displayName}</strong><span>{displayRole}</span></div>
+        </div>
       </aside>
 
       {menuAberto && <button className="finance-overlay" aria-label="Fechar menu" onClick={() => setMenuAberto(false)} />}
