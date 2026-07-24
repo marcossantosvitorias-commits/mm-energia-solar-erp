@@ -184,7 +184,16 @@ export function importarContasCSV(conteudo) {
 
 export function mesclarSemDuplicar(atuais, novos) {
   const ids = new Set(atuais.map((item) => item.id));
-  const ineditos = novos.filter((item) => !ids.has(item.id));
+  const assinatura = (item) => [
+    item.data || item.vencimento || '',
+    item.tipo || '',
+    Number(item.valor || 0).toFixed(2),
+    String(item.descricao || '').trim().toLowerCase(),
+  ].join('|');
+  const assinaturas = new Set(atuais.map(assinatura));
+  const ineditos = novos.filter(
+    (item) => !ids.has(item.id) && !assinaturas.has(assinatura(item))
+  );
 
   return {
     dados: [...ineditos, ...atuais],
