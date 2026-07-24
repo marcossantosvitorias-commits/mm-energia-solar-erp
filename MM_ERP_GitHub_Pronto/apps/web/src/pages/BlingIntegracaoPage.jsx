@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { CheckCircle2, FileCheck2, RefreshCw, UploadCloud } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, FileCheck2, Link2, RefreshCw, Send, Unplug, UploadCloud } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import {
   aplicarSaldos,
   BLING_STORAGE_KEYS,
@@ -19,11 +20,75 @@ function BlingIntegracaoPage() {
   const [arquivos, setArquivos] = useState([]);
   const [mensagem, setMensagem] = useState('');
   const [importando, setImportando] = useState(false);
+  const [status, setStatus] = useState({ loading: true, connected: false, successfulSyncs: 0, connection: null });
+  const [sincronizando, setSincronizando] = useState(false);
 
   const porTipo = useMemo(
     () => Object.fromEntries(arquivos.map((arquivo) => [arquivo.tipo, arquivo])),
     [arquivos],
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('bling') === 'connected') setMensagem('Bling conectado com sucesso.');
+    if (params.get('bling') === 'error') setMensagem(`Não foi possível conectar: ${params.get('message') || 'erro desconhecido'}`);
+    carregarStatus();
+  }, []);
+
+  async function invocarBling(action) {
+    if (!isSupabaseConfigured) throw new Error('Supabase ainda não está configurado na publicação do ERP.');
+    const { data, error } = await supabase.functions.invoke('bling-api', { body: { action } });
+    if (error) throw new Error(error.message || 'Falha ao acessar a integração com o Bling.');
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+
+  async function carregarStatus() {
+    try {
+      const data = await invocarBling('status');
+      setStatus({ loading: false, ...data });
+    } catch (error) {
+      setStatus({ loading: false, connected: false, successfulSyncs: 0, connection: null });
+      setMensagem(error?.message || 'Não foi possível verificar a conexão com o Bling.');
+    }
+  }
+
+  async function conectarBling() {
+    try {
+      setMensagem('Preparando autorização segura...');
+      const { data, error } = await supabase.functions.invoke('bling-oauth-start');
+      if (error || !data?.url) throw new Error(error?.message || data?.error || 'Não foi possível iniciar a autorização.');
+      window.location.assign(data.url);
+    } catch (error) {
+      setMensagem(error?.message || 'Não foi possível conectar ao Bling.');
+    }
+  }
+
+  async function desconectarBling() {
+    if (!window.confirm('Desconectar o Bling? Os dados já enviados permanecerão no Bling e no ERP.')) return;
+    try {
+      await invocarBling('disconnect');
+      setStatus({ loading: false, connected: false, successfulSyncs: 0, connection: null });
+      setMensagem('Bling desconectado. Nenhum dado foi apagado.');
+    } catch (error) {
+      setMensagem(error?.message || 'Não foi possível desconectar.');
+    }
+  }
+
+  async function sincronizarClientes() {
+    if (!window.confirm('Enviar ao Bling os clientes que ainda não possuem ID de sincronização? Os clientes já enviados serão ignorados.')) return;
+    setSincronizando(true);
+    setMensagem('Sincronizando clientes com o Bling...');
+    try {
+      const resultado = await invocarBling('sync-clients');
+      setMensagem(`${resultado.success} clientes enviados. ${resultado.failed} falharam. ${resultado.total} analisados.`);
+      await carregarStatus();
+    } catch (error) {
+      setMensagem(error?.message || 'Não foi possível sincronizar os clientes.');
+    } finally {
+      setSincronizando(false);
+    }
+  }
 
   async function selecionarArquivos(event) {
     const selecionados = Array.from(event.target.files || []);
@@ -105,8 +170,39 @@ function BlingIntegracaoPage() {
   return (
     <FinanceLayout
       title="Integração com o Bling"
-      subtitle="Importe os relatórios CSV do Bling com validação e controle de duplicidades."
+      subtitle="Conecte a API oficial para enviar dados do MM ERP ao Bling sem apagar os cadastros existentes."
     >
+      <section className="finance-panel">
+        <div className="finance-panel-header">
+          <div>
+            <h2>Conexão oficial com a API</h2>
+            <p>Os tokens ficam somente nas Edge Functions do Supabase e nunca são expostos no navegador ou no GitHub.</p>
+          </div>
+          <span className={status.connected ? 'finance-success' : 'finance-warning'}>
+            {status.loading ? 'Verificando...' : status.connected ? 'Conectado' : 'Desconectado'}
+          </span>
+        </div>
+
+        <div className="bling-actions">
+          {!status.connected ? (
+            <button type="button" className="finance-button" onClick={conectarBling}>
+              <Link2 size={16} /> Conectar ao Bling
+            </button>
+          ) : (
+            <>
+              <button type="button" className="finance-button" onClick={sincronizarClientes} disabled={sincronizando}>
+                <Send size={16} /> {sincronizando ? 'Enviando clientes...' : 'Enviar clientes ao Bling'}
+              </button>
+              <button type="button" className="finance-secondary-button" onClick={desconectarBling}>
+                <Unplug size={16} /> Desconectar
+              </button>
+            </>
+          )}
+        </div>
+        {status.connected ? <p className="crm-message">Sincronizações concluídas: {status.successfulSyncs || 0}. Clientes que já possuem ID do Bling não são reenviados.</p> : null}
+        {mensagem ? <p className="crm-message">{mensagem}</p> : null}
+      </section>
+
       <section className="bling-status-grid">
         {tiposEsperados.map((tipo) => {
           const arquivo = porTipo[tipo];
@@ -125,8 +221,8 @@ function BlingIntegracaoPage() {
       <section className="finance-panel bling-import-panel">
         <div className="bling-drop">
           <UploadCloud size={38} />
-          <h2>Selecionar arquivos do Bling</h2>
-          <p>Você pode escolher os oito CSVs ao mesmo tempo. O ERP reconhece cada relatório automaticamente.</p>
+          <h2>Importação manual de segurança</h2>
+          <p>O recurso de CSV continua disponível durante a implantação da API e não apaga nenhuma informação.</p>
           <label className="finance-button finance-import-button">
             Escolher arquivos
             <input type="file" accept=".csv,text/csv" multiple onChange={selecionarArquivos} />
@@ -142,35 +238,15 @@ function BlingIntegracaoPage() {
         )}
 
         <div className="bling-actions">
-          <button type="button" className="finance-secondary-button" onClick={limparSelecao}>
-            Limpar seleção
-          </button>
+          <button type="button" className="finance-secondary-button" onClick={limparSelecao}>Limpar seleção</button>
           <button type="button" className="finance-button" onClick={importar} disabled={importando || !arquivos.length}>
             <RefreshCw size={16} /> {importando ? 'Importando...' : 'Confirmar importação'}
           </button>
         </div>
-        {mensagem ? <p className="crm-message">{mensagem}</p> : null}
-      </section>
-
-      <section className="finance-panel">
-        <div className="finance-panel-header">
-          <div>
-            <h2>Como os dados serão distribuídos</h2>
-            <p>O ID original do Bling é preservado para que a próxima importação atualize o registro existente.</p>
-          </div>
-        </div>
-        <div className="bling-map">
-          <div><strong>Contatos</strong><span>Base de contatos importados do Bling</span></div>
-          <div><strong>Produtos + estoque</strong><span>Catálogo de equipamentos e quantidades</span></div>
-          <div><strong>Caixa e bancos</strong><span>Fluxo de caixa do Financeiro</span></div>
-          <div><strong>Contas a pagar</strong><span>Fornecedores, vencimentos e baixas</span></div>
-          <div><strong>Contas a receber</strong><span>Clientes, vencimentos e recebimentos</span></div>
-          <div><strong>Compras e vendas</strong><span>Histórico comercial preservado para novos módulos</span></div>
-        </div>
       </section>
 
       <aside className="bling-security-note">
-        Os CSVs são processados dentro do seu navegador. Nenhum dado financeiro ou de cliente é incluído no código do site ou enviado para o GitHub.
+        A sincronização é inicialmente manual e não destrutiva. Nenhum cliente local é apagado; o ERP apenas registra o ID devolvido pelo Bling para impedir duplicidades.
       </aside>
     </FinanceLayout>
   );
