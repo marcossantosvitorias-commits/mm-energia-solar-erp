@@ -1,0 +1,20 @@
+.finance-account-nav a,
+.finance-account-nav button {
+  width: 100%;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.84);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.finance-account-nav a:hover,
+.finance-account-nav button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
