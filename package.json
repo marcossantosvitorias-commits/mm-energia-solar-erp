@@ -1,0 +1,15 @@
+{
+  "name": "mm-energia-solar-erp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix MM_ERP_GitHub_Pronto/apps/web && npm run build --prefix MM_ERP_GitHub_Pronto/apps/web && mkdir -p dist && cp -R MM_ERP_GitHub_Pronto/apps/web/dist/. dist/",
+    "start": "serve -s dist -l ${PORT:-3000}"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
