@@ -39,12 +39,14 @@ function receivablePayload(item) {
   return {
     external_id: String(item.externalId || item.id || '').trim() || null,
     description: item.description || item.descricao || '',
-    client_id: item.client || null,
+    client_name: item.client || item.cliente || null,
+    category: item.category || item.categoria || 'Venda de sistema solar',
     amount: Number(item.amount ?? item.valor ?? 0),
     due_date: item.dueDate || item.vencimento,
     received_date: item.receivedDate || item.dataRecebimento || null,
     status: item.status || 'pendente',
     payment_method: item.paymentMethod || item.formaPagamento || null,
+    origin: item.source || item.origem || 'Cadastro manual',
     notes: item.notes || item.observacoes || null,
   };
 }
