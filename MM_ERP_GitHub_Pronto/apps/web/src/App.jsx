@@ -28,6 +28,7 @@ import TributosPage from './pages/TributosPage.jsx';
 import ClientesPage from './pages/ClientesPage.jsx';
 import BelCredSimuladorPage from './pages/BelCredSimuladorPage.jsx';
 import CotacoesBelenusPage from './pages/CotacoesBelenusPage.jsx';
+import MigracaoDadosPage from './pages/MigracaoDadosPage.jsx';
 
 const privateRoute = (element) => (
   <ProtectedRoute>{element}</ProtectedRoute>
@@ -58,6 +59,7 @@ function App() {
           <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />)} />
           <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />)} />
           <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />)} />
+          <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />)} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
