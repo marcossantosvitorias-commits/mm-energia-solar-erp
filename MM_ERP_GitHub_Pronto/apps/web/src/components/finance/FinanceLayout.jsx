@@ -10,6 +10,7 @@ import {
   Scale,
   UserRound,
   UsersRound,
+  DatabaseBackup,
   Globe2,
   LogOut,
   Menu,
@@ -29,6 +30,7 @@ const mainItems = [
   { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet },
   { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch },
   { to: '/app/tributos', label: 'Tributação', icon: Scale },
+  { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup },
   { to: '/app/marcos', label: 'Marcos', icon: UserRound },
 ];
 
