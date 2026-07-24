@@ -8,6 +8,8 @@ import {
 
 import ScrollToTop from './components/ScrollToTop';
 import MetaPixel from './components/MetaPixel.jsx';
+import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
+import { AuthProvider } from './contexts/AuthContext.jsx';
 
 import HomePage from './pages/HomePage.jsx';
 import ContactPage from './pages/ContactPage.jsx';
@@ -15,6 +17,7 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx';
 import ObrasRealizadasPage from './pages/ObrasRealizadasPage.jsx';
 import CalculadoraPage from './pages/CalculadoraPage.jsx';
 import OfertasPage from './pages/OfertasPage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 
 import FinanceiroPage from './pages/FinanceiroPage.jsx';
 import MarcosFinancePage from './pages/MarcosFinancePage.jsx';
@@ -23,30 +26,37 @@ import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
 import EquipamentosPage from './pages/EquipamentosPage.jsx';
 import TributosPage from './pages/TributosPage.jsx';
 
+const privateRoute = (element) => (
+  <ProtectedRoute>{element}</ProtectedRoute>
+);
+
 function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <MetaPixel />
+    <AuthProvider>
+      <Router>
+        <ScrollToTop />
+        <MetaPixel />
 
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/obras" element={<ObrasRealizadasPage />} />
-        <Route path="/calculadora" element={<CalculadoraPage />} />
-        <Route path="/contato" element={<ContactPage />} />
-        <Route path="/privacidade" element={<PrivacyPolicyPage />} />
-        <Route path="/ofertas" element={<OfertasPage />} />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/obras" element={<ObrasRealizadasPage />} />
+          <Route path="/calculadora" element={<CalculadoraPage />} />
+          <Route path="/contato" element={<ContactPage />} />
+          <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+          <Route path="/ofertas" element={<OfertasPage />} />
+          <Route path="/login" element={<LoginPage />} />
 
-        <Route path="/app/dashboard" element={<ErpDashboardPage />} />
-        <Route path="/app" element={<FinanceiroPage />} />
-        <Route path="/app/precos" element={<PrecificacaoKitsPage />} />
-        <Route path="/app/equipamentos" element={<EquipamentosPage />} />
-        <Route path="/app/tributos" element={<TributosPage />} />
-        <Route path="/app/marcos" element={<MarcosFinancePage />} />
+          <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
+          <Route path="/app" element={privateRoute(<FinanceiroPage />)} />
+          <Route path="/app/precos" element={privateRoute(<PrecificacaoKitsPage />)} />
+          <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />)} />
+          <Route path="/app/tributos" element={privateRoute(<TributosPage />)} />
+          <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />)} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
