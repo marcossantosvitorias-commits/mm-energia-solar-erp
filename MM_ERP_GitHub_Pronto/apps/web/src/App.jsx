@@ -26,6 +26,7 @@ import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
 import EquipamentosPage from './pages/EquipamentosPage.jsx';
 import TributosPage from './pages/TributosPage.jsx';
 import ClientesPage from './pages/ClientesPage.jsx';
+import BelCredSimuladorPage from './pages/BelCredSimuladorPage.jsx';
 
 const privateRoute = (element) => (
   <ProtectedRoute>{element}</ProtectedRoute>
@@ -54,6 +55,7 @@ function App() {
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />)} />
           <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />)} />
+          <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />)} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
