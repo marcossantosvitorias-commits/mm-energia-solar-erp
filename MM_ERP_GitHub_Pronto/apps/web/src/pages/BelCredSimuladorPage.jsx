@@ -6,7 +6,7 @@ import './BelCredSimuladorPage.css';
 const BASE_REFERENCIA = 16383.49;
 
 const planos = [
-  { parcelas: 24, taxa: 1.91, parcelaBase: 978.29 },
+  { parcelas: 24, taxa: 1.91, parcelaBase: 978.28 },
   { parcelas: 30, taxa: 1.97, parcelaBase: 833.22 },
   { parcelas: 36, taxa: 2.02, parcelaBase: 739.04 },
   { parcelas: 48, taxa: 2.06, parcelaBase: 621.09 },
