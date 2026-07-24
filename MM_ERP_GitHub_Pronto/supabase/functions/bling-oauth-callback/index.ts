@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
-  const erpUrl = Deno.env.get('ERP_APP_URL') || 'https://mmenergiasolar.com.br/app/bling';
+  const erpUrl = Deno.env.get('ERP_APP_URL') || 'https://sandybrown-emu-939002.hostingersite.com/bling';
 
   try {
     const url = new URL(req.url);
