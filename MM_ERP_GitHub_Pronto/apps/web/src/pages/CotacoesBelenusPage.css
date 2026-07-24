@@ -1,0 +1,269 @@
+.belenus-quotes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.belenus-quotes button {
+  padding: 18px;
+  border: 1px solid #e1e6ee;
+  border-radius: 15px;
+  background: #fff;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(20, 35, 55, 0.05);
+  cursor: pointer;
+}
+
+.belenus-quotes button.active {
+  border-color: #f5c400;
+  background: #fff9dc;
+  box-shadow: 0 0 0 2px rgba(245, 196, 0, 0.22);
+}
+
+.belenus-quote-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.belenus-quote-top span {
+  color: #071d3b;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.belenus-quotes small,
+.belenus-quotes strong,
+.belenus-quotes b {
+  display: block;
+}
+
+.belenus-quotes small {
+  color: #7c8798;
+  font-size: 11px;
+}
+
+.belenus-quotes strong {
+  margin: 16px 0 4px;
+  color: #172033;
+  font-size: 22px;
+}
+
+.belenus-quotes b {
+  margin-top: 13px;
+  color: #947500;
+  font-size: 10px;
+}
+
+.belenus-subtitle {
+  margin: 5px 0 0;
+  color: #7c8798;
+  font-size: 12px;
+}
+
+.belenus-power {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  color: #6d5500;
+  background: #fff3b5;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.belenus-kit-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 15px;
+  border-radius: 12px;
+  color: #fff;
+  background: #071d3b;
+}
+
+.belenus-kit-title strong,
+.belenus-kit-title span {
+  display: block;
+}
+
+.belenus-kit-title span {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+}
+
+.belenus-cost-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding: 16px;
+  border-radius: 12px;
+  color: #071d3b;
+  background: #fff6c9;
+  font-weight: 900;
+}
+
+.belenus-cost-total strong {
+  font-size: 22px;
+}
+
+.belenus-validity {
+  margin: 12px 0 0;
+  color: #7c8798;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.belenus-rates {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.belenus-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.belenus-summary article {
+  padding: 20px;
+  border: 1px solid #e1e6ee;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(20, 35, 55, 0.05);
+}
+
+.belenus-summary span,
+.belenus-summary strong {
+  display: block;
+}
+
+.belenus-summary span {
+  color: #7c8798;
+  font-size: 12px;
+}
+
+.belenus-summary strong {
+  margin-top: 13px;
+  color: #071d3b;
+  font-size: 23px;
+}
+
+.belenus-summary .profit strong {
+  color: #14834f;
+}
+
+.belenus-final-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 28px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #071d3b, #0d3562);
+  box-shadow: 0 14px 35px rgba(7, 29, 59, 0.2);
+}
+
+.belenus-final-price span,
+.belenus-final-price strong,
+.belenus-final-price small {
+  display: block;
+}
+
+.belenus-final-price > div > strong {
+  margin: 7px 0;
+  font-size: clamp(30px, 4vw, 46px);
+}
+
+.belenus-final-price small {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 11px;
+}
+
+.belenus-final-actions {
+  min-width: 260px;
+}
+
+.belenus-final-actions > div {
+  margin-bottom: 12px;
+  text-align: right;
+}
+
+.belenus-final-actions > div strong {
+  margin-top: 3px;
+  color: #f5c400;
+  font-size: 21px;
+}
+
+.belenus-final-actions button,
+.belenus-final-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.belenus-final-actions button {
+  color: #071d3b;
+  background: #f5c400;
+}
+
+.belenus-final-actions a {
+  margin-left: 7px;
+  color: #071d3b;
+  background: #fff;
+}
+
+@media (max-width: 1100px) {
+  .belenus-quotes,
+  .belenus-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .belenus-rates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .belenus-quotes,
+  .belenus-summary,
+  .belenus-rates {
+    grid-template-columns: 1fr;
+  }
+
+  .belenus-final-price {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .belenus-final-actions {
+    min-width: 0;
+  }
+
+  .belenus-final-actions > div {
+    text-align: left;
+  }
+
+  .belenus-final-actions button,
+  .belenus-final-actions a {
+    width: 100%;
+    margin: 7px 0 0;
+  }
+}
