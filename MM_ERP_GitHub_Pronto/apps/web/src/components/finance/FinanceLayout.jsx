@@ -11,6 +11,7 @@ import {
   UserRound,
   UsersRound,
   DatabaseBackup,
+  PlugZap,
   Globe2,
   LogOut,
   Menu,
@@ -31,6 +32,7 @@ const mainItems = [
   { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch },
   { to: '/app/tributos', label: 'Tributação', icon: Scale },
   { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup },
+  { to: '/app/bling', label: 'Integração Bling', icon: PlugZap },
   { to: '/app/marcos', label: 'Marcos', icon: UserRound },
 ];
 
