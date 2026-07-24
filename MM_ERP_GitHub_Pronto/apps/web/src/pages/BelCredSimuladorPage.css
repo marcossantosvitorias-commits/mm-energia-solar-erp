@@ -1,0 +1,205 @@
+.belcred-hero {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.7fr) minmax(320px, 1.3fr);
+  gap: 22px;
+  margin-bottom: 22px;
+}
+
+.belcred-logo,
+.belcred-value {
+  min-height: 190px;
+  padding: 26px;
+  border: 1px solid #e1e6ee;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(20, 35, 55, 0.06);
+}
+
+.belcred-logo {
+  display: grid;
+  place-items: center;
+  background: #111;
+}
+
+.belcred-logo img {
+  width: min(100%, 230px);
+  height: auto;
+  object-fit: contain;
+}
+
+.belcred-value {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.belcred-value label {
+  margin-bottom: 10px;
+  color: #414b5d;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.belcred-value small {
+  margin-top: 9px;
+  color: #7c8798;
+}
+
+.belcred-money-input {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 2px solid #e4bf00;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.belcred-money-input span {
+  padding-left: 17px;
+  color: #736000;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.belcred-money-input input {
+  width: 100%;
+  min-width: 0;
+  padding: 15px 17px 15px 9px;
+  border: 0;
+  outline: 0;
+  color: #111;
+  background: transparent;
+  font-size: clamp(25px, 4vw, 38px);
+  font-weight: 900;
+}
+
+.belcred-results .finance-panel-header p {
+  margin: 5px 0 0;
+  color: #7c8798;
+  font-size: 13px;
+}
+
+.belcred-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 15px;
+  border: 0;
+  border-radius: 10px;
+  color: #111;
+  background: #f5c400;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.belcred-copy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.belcred-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.belcred-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid #e3e6ea;
+  border-radius: 13px;
+  background: #fff;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.belcred-option:hover {
+  transform: translateY(-2px);
+  border-color: #e4bf00;
+}
+
+.belcred-term span,
+.belcred-term small,
+.belcred-installment small,
+.belcred-installment strong,
+.belcred-installment span {
+  display: block;
+}
+
+.belcred-term span {
+  color: #111;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.belcred-term small {
+  margin-top: 4px;
+  color: #766300;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.belcred-installment {
+  text-align: right;
+}
+
+.belcred-installment small,
+.belcred-installment span {
+  color: #7c8798;
+  font-size: 10px;
+}
+
+.belcred-installment strong {
+  margin: 4px 0;
+  color: #111;
+  font-size: 22px;
+}
+
+.belcred-empty {
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  color: #7c8798;
+}
+
+.belcred-empty p {
+  margin: 8px 0 0;
+}
+
+.belcred-note {
+  padding: 15px 17px;
+  border: 1px solid #ead274;
+  border-radius: 12px;
+  color: #685400;
+  background: #fff9dc;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .belcred-hero,
+  .belcred-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .belcred-logo {
+    min-height: 135px;
+  }
+}
+
+@media (max-width: 520px) {
+  .belcred-option {
+    padding: 15px;
+  }
+
+  .belcred-installment strong {
+    font-size: 19px;
+  }
+
+  .belcred-copy {
+    width: 100%;
+    justify-content: center;
+  }
+}
