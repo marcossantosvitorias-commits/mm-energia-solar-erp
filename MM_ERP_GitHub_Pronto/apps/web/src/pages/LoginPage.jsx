@@ -122,8 +122,8 @@ export default function LoginPage() {
 
             <p className="mt-6 text-xs leading-relaxed text-slate-500">
               {isDemoMode
-                ? 'Modo de desenvolvimento ativo. Configure VITE_POCKETBASE_URL para usar autenticação real.'
-                : 'Acesso protegido por autenticação PocketBase.'}
+                ? 'Acesso temporário ativo. O ERP abre automaticamente enquanto o Supabase não estiver configurado.'
+                : 'Acesso protegido por autenticação Supabase.'}
             </p>
           </div>
         </section>
