@@ -1,0 +1,18 @@
+{$POCKETBASE_DOMAIN} {
+  encode zstd gzip
+
+  request_body {
+    max_size 25MB
+  }
+
+  reverse_proxy pocketbase:8090 {
+    transport http {
+      read_timeout 360s
+    }
+
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+}
