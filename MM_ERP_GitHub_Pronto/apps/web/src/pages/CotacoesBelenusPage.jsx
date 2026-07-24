@@ -73,7 +73,8 @@ function CotacoesBelenusPage() {
   const [form, setForm] = useState({
     materialEletrico: 350,
     maoDeObra: 700,
-    engenharia: 250,
+    mensalidadeTreviso: 1000,
+    instalacoesMes: 4,
     trt: 68,
     combustivel: 100,
     outros: 0,
@@ -91,10 +92,14 @@ function CotacoesBelenusPage() {
   }
 
   const resultado = useMemo(() => {
+    const rateioEngenharia =
+      numero(form.mensalidadeTreviso) /
+      Math.max(1, numero(form.instalacoesMes));
+
     const adicionais =
       numero(form.materialEletrico) +
       numero(form.maoDeObra) +
-      numero(form.engenharia) +
+      rateioEngenharia +
       numero(form.trt) +
       numero(form.combustivel) +
       numero(form.outros);
@@ -115,6 +120,7 @@ function CotacoesBelenusPage() {
 
     return {
       adicionais,
+      rateioEngenharia,
       custoTotal,
       precoVenda,
       imposto,
@@ -224,9 +230,17 @@ function CotacoesBelenusPage() {
               <input type="number" step="0.01" name="maoDeObra" value={form.maoDeObra} onChange={atualizar} />
             </label>
             <label className="finance-field">
-              <span>Engenharia</span>
-              <input type="number" step="0.01" name="engenharia" value={form.engenharia} onChange={atualizar} />
+              <span>Mensalidade Treviso</span>
+              <input type="number" step="0.01" name="mensalidadeTreviso" value={form.mensalidadeTreviso} onChange={atualizar} />
             </label>
+            <label className="finance-field">
+              <span>Instalações previstas no mês</span>
+              <input type="number" min="1" step="1" name="instalacoesMes" value={form.instalacoesMes} onChange={atualizar} />
+            </label>
+            <div className="belenus-engineering-share">
+              <span>Engenharia rateada neste projeto</span>
+              <strong>{moeda.format(resultado.rateioEngenharia)}</strong>
+            </div>
             <label className="finance-field">
               <span>TRT</span>
               <input type="number" step="0.01" name="trt" value={form.trt} onChange={atualizar} />
