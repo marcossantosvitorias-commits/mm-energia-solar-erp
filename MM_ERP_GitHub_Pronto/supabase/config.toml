@@ -1,0 +1,10 @@
+project_id = "omrxpnxoakwanlskzaax"
+
+[functions.bling-oauth-start]
+verify_jwt = true
+
+[functions.bling-oauth-callback]
+verify_jwt = false
+
+[functions.bling-api]
+verify_jwt = true
