@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import './finance.css';
+import './auth-layout.css';
 
 const mainItems = [
   { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
