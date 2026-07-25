@@ -1,6 +1,6 @@
 {
   "name": "mm-energia-solar-erp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "build": "npm install --prefix MM_ERP_GitHub_Pronto/apps/web && npm run build --prefix MM_ERP_GitHub_Pronto/apps/web && mkdir -p dist && cp -R MM_ERP_GitHub_Pronto/apps/web/dist/. dist/",
