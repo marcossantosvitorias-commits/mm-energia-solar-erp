@@ -6,6 +6,19 @@ import './CotacoesBelenusPage.css';
 
 const cotacoes = [
   {
+    id: 'WEB-006414070',
+    placas: 4,
+    potencia: 2.48,
+    modulo: 'TCL Solar bifacial N-Type 620 W',
+    inversores: 1,
+    inversor: 'Microinversor Deye 2,25 kW 220 V',
+    produtos: 3619.53,
+    frete: 500,
+    total: 4119.53,
+    estrutura: 'Telha colonial - alumínio Belenergy com ajuste vertical',
+    emissao: '25/07/2026',
+  },
+  {
     id: 'WEB-006408977',
     placas: 6,
     potencia: 3.72,
