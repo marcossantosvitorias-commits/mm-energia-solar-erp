@@ -14,7 +14,10 @@ function ErpDashboardPage() {
     const saidas = movimentos.filter(i => i.tipo === 'saida').reduce((s, i) => s + Number(i.valor || 0), 0);
     const aPagar = pagar.filter(i => i.status === 'pendente').reduce((s, i) => s + Number(i.valor || 0), 0);
     const aReceber = receber.filter(i => i.status === 'pendente').reduce((s, i) => s + Number(i.valor || 0), 0);
-    return { saldo: entradas - saidas, aPagar, aReceber, projetado: entradas - saidas + aReceber - aPagar, equipamentos: equipamentos.length };
+    const hoje = new Date().toISOString().slice(0, 10);
+    const vencendoHoje = pagar.filter(i => i.status === 'pendente' && String(i.vencimento).slice(0, 10) === hoje);
+    const totalVencendoHoje = vencendoHoje.reduce((s, i) => s + Number(i.valor || 0), 0);
+    return { vencendoHoje, totalVencendoHoje, saldo: entradas - saidas, aPagar, aReceber, projetado: entradas - saidas + aReceber - aPagar, equipamentos: equipamentos.length };
   }, []);
 
   const atalhos = [
@@ -25,6 +28,17 @@ function ErpDashboardPage() {
   ];
 
   return <FinanceLayout title="Dashboard do MM ERP" subtitle="Visão rápida da empresa e acesso aos principais cálculos.">
+    {dados.vencendoHoje.length > 0 && (
+      <section className="finance-panel tax-warning">
+        <h2>Boletos vencendo hoje</h2>
+        <p>
+          Você tem <strong>{dados.vencendoHoje.length} boleto(s)</strong> vencendo hoje,
+          no total de <strong>{formatarMoeda(dados.totalVencendoHoje)}</strong>.
+        </p>
+        <Link className="finance-button inline-button" to="/app">Ver contas a pagar</Link>
+      </section>
+    )}
+
     <section className="finance-grid">
       <StatCard label="Saldo atual" value={formatarMoeda(dados.saldo)} helper="Entradas menos saídas" tone="primary" />
       <StatCard label="A receber" value={formatarMoeda(dados.aReceber)} helper="Receitas pendentes" tone="positive" />
