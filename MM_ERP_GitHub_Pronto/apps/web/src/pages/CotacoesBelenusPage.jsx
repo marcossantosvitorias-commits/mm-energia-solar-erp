@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Copy, FileText, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
@@ -66,11 +66,9 @@ const moeda = new Intl.NumberFormat('pt-BR', {
 
 const numero = (valor) => Number(valor || 0);
 const porcentagem = (valor) => numero(valor) / 100;
+const STORAGE_KEY = 'mm-erp-cotacoes-belenus-config-v1';
 
-function CotacoesBelenusPage() {
-  const [cotacaoId, setCotacaoId] = useState(cotacoes[0].id);
-  const [copiado, setCopiado] = useState(false);
-  const [form, setForm] = useState({
+const FORM_PADRAO = {
     materialEletrico: 350,
     maoDeObra: 700,
     mensalidadeTreviso: 1000,
@@ -82,7 +80,29 @@ function CotacoesBelenusPage() {
     comissao: 0,
     margem: 25,
     desconto: 3,
-  });
+};
+
+function carregarConfiguracao() {
+  try {
+    const salvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    return {
+      cotacaoId: salvo?.cotacaoId || cotacoes[0].id,
+      form: { ...FORM_PADRAO, ...(salvo?.form || {}) },
+    };
+  } catch {
+    return { cotacaoId: cotacoes[0].id, form: FORM_PADRAO };
+  }
+}
+
+function CotacoesBelenusPage() {
+  const [configInicial] = useState(carregarConfiguracao);
+  const [cotacaoId, setCotacaoId] = useState(configInicial.cotacaoId);
+  const [copiado, setCopiado] = useState(false);
+  const [form, setForm] = useState(configInicial.form);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cotacaoId, form }));
+  }, [cotacaoId, form]);
 
   const cotacao = cotacoes.find((item) => item.id === cotacaoId) || cotacoes[0];
 
