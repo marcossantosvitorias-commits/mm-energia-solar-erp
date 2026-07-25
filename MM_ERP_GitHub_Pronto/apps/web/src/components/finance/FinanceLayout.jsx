@@ -128,7 +128,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
               <Download size={17} /> <span>Instalar MM ERP</span>
             </button>
           )}
-          <a href="/"><Globe2 size={17} /> <span>Voltar ao site</span></a>
+          <a href="https://mmenergiasolar.com.br"><Globe2 size={17} /> <span>Voltar ao site comercial</span></a>
           <button type="button" onClick={handleLogout}><LogOut size={17} /> <span>Sair do sistema</span></button>
         </nav>
 
