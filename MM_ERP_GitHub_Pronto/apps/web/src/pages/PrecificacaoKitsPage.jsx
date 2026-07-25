@@ -336,7 +336,7 @@ function PrecificacaoKitsPage() {
       </section>
 
       <ProposalGenerator
-        key={quantidadePlacas}
+        key={`${quantidadePlacas}-${resultado.precoVenda.toFixed(2)}`}
         quantidadePlacas={quantidadePlacas}
         precoRecomendado={resultado.precoVenda}
       />
