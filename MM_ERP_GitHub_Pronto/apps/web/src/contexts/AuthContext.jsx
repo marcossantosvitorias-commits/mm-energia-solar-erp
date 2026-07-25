@@ -2,15 +2,37 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const AuthContext = createContext(null);
+const TEMPORARY_SESSION_KEY = 'mm-erp-temporary-session-v2';
+const TEMPORARY_ADMIN_EMAIL = 'marcossantosvitorias@gmail.com';
+const TEMPORARY_PASSWORD_HASH = '5d8defe14ebca58ce9fb89114defb2302452b09faead6998e09a26e7e784b5f9';
 
 const TEMPORARY_ADMIN = {
   id: 'temporary-admin-access',
   name: 'Marcos Santos',
-  email: 'marcossantosvitorias@gmail.com',
+  email: TEMPORARY_ADMIN_EMAIL,
   role: 'admin',
   active: true,
   temporaryAccess: true,
 };
+
+function readTemporarySession() {
+  try {
+    const session = JSON.parse(localStorage.getItem(TEMPORARY_SESSION_KEY) || 'null');
+    return session?.authenticated === true && session?.email === TEMPORARY_ADMIN_EMAIL
+      ? TEMPORARY_ADMIN
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function sha256(value) {
+  const data = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 async function normalizeUser(authUser) {
   if (!authUser) return null;
@@ -31,14 +53,15 @@ async function normalizeUser(authUser) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => (isSupabaseConfigured ? null : TEMPORARY_ADMIN));
+  const [user, setUser] = useState(() => (
+    isSupabaseConfigured ? null : readTemporarySession()
+  ));
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
     let active = true;
 
     if (!isSupabaseConfigured) {
-      setUser(TEMPORARY_ADMIN);
       setLoading(false);
       return undefined;
     }
@@ -68,14 +91,26 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async ({ email, password }) => {
-    if (!isSupabaseConfigured) {
-      setUser(TEMPORARY_ADMIN);
-      return { ok: true, temporaryAccess: true };
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      return { ok: false, message: 'Informe e-mail e senha.' };
     }
 
-    const normalizedEmail = email?.trim().toLowerCase();
-    if (!normalizedEmail || !password?.trim()) {
-      return { ok: false, message: 'Informe e-mail e senha.' };
+    if (!isSupabaseConfigured) {
+      const passwordHash = await sha256(password);
+      if (
+        normalizedEmail !== TEMPORARY_ADMIN_EMAIL
+        || passwordHash !== TEMPORARY_PASSWORD_HASH
+      ) {
+        return { ok: false, message: 'E-mail ou senha inválidos.' };
+      }
+
+      localStorage.setItem(TEMPORARY_SESSION_KEY, JSON.stringify({
+        authenticated: true,
+        email: TEMPORARY_ADMIN_EMAIL,
+      }));
+      setUser(TEMPORARY_ADMIN);
+      return { ok: true, temporaryAccess: true };
     }
 
     try {
@@ -109,7 +144,8 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    setUser(TEMPORARY_ADMIN);
+    localStorage.removeItem(TEMPORARY_SESSION_KEY);
+    setUser(null);
   };
 
   const hasRole = (...roles) => Boolean(user && roles.includes(user.role));
