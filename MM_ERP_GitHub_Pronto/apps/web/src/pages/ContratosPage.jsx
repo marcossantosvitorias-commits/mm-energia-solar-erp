@@ -14,7 +14,7 @@ const contratoOsvaldo = {
   documento: '130.796.368-48',
   endereco: 'R. Sebastião Francisco Arruda, 663 - Vila Operária, Barra Bonita/SP',
   assinatura: '2026-07-20',
-  prazoLimite: '2026-09-18',
+  prazoLimite: '2026-08-18',
   status: 'assinado',
   valorTotal: 12908,
   recebido: 6454,
@@ -26,9 +26,14 @@ const contratoOsvaldo = {
 
 function carregarContratos() {
   const salvos = carregarDados(CHAVE_CONTRATOS, []);
-  return salvos.some((item) => item.id === contratoOsvaldo.id)
-    ? salvos
-    : [contratoOsvaldo, ...salvos];
+  if (!salvos.some((item) => item.id === contratoOsvaldo.id)) {
+    return [contratoOsvaldo, ...salvos];
+  }
+  return salvos.map((item) =>
+    item.id === contratoOsvaldo.id
+      ? { ...item, prazoLimite: contratoOsvaldo.prazoLimite }
+      : item
+  );
 }
 
 export default function ContratosPage() {
@@ -40,22 +45,21 @@ export default function ContratosPage() {
 
     const contas = carregarDados(CHAVE_RECEBER, []);
     const idParcela = 'contrato-osvaldo-cestari-parcela-2';
-    if (!contas.some((item) => item.id === idParcela)) {
-      salvarDados(CHAVE_RECEBER, [
-        {
-          id: idParcela,
-          descricao: 'Saldo do contrato solar - Osvaldo Cestari',
-          cliente: contratoOsvaldo.cliente,
-          categoria: 'Venda de sistema solar',
-          valor: contratoOsvaldo.aReceber,
-          vencimento: contratoOsvaldo.prazoLimite,
-          status: 'pendente',
-          origem: 'Contrato assinado',
-          observacoes: 'Receber no dia da instalação. A data registrada é o prazo contratual máximo.',
-        },
-        ...contas,
-      ]);
-    }
+    const parcela = {
+      id: idParcela,
+      descricao: 'Saldo do contrato solar - Osvaldo Cestari',
+      cliente: contratoOsvaldo.cliente,
+      categoria: 'Venda de sistema solar',
+      valor: contratoOsvaldo.aReceber,
+      vencimento: contratoOsvaldo.prazoLimite,
+      status: 'pendente',
+      origem: 'Contrato assinado',
+      observacoes: 'Receber no dia da instalação. Previsão ajustada para 18/08/2026.',
+    };
+    const atualizadas = contas.some((item) => item.id === idParcela)
+      ? contas.map((item) => item.id === idParcela ? { ...item, vencimento: parcela.vencimento, observacoes: parcela.observacoes } : item)
+      : [parcela, ...contas];
+    salvarDados(CHAVE_RECEBER, atualizadas);
   }, [contratos]);
 
   const filtrados = useMemo(
