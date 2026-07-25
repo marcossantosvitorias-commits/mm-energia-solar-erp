@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import StatCard from '../components/finance/StatCard.jsx';
 import { formatarMoeda } from '../components/finance/storage.js';
+import ProposalGenerator from './ProposalGenerator.jsx';
 
 const presets = [4, 6, 8, 10, 12, 14, 16, 20];
 
@@ -333,6 +334,12 @@ function PrecificacaoKitsPage() {
         <StatCard label="Lucro estimado" value={formatarMoeda(resultado.lucro)} helper={`Margem real de ${resultado.margemReal.toFixed(2)}%`} tone="positive" />
         <StatCard label="Preço com desconto" value={formatarMoeda(resultado.precoComDesconto)} helper={`Desconto máximo de ${form.descontoMaximo}%`} tone="warning" />
       </section>
+
+      <ProposalGenerator
+        key={quantidadePlacas}
+        quantidadePlacas={quantidadePlacas}
+        precoRecomendado={resultado.precoVenda}
+      />
 
       <section className="finance-two-columns">
         <article className="finance-panel">
