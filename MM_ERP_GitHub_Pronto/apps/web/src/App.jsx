@@ -21,7 +21,6 @@ import LoginPage from './pages/LoginPage.jsx';
 
 import FinanceiroPage from './pages/FinanceiroPage.jsx';
 import MarcosFinancePage from './pages/MarcosFinancePage.jsx';
-import PrecificacaoKitsPage from './pages/PrecificacaoKitsPage.jsx';
 import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
 import EquipamentosPage from './pages/EquipamentosPage.jsx';
 import TributosPage from './pages/TributosPage.jsx';
@@ -55,7 +54,7 @@ function App() {
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />)} />
-          <Route path="/app/precos" element={privateRoute(<PrecificacaoKitsPage />)} />
+          <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />)} />
           <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />)} />
