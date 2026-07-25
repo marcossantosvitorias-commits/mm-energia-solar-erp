@@ -737,3 +737,62 @@ textarea {
     margin-top: 1.25rem;
   }
 }
+
+
+.finance-month-tabs {
+  display: flex;
+  gap: .65rem;
+  overflow-x: auto;
+  padding: 1rem 0 .5rem;
+  scrollbar-width: thin;
+}
+
+.finance-month-tabs button {
+  flex: 0 0 auto;
+  border: 1px solid #cfd8e5;
+  border-radius: 999px;
+  background: #fff;
+  color: #344054;
+  padding: .7rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.finance-month-tabs button.active {
+  background: #0b2748;
+  border-color: #0b2748;
+  color: #fff;
+}
+
+.finance-month-selected {
+  margin: 1rem 0;
+  border-radius: 18px;
+  padding: 1.2rem 1.35rem;
+  background: linear-gradient(135deg, #0b2748, #123d6a);
+  color: #fff;
+}
+
+.finance-month-selected div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.finance-month-selected span {
+  font-weight: 700;
+}
+
+.finance-month-selected strong {
+  font-size: 1.65rem;
+}
+
+.finance-month-selected strong.positive { color: #7ce7a7; }
+.finance-month-selected strong.negative { color: #ff9c9c; }
+
+@media (max-width: 720px) {
+  .finance-month-selected div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
