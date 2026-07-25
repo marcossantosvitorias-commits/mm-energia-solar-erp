@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Copy, FileText, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import ProposalGenerator from './ProposalGenerator.jsx';
 import './CotacoesBelenusPage.css';
 
 const cotacoes = [
@@ -107,7 +108,7 @@ function carregarConfiguracao() {
   }
 }
 
-function CotacoesBelenusPage() {
+function CotacoesBelenusPage({ pricingMode = false }) {
   const [configInicial] = useState(carregarConfiguracao);
   const [cotacaoId, setCotacaoId] = useState(configInicial.cotacaoId);
   const [copiado, setCopiado] = useState(false);
@@ -182,8 +183,10 @@ function CotacoesBelenusPage() {
 
   return (
     <FinanceLayout
-      title="Cotações Belenus"
-      subtitle="Escolha um kit e calcule o preço final para o cliente."
+      title={pricingMode ? 'Preço dos kits' : 'Cotações Belenus'}
+      subtitle={pricingMode
+        ? 'Preços calculados a partir das cotações reais da Belenus.'
+        : 'Escolha um kit e calcule o preço final para o cliente.'}
       theme="empresa"
     >
       <section className="belenus-quotes">
@@ -354,6 +357,15 @@ function CotacoesBelenusPage() {
           <Link to="/app/belcred">Simular financiamento</Link>
         </div>
       </section>
+
+      <ProposalGenerator
+        key={`${cotacao.id}-${resultado.precoVenda.toFixed(2)}`}
+        quantidadePlacas={cotacao.placas}
+        precoRecomendado={resultado.precoVenda}
+        modulo={cotacao.modulo}
+        inversor={`${cotacao.inversores}x ${cotacao.inversor}`}
+        potenciaSistema={cotacao.potencia}
+      />
     </FinanceLayout>
   );
 }
