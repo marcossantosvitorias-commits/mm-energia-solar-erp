@@ -25,6 +25,19 @@ const CHAVE_MOVIMENTACOES = 'mm-erp-movimentacoes-v2';
 const CHAVE_PAGAR = 'mm-erp-contas-pagar-v2';
 const CHAVE_RECEBER = 'mm-erp-contas-receber-v2';
 const CHAVE_CARGA_SANTANDER = 'mm-erp-carga-santander-julho-2026-v1';
+const CHAVE_NOTIFICACAO_BOLETOS = 'mm-erp-notificacao-boletos';
+
+function chaveMes(data) {
+  return String(data || '').slice(0, 7) || 'sem-data';
+}
+
+function nomeMes(chave) {
+  if (chave === 'sem-data') return 'Sem vencimento';
+  const [ano, mes] = chave.split('-').map(Number);
+  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
+    .format(new Date(ano, mes - 1, 1))
+    .replace(/^./, (letra) => letra.toUpperCase());
+}
 
 function carregarComCargaInicial(chave, carga, tipo) {
   const atuais = carregarDados(chave, []);
@@ -73,6 +86,9 @@ function FinanceiroPage() {
   );
 
   const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [permissaoNotificacao, setPermissaoNotificacao] = useState(
+    () => (typeof Notification !== 'undefined' ? Notification.permission : 'indisponivel')
+  );
 
   const [formMovimento, setFormMovimento] = useState({
     descricao: '',
@@ -102,6 +118,36 @@ function FinanceiroPage() {
   useEffect(() => salvarDados(CHAVE_MOVIMENTACOES, movimentacoes), [movimentacoes]);
   useEffect(() => salvarDados(CHAVE_PAGAR, contasPagar), [contasPagar]);
   useEffect(() => salvarDados(CHAVE_RECEBER, contasReceber), [contasReceber]);
+
+  const boletosVencendoHoje = useMemo(
+    () => contasPagar.filter(
+      (item) => item.status === 'pendente' && String(item.vencimento).slice(0, 10) === dataHoje()
+    ),
+    [contasPagar]
+  );
+
+  useEffect(() => {
+    if (!boletosVencendoHoje.length || permissaoNotificacao !== 'granted') return;
+    const chaveHoje = `${CHAVE_NOTIFICACAO_BOLETOS}-${dataHoje()}`;
+    if (localStorage.getItem(chaveHoje)) return;
+
+    const total = boletosVencendoHoje.reduce((soma, item) => soma + Number(item.valor || 0), 0);
+    new Notification('Boletos vencendo hoje', {
+      body: `${boletosVencendoHoje.length} boleto(s), total de ${formatarMoeda(total)}.`,
+      icon: '/logo-mm.png',
+    });
+    localStorage.setItem(chaveHoje, 'enviada');
+  }, [boletosVencendoHoje, permissaoNotificacao]);
+
+  async function ativarNotificacoes() {
+    if (typeof Notification === 'undefined') {
+      alert('Este navegador não oferece notificações.');
+      return;
+    }
+    const permissao = await Notification.requestPermission();
+    setPermissaoNotificacao(permissao);
+    if (permissao === 'granted') alert('Notificações de vencimento ativadas.');
+  }
 
   const totais = useMemo(() => {
     const entradas = movimentacoes
@@ -134,6 +180,18 @@ function FinanceiroPage() {
     if (filtroTipo === 'todos') return movimentacoes;
     return movimentacoes.filter((item) => item.tipo === filtroTipo);
   }, [movimentacoes, filtroTipo]);
+
+  const contasPagarPorMes = useMemo(() => {
+    const ordenadas = [...contasPagar].sort(
+      (a, b) => String(a.vencimento || '').localeCompare(String(b.vencimento || ''))
+    );
+    return ordenadas.reduce((grupos, item) => {
+      const mes = chaveMes(item.vencimento);
+      if (!grupos[mes]) grupos[mes] = [];
+      grupos[mes].push(item);
+      return grupos;
+    }, {});
+  }, [contasPagar]);
 
   function atualizar(setter) {
     return (event) => {
@@ -679,7 +737,41 @@ function FinanceiroPage() {
             </div>
           </div>
 
-          <FinanceTable columns={colunasPagar} rows={contasPagar} emptyText="Nenhuma conta cadastrada." />
+          {boletosVencendoHoje.length > 0 && (
+            <div className="tax-warning">
+              <strong>Vence hoje:</strong> {boletosVencendoHoje.length} boleto(s), total de{' '}
+              {formatarMoeda(boletosVencendoHoje.reduce((soma, item) => soma + Number(item.valor || 0), 0))}.
+            </div>
+          )}
+
+          {permissaoNotificacao !== 'granted' && permissaoNotificacao !== 'indisponivel' && (
+            <button type="button" className="finance-secondary-button" onClick={ativarNotificacoes}>
+              Ativar notificações de vencimento
+            </button>
+          )}
+
+          {Object.keys(contasPagarPorMes).length === 0 ? (
+            <FinanceTable columns={colunasPagar} rows={[]} emptyText="Nenhuma conta cadastrada." />
+          ) : (
+            Object.entries(contasPagarPorMes).map(([mes, contas]) => (
+              <div className="finance-month-group" key={mes}>
+                <div className="finance-panel-header">
+                  <div>
+                    <h3>{nomeMes(mes)}</h3>
+                    <p>
+                      {contas.filter((item) => item.status === 'pendente').length} pendente(s) ·{' '}
+                      {formatarMoeda(
+                        contas
+                          .filter((item) => item.status === 'pendente')
+                          .reduce((soma, item) => soma + Number(item.valor || 0), 0)
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <FinanceTable columns={colunasPagar} rows={contas} emptyText="Nenhuma conta neste mês." />
+              </div>
+            ))
+          )}
         </section>
       </>
     );
