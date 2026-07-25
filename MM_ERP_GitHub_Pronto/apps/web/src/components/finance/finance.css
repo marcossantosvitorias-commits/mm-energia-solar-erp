@@ -712,3 +712,28 @@ textarea {
 .dashboard-big-number { margin:22px 0 4px; font-size:58px; font-weight:900; color:#071d3b; }.dashboard-note { color:#6d778a; line-height:1.55; }.inline-button { display:inline-block; margin-top:12px; text-decoration:none; }.catalog-search { max-width:300px; }
 @media(max-width:1050px){.erp-shortcut-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:620px){.erp-shortcut-grid{grid-template-columns:1fr;}}
+
+
+.finance-month-group {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dbe3ee;
+}
+
+.finance-month-group h3 {
+  margin: 0;
+  color: #0b2748;
+  font-size: 1.15rem;
+  text-transform: capitalize;
+}
+
+.finance-month-group .finance-panel-header p {
+  margin: 0.25rem 0 0;
+  color: #667085;
+}
+
+@media (max-width: 720px) {
+  .finance-month-group {
+    margin-top: 1.25rem;
+  }
+}
