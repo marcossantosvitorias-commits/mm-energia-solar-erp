@@ -2,10 +2,34 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const STORAGE_KEY = 'mm-erp-clients';
 
+const CLIENTE_OSVALDO = {
+  id: 'cliente-osvaldo-cestari',
+  name: 'Osvaldo Herminio Cestari Filho',
+  document: '130.796.368-48',
+  phone: '(14) 99768-4616',
+  email: '',
+  address: 'R. Sebastião Francisco Arruda, 663 - Vila Operária',
+  zipCode: '17340-000',
+  city: 'Barra Bonita',
+  state: 'SP',
+  customerType: 'residencial',
+  status: 'cliente',
+  monthlyBill: 0,
+  notes: 'Cliente com contrato solar assinado em 20/07/2026. Instalação prevista para a primeira ou segunda semana de agosto de 2026.',
+  created: '2026-07-20T08:26:00-03:00',
+  updated: new Date().toISOString(),
+};
+
 function readLocalClients() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const clients = raw ? JSON.parse(raw) : [];
+    if (!clients.some((client) => client.id === CLIENTE_OSVALDO.id || client.document === CLIENTE_OSVALDO.document)) {
+      const updated = [CLIENTE_OSVALDO, ...clients];
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    }
+    return clients;
   } catch {
     return [];
   }
@@ -48,7 +72,17 @@ export async function listClients() {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []).map(fromDatabase);
+    const clients = (data || []).map(fromDatabase);
+    if (!clients.some((client) => client.document === CLIENTE_OSVALDO.document)) {
+      const { data: created, error: createError } = await supabase
+        .from('clients')
+        .insert(toDatabase(CLIENTE_OSVALDO))
+        .select('*')
+        .single();
+      if (createError) throw createError;
+      return [fromDatabase(created), ...clients];
+    }
+    return clients;
   }
 
   return readLocalClients().sort((a, b) => new Date(b.created) - new Date(a.created));
