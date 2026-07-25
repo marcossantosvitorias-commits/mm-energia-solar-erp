@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import {
   Globe2,
   LogOut,
   Menu,
+  Download,
   X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -41,6 +42,7 @@ const mainItems = [
 
 function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
   const [menuAberto, setMenuAberto] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const pessoal = theme === 'marcos';
@@ -51,6 +53,28 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
     ['receber', 'Contas a receber'],
     ['relatorios', 'Relatórios'],
   ];
+
+  useEffect(() => {
+    const prepararInstalacao = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const instalado = () => setInstallPrompt(null);
+
+    window.addEventListener('beforeinstallprompt', prepararInstalacao);
+    window.addEventListener('appinstalled', instalado);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', prepararInstalacao);
+      window.removeEventListener('appinstalled', instalado);
+    };
+  }, []);
+
+  const instalarAplicativo = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
 
   const handleLogout = () => {
     logout();
@@ -99,6 +123,11 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
         )}
 
         <nav className="finance-account-nav">
+          {installPrompt && (
+            <button type="button" onClick={instalarAplicativo}>
+              <Download size={17} /> <span>Instalar MM ERP</span>
+            </button>
+          )}
           <a href="/"><Globe2 size={17} /> <span>Voltar ao site</span></a>
           <button type="button" onClick={handleLogout}><LogOut size={17} /> <span>Sair do sistema</span></button>
         </nav>
