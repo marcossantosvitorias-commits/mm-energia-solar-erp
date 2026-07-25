@@ -52,12 +52,13 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado }
       return;
     }
 
-    const janela = window.open('', '_blank', 'noopener,noreferrer');
+    const janela = window.open('', '_blank');
     if (!janela) {
       window.alert('Permita a abertura de janelas para gerar a proposta em PDF.');
       return;
     }
 
+    janela.opener = null;
     const data = new Intl.DateTimeFormat('pt-BR').format(new Date());
     const linhasParcelas = parcelas.map((item) => `
       <tr>
