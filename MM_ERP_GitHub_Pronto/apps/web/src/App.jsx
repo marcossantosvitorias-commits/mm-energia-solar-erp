@@ -30,6 +30,7 @@ import BelCredSimuladorPage from './pages/BelCredSimuladorPage.jsx';
 import CotacoesBelenusPage from './pages/CotacoesBelenusPage.jsx';
 import MigracaoDadosPage from './pages/MigracaoDadosPage.jsx';
 import BlingIntegracaoPage from './pages/BlingIntegracaoPage.jsx';
+import ContratosPage from './pages/ContratosPage.jsx';
 
 const privateRoute = (element) => (
   <ProtectedRoute>{element}</ProtectedRoute>
@@ -62,6 +63,7 @@ function App() {
           <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />)} />
           <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />)} />
           <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />)} />
+          <Route path="/app/contratos" element={privateRoute(<ContratosPage />)} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
