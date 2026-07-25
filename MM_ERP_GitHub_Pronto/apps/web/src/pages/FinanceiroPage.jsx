@@ -89,6 +89,7 @@ function FinanceiroPage() {
   const [permissaoNotificacao, setPermissaoNotificacao] = useState(
     () => (typeof Notification !== 'undefined' ? Notification.permission : 'indisponivel')
   );
+  const [mesSelecionadoPagar, setMesSelecionadoPagar] = useState(() => dataHoje().slice(0, 7));
 
   const [formMovimento, setFormMovimento] = useState({
     descricao: '',
@@ -192,6 +193,30 @@ function FinanceiroPage() {
       return grupos;
     }, {});
   }, [contasPagar]);
+
+  const mesesComBoletos = useMemo(
+    () => Object.keys(contasPagarPorMes).sort(),
+    [contasPagarPorMes]
+  );
+
+  const boletosMesSelecionado = contasPagarPorMes[mesSelecionadoPagar] || [];
+
+  const saldoProjetadoMes = useMemo(() => {
+    const movimentosMes = movimentacoes.filter((item) => chaveMes(item.data) === mesSelecionadoPagar);
+    const entradas = movimentosMes
+      .filter((item) => item.tipo === 'entrada')
+      .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+    const saidas = movimentosMes
+      .filter((item) => item.tipo === 'saida')
+      .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+    const pagar = contasPagar
+      .filter((item) => item.status === 'pendente' && chaveMes(item.vencimento) === mesSelecionadoPagar)
+      .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+    const receber = contasReceber
+      .filter((item) => item.status === 'pendente' && chaveMes(item.vencimento) === mesSelecionadoPagar)
+      .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+    return entradas - saidas + receber - pagar;
+  }, [mesSelecionadoPagar, movimentacoes, contasPagar, contasReceber]);
 
   function atualizar(setter) {
     return (event) => {
@@ -750,28 +775,41 @@ function FinanceiroPage() {
             </button>
           )}
 
-          {Object.keys(contasPagarPorMes).length === 0 ? (
-            <FinanceTable columns={colunasPagar} rows={[]} emptyText="Nenhuma conta cadastrada." />
-          ) : (
-            Object.entries(contasPagarPorMes).map(([mes, contas]) => (
-              <div className="finance-month-group" key={mes}>
-                <div className="finance-panel-header">
-                  <div>
-                    <h3>{nomeMes(mes)}</h3>
-                    <p>
-                      {contas.filter((item) => item.status === 'pendente').length} pendente(s) ·{' '}
-                      {formatarMoeda(
-                        contas
-                          .filter((item) => item.status === 'pendente')
-                          .reduce((soma, item) => soma + Number(item.valor || 0), 0)
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <FinanceTable columns={colunasPagar} rows={contas} emptyText="Nenhuma conta neste mês." />
+          <div className="finance-month-tabs" aria-label="Escolher mês dos boletos">
+            {mesesComBoletos.map((mes) => (
+              <button
+                type="button"
+                key={mes}
+                className={mesSelecionadoPagar === mes ? 'active' : ''}
+                onClick={() => setMesSelecionadoPagar(mes)}
+              >
+                {nomeMes(mes)}
+              </button>
+            ))}
+          </div>
+
+          <div className="finance-month-selected">
+            <div>
+              <span>Saldo projetado de {nomeMes(mesSelecionadoPagar)}</span>
+              <strong className={saldoProjetadoMes >= 0 ? 'positive' : 'negative'}>
+                {formatarMoeda(saldoProjetadoMes)}
+              </strong>
+            </div>
+          </div>
+
+          <div className="finance-month-group">
+            <div className="finance-panel-header">
+              <div>
+                <h3>Boletos de {nomeMes(mesSelecionadoPagar)}</h3>
+                <p>{boletosMesSelecionado.length} boleto(s) neste mês</p>
               </div>
-            ))
-          )}
+            </div>
+            <FinanceTable
+              columns={colunasPagar}
+              rows={boletosMesSelecionado}
+              emptyText="Nenhum boleto cadastrado para este mês."
+            />
+          </div>
         </section>
       </>
     );
