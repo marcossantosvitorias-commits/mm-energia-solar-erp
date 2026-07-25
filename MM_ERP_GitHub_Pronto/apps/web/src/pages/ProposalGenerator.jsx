@@ -20,12 +20,12 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#039;');
 
-export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistema }) {
+export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw }) {
   const [dados, setDados] = useState({
     cliente: '',
     cidade: 'Bauru/SP',
     telefone: '',
-    potenciaPlaca: Math.round((Number(potenciaSistema || 0) * 1000) / quantidadePlacas) || 620,
+    potenciaPlaca: Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadePlacas) || 620,
     marcaPlaca: modulo || 'Painel fotovoltaico N-Type',
     inversor: inversor || 'Inversor conforme kit selecionado',
     geracaoMensal: Math.round(quantidadePlacas * 77.35),
