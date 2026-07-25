@@ -33,17 +33,22 @@ const RECEBIVEL_OSVALDO = {
   cliente: 'Osvaldo Herminio Cestari Filho',
   categoria: 'Venda de sistema solar',
   valor: 6454,
-  vencimento: '2026-09-18',
+  vencimento: '2026-08-18',
   status: 'pendente',
   origem: 'Contrato assinado',
-  observacoes: 'Receber no dia da instalação. A data registrada é o prazo contratual máximo.',
+  observacoes: 'Receber no dia da instalação. Previsão ajustada para 18/08/2026.',
 };
 
 function carregarContasReceber() {
   const contas = carregarDados(CHAVE_RECEBER, []);
-  return contas.some((item) => item.id === RECEBIVEL_OSVALDO.id)
-    ? contas
-    : [RECEBIVEL_OSVALDO, ...contas];
+  if (!contas.some((item) => item.id === RECEBIVEL_OSVALDO.id)) {
+    return [RECEBIVEL_OSVALDO, ...contas];
+  }
+  return contas.map((item) =>
+    item.id === RECEBIVEL_OSVALDO.id
+      ? { ...item, vencimento: RECEBIVEL_OSVALDO.vencimento, observacoes: RECEBIVEL_OSVALDO.observacoes }
+      : item
+  );
 }
 
 function chaveMes(data) {
