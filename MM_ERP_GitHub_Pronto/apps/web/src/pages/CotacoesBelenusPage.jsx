@@ -364,7 +364,7 @@ function CotacoesBelenusPage({ pricingMode = false }) {
         precoRecomendado={resultado.precoVenda}
         modulo={cotacao.modulo}
         inversor={`${cotacao.inversores}x ${cotacao.inversor}`}
-        potenciaSistema={cotacao.potencia}
+        potenciaSistemaKw={cotacao.potencia}
       />
     </FinanceLayout>
   );
