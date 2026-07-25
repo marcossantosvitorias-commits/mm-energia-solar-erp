@@ -27,6 +27,25 @@ const CHAVE_RECEBER = 'mm-erp-contas-receber-v2';
 const CHAVE_CARGA_SANTANDER = 'mm-erp-carga-santander-julho-2026-v1';
 const CHAVE_NOTIFICACAO_BOLETOS = 'mm-erp-notificacao-boletos';
 
+const RECEBIVEL_OSVALDO = {
+  id: 'contrato-osvaldo-cestari-parcela-2',
+  descricao: 'Saldo do contrato solar - Osvaldo Cestari',
+  cliente: 'Osvaldo Herminio Cestari Filho',
+  categoria: 'Venda de sistema solar',
+  valor: 6454,
+  vencimento: '2026-09-18',
+  status: 'pendente',
+  origem: 'Contrato assinado',
+  observacoes: 'Receber no dia da instalação. A data registrada é o prazo contratual máximo.',
+};
+
+function carregarContasReceber() {
+  const contas = carregarDados(CHAVE_RECEBER, []);
+  return contas.some((item) => item.id === RECEBIVEL_OSVALDO.id)
+    ? contas
+    : [RECEBIVEL_OSVALDO, ...contas];
+}
+
 function chaveMes(data) {
   return String(data || '').slice(0, 7) || 'sem-data';
 }
@@ -81,9 +100,7 @@ function FinanceiroPage() {
     )
   );
 
-  const [contasReceber, setContasReceber] = useState(() =>
-    carregarDados(CHAVE_RECEBER, [])
-  );
+  const [contasReceber, setContasReceber] = useState(carregarContasReceber);
 
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [permissaoNotificacao, setPermissaoNotificacao] = useState(
