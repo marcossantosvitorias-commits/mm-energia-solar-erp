@@ -7,18 +7,10 @@ import {
 } from 'react-router-dom';
 
 import ScrollToTop from './components/ScrollToTop';
-import MetaPixel from './components/MetaPixel.jsx';
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 
-import HomePage from './pages/HomePage.jsx';
-import ContactPage from './pages/ContactPage.jsx';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx';
-import ObrasRealizadasPage from './pages/ObrasRealizadasPage.jsx';
-import CalculadoraPage from './pages/CalculadoraPage.jsx';
-import OfertasPage from './pages/OfertasPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
-
 import FinanceiroPage from './pages/FinanceiroPage.jsx';
 import MarcosFinancePage from './pages/MarcosFinancePage.jsx';
 import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
@@ -40,15 +32,9 @@ function App() {
     <AuthProvider>
       <Router>
         <ScrollToTop />
-        <MetaPixel />
 
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/obras" element={<ObrasRealizadasPage />} />
-          <Route path="/calculadora" element={<CalculadoraPage />} />
-          <Route path="/contato" element={<ContactPage />} />
-          <Route path="/privacidade" element={<PrivacyPolicyPage />} />
-          <Route path="/ofertas" element={<OfertasPage />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
 
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
@@ -64,7 +50,7 @@ function App() {
           <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />)} />
           <Route path="/app/contratos" element={privateRoute(<ContratosPage />)} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
