@@ -122,7 +122,7 @@ export default function LoginPage() {
 
             <p className="mt-6 text-xs leading-relaxed text-slate-500">
               {isDemoMode
-                ? 'Acesso temporário ativo. O ERP abre automaticamente enquanto o Supabase não estiver configurado.'
+                ? 'Acesso temporário protegido por senha. A autenticação Supabase será ativada posteriormente.'
                 : 'Acesso protegido por autenticação Supabase.'}
             </p>
           </div>
