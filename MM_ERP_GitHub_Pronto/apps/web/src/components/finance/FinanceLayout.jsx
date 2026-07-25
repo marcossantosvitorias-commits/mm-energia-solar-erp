@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { APP_VERSION } from '../../version.js';
 import './finance.css';
 import './auth-layout.css';
 import '../crm/crm.css';
@@ -75,7 +76,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
       <aside className={`finance-sidebar ${menuAberto ? 'open' : ''}`}>
         <div className="finance-brand">
           <div className="finance-logo-box"><img src="/logo-mm.png" alt="MM Energia Solar" /></div>
-          <div><strong>MM ERP</strong><span>MM Energia Solar</span></div>
+          <div><strong>MM ERP <small style={{ color: '#f5c400', fontSize: '0.58em', marginLeft: 6 }}>v{APP_VERSION}</small></strong><span>MM Energia Solar</span></div>
         </div>
 
         <nav className="erp-main-nav">
