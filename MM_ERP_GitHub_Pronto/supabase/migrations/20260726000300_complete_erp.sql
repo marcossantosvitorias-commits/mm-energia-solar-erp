@@ -1,5 +1,5 @@
 -- Completa a persistência do ERP no Supabase.
--- Execute depois de 20260724_001_initial_erp.sql.
+-- Execute depois de 20260726000100_initial_erp.sql.
 
 create table if not exists public.erp_products (
   id uuid primary key default gen_random_uuid(),

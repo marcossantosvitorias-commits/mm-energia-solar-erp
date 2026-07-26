@@ -1,0 +1,2 @@
+-- Compatibilidade com o histórico remoto já aplicado em 24/07/2026.
+-- O esquema completo continua nas migrações versionadas de 26/07/2026.

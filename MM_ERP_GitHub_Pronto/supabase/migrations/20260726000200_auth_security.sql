@@ -1,4 +1,4 @@
--- Execute depois de 20260724_001_initial_erp.sql.
+-- Execute depois de 20260726000100_initial_erp.sql.
 -- Torna o onboarding seguro: somente o primeiro usuário vira administrador.
 
 create or replace function public.handle_new_user()
