@@ -150,6 +150,57 @@ function quoteRow(item, userId) {
   };
 }
 
+function blingContactRow(item) {
+  return {
+    external_id: String(item.blingId || item.externalId || item.id || crypto.randomUUID()),
+    name: item.nome || item.name || 'Contato',
+    trade_name: item.fantasia || item.tradeName || null,
+    document: item.documento || item.document || null,
+    phone: item.telefone || item.phone || null,
+    email: item.email || null,
+    address: {
+      endereco: item.endereco,
+      numero: item.numero,
+      bairro: item.bairro,
+      cep: item.cep,
+      cidade: item.cidade,
+      estado: item.estado,
+    },
+    contact_type: item.tipoContato || item.contactType || null,
+    status: item.situacao || item.status || null,
+    raw_data: item,
+  };
+}
+
+function purchaseOrderRow(item) {
+  return {
+    external_id: String(item.externalId || item.id || crypto.randomUUID()),
+    order_number: item.numero || item.orderNumber || null,
+    order_date: normalizeDate(item.data || item.orderDate),
+    supplier: item.fornecedor || item.supplier || null,
+    status: item.situacao || item.status || null,
+    total: Number(item.total || (Number(item.quantidade || 0) * Number(item.valorUnitario || 0))),
+    items: item.items || [item],
+    origin: item.origem || 'Bling',
+  };
+}
+
+function salesOrderRow(item) {
+  return {
+    external_id: String(item.externalId || item.id || crypto.randomUUID()),
+    order_number: item.numero || item.orderNumber || null,
+    order_date: normalizeDate(item.data || item.orderDate),
+    client_name: item.cliente || item.clientName || null,
+    client_document: item.documento || item.clientDocument || null,
+    status: item.situacao || item.status || null,
+    total: Number(item.total || 0),
+    payment_method: item.pagamento || item.paymentMethod || null,
+    seller: item.vendedor || item.seller || null,
+    items: item.items || [item],
+    origin: item.origem || 'Bling',
+  };
+}
+
 async function upsertBatch(table, rows, conflictColumn) {
   const validRows = rows.map(withoutUndefined).filter((row) => Object.values(row).some((value) => value !== null && value !== ''));
   if (!validRows.length) return { table, saved: 0 };
@@ -210,6 +261,9 @@ export async function migrateLocalDataToSupabase({ clearAfterSuccess = true } = 
   results.push(await upsertBatch('erp_products', products.map((item) => productRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('contracts', asArray(local['mm-erp-contratos-v1']).map((item) => contractRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('supplier_quotes', asArray(local['mm-erp-belenus-cotacoes']).map((item) => quoteRow(item, userId)), 'quote_number'));
+  results.push(await upsertBatch('bling_contacts', asArray(local['mm-erp-bling-contatos-v1']).map(blingContactRow), 'external_id'));
+  results.push(await upsertBatch('purchase_orders', asArray(local['mm-erp-pedidos-compra-v1']).map(purchaseOrderRow), 'external_id'));
+  results.push(await upsertBatch('sales_orders', asArray(local['mm-erp-pedidos-venda-v1']).map(salesOrderRow), 'external_id'));
 
   const personalSettings = [
     ['belenus_pricing', local['mm-erp-cotacoes-belenus-config-v1']],
