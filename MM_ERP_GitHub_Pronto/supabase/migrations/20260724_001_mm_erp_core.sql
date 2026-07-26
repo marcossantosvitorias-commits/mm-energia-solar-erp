@@ -1,0 +1,2 @@
+-- Migração legada preservada para manter o histórico remoto do Supabase.
+-- O esquema equivalente está em 20260724_001_initial_erp.sql.
