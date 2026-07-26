@@ -1,0 +1,2 @@
+-- Compatibilidade preventiva com o histórico remoto de 25/07/2026.
+-- Nenhum dado ou tabela é alterado por este arquivo.
