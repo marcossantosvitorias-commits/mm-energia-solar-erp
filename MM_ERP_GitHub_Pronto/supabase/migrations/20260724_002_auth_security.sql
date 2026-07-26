@@ -1,2 +1,0 @@
--- Migração legada preservada para manter o histórico remoto do Supabase.
--- O esquema equivalente está em 20260724000100_auth_security.sql.
