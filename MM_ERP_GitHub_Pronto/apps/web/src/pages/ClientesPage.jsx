@@ -13,6 +13,8 @@ const emptyForm = {
   document: '',
   phone: '',
   email: '',
+  address: '',
+  zipCode: '',
   city: 'Bauru',
   state: 'SP',
   customerType: 'residencial',
@@ -50,7 +52,7 @@ export default function ClientesPage() {
     if (!term) return clients;
 
     return clients.filter((client) =>
-      [client.name, client.phone, client.email, client.city, client.document]
+      [client.name, client.phone, client.email, client.address, client.zipCode, client.city, client.document]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term)),
     );
@@ -131,7 +133,7 @@ export default function ClientesPage() {
         <div className="finance-panel-header">
           <div>
             <h2>{editingId ? 'Editar cliente' : 'Novo cliente'}</h2>
-            <p>Os dados ficam no PocketBase quando configurado e, provisoriamente, no navegador.</p>
+            <p>Cadastro centralizado no Supabase e disponível em todos os seus dispositivos.</p>
           </div>
           <Plus size={22} />
         </div>
@@ -155,6 +157,16 @@ export default function ClientesPage() {
           <label className="finance-field">
             <span>E-mail</span>
             <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="cliente@email.com" />
+          </label>
+
+          <label className="finance-field finance-field-wide">
+            <span>Endereço</span>
+            <input name="address" value={form.address} onChange={handleChange} placeholder="Rua, número e bairro" />
+          </label>
+
+          <label className="finance-field">
+            <span>CEP</span>
+            <input name="zipCode" value={form.zipCode} onChange={handleChange} placeholder="00000-000" />
           </label>
 
           <label className="finance-field">
@@ -246,7 +258,7 @@ export default function ClientesPage() {
                 <tr key={client.id}>
                   <td><strong className="crm-client-name"><UserRound size={16} /> {client.name}</strong><small>{client.document || 'Sem documento'}</small></td>
                   <td>{client.phone}<small>{client.email || 'Sem e-mail'}</small></td>
-                  <td>{client.city || '-'} / {client.state || '-'}</td>
+                  <td>{client.city || '-'} / {client.state || '-'}<small>{client.address || client.zipCode ? `${client.address || ''}${client.zipCode ? ` • CEP ${client.zipCode}` : ''}` : 'Sem endereço'}</small></td>
                   <td>{client.customerType || 'residencial'}</td>
                   <td><span className={`finance-badge ${client.status === 'cliente' ? 'recebida' : 'pendente'}`}>{client.status || 'lead'}</span></td>
                   <td>{Number(client.monthlyBill || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
