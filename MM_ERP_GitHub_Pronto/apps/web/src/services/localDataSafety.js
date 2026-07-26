@@ -3,7 +3,11 @@ const KNOWN_KEYS = [
   'mm-erp-movimentacoes-v2',
   'mm-erp-contas-pagar-v2',
   'mm-erp-contas-receber-v2',
+  'mm-erp-marcos-v2',
+  'mm-erp-equipamentos-v1',
   'mm-erp-equipamentos-v2',
+  'mm-erp-contratos-v1',
+  'mm-erp-cotacoes-belenus-config-v1',
   'mm-erp-tributos-v2',
   'mm-erp-belcred-simulacoes',
   'mm-erp-belenus-cotacoes',
@@ -20,7 +24,6 @@ function safeParse(raw) {
 
 export function collectLocalErpData() {
   const data = {};
-
   KNOWN_KEYS.forEach((key) => {
     const raw = window.localStorage.getItem(key);
     if (raw !== null) data[key] = safeParse(raw);
@@ -55,27 +58,18 @@ export function downloadLocalErpBackup() {
   return backup;
 }
 
-export function restoreLocalErpBackup(backup) {
-  if (!backup || backup.version !== 1 || !backup.data || typeof backup.data !== 'object') {
-    throw new Error('Arquivo de backup inválido.');
+export function clearLocalErpData() {
+  const removed = [];
+  const keys = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith('mm-erp-')) keys.push(key);
   }
-
-  Object.entries(backup.data).forEach(([key, value]) => {
-    window.localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+  keys.forEach((key) => {
+    window.localStorage.removeItem(key);
+    removed.push(key);
   });
-
-  return Object.keys(backup.data).length;
-}
-
-export function markMigrationCompleted(summary) {
-  window.localStorage.setItem('mm-erp-supabase-migration-v1', JSON.stringify({
-    completedAt: new Date().toISOString(),
-    summary,
-  }));
-}
-
-export function getMigrationStatus() {
-  return safeParse(window.localStorage.getItem('mm-erp-supabase-migration-v1'));
+  return removed;
 }
 
 export { KNOWN_KEYS };
