@@ -1,2 +1,4 @@
 # Configuração mínima exigida pela integração GitHub do Supabase.
 project_id = "mm-energia-solar-erp"
+
+# migration-order-sync: 2026-07-26T18:32Z
