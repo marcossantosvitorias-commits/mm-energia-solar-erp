@@ -9,17 +9,6 @@ const tipoPorArquivo = {
   vendas: 'Pedidos de venda',
 };
 
-export const BLING_STORAGE_KEYS = {
-  contatos: 'mm-erp-bling-contatos-v1',
-  produtos: 'mm-erp-equipamentos-v1',
-  caixa: 'mm-erp-movimentacoes-v2',
-  pagar: 'mm-erp-contas-pagar-v2',
-  receber: 'mm-erp-contas-receber-v2',
-  compras: 'mm-erp-pedidos-compra-v1',
-  vendas: 'mm-erp-pedidos-venda-v1',
-  historico: 'mm-erp-bling-historico-v1',
-};
-
 function limparChave(valor) {
   return String(valor || '')
     .replace(/^\uFEFF/, '')
@@ -289,14 +278,6 @@ export function converterArquivoBling(tipo, linhas) {
 
 export function nomeTipoBling(tipo) {
   return tipoPorArquivo[tipo] || tipo;
-}
-
-export function lerLocal(chave) {
-  try {
-    return JSON.parse(localStorage.getItem(chave) || '[]');
-  } catch {
-    return [];
-  }
 }
 
 export function mesclarPorId(atuais, novos) {
