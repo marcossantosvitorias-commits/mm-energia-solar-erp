@@ -3,75 +3,13 @@ import { Check, Copy, FileText, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import ProposalGenerator from './ProposalGenerator.jsx';
+import { quotesDatabase, settingsDatabase } from '../services/businessDatabaseService.js';
 import './CotacoesBelenusPage.css';
 
-const cotacoes = [
-  {
-    id: 'WEB-006414070',
-    placas: 4,
-    potencia: 2.48,
-    modulo: 'TCL Solar bifacial N-Type 620 W',
-    inversores: 1,
-    inversor: 'Microinversor Deye 2,25 kW 220 V',
-    produtos: 3619.53,
-    frete: 500,
-    total: 4119.53,
-    estrutura: 'Telha colonial - alumínio Belenergy com ajuste vertical',
-    emissao: '25/07/2026',
-  },
-  {
-    id: 'WEB-006408977',
-    placas: 6,
-    potencia: 3.72,
-    modulo: 'JA Solar bifacial N-Type 620 W',
-    inversores: 2,
-    inversor: 'Microinversor Deye 2,25 kW 220 V',
-    produtos: 6141.56,
-    frete: 500,
-    total: 6641.56,
-    estrutura: 'Telha colonial - alumínio Belenergy',
-    emissao: '24/07/2026',
-  },
-  {
-    id: 'WEB-006409592',
-    placas: 8,
-    potencia: 4.96,
-    modulo: 'TCL Solar bifacial N-Type 620 W',
-    inversores: 2,
-    inversor: 'Microinversor Deye 2,25 kW 220 V',
-    produtos: 7239.06,
-    frete: 500,
-    total: 7739.06,
-    estrutura: 'Telha colonial - alumínio Belenergy',
-    emissao: '24/07/2026',
-  },
-  {
-    id: 'WEB-006409022',
-    placas: 10,
-    potencia: 6.2,
-    modulo: 'JA Solar bifacial N-Type 620 W',
-    inversores: 3,
-    inversor: 'Microinversor Deye 2,25 kW 220 V',
-    produtos: 9949.81,
-    frete: 619.04,
-    total: 10568.85,
-    estrutura: 'Telha colonial - alumínio Belenergy',
-    emissao: '24/07/2026',
-  },
-  {
-    id: 'WEB-006409070',
-    placas: 16,
-    potencia: 9.92,
-    modulo: 'JA Solar bifacial N-Type 620 W',
-    inversores: 4,
-    inversor: 'Microinversor Deye 2,25 kW 220 V',
-    produtos: 14964.06,
-    frete: 707.25,
-    total: 15671.31,
-    estrutura: 'Telha colonial - alumínio Belenergy',
-    emissao: '24/07/2026',
-  },
-];
+const COTACAO_VAZIA = {
+  id: '', placas: 0, potencia: 0, modulo: '', inversores: 0, inversor: '',
+  produtos: 0, frete: 0, total: 0, estrutura: '', emissao: '',
+};
 
 const moeda = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -80,8 +18,6 @@ const moeda = new Intl.NumberFormat('pt-BR', {
 
 const numero = (valor) => Number(valor || 0);
 const porcentagem = (valor) => numero(valor) / 100;
-const STORAGE_KEY = 'mm-erp-cotacoes-belenus-config-v1';
-
 const FORM_PADRAO = {
     materialEletrico: 350,
     maoDeObra: 700,
@@ -96,29 +32,44 @@ const FORM_PADRAO = {
     desconto: 3,
 };
 
-function carregarConfiguracao() {
-  try {
-    const salvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    return {
-      cotacaoId: salvo?.cotacaoId || cotacoes[0].id,
-      form: { ...FORM_PADRAO, ...(salvo?.form || {}) },
-    };
-  } catch {
-    return { cotacaoId: cotacoes[0].id, form: FORM_PADRAO };
-  }
-}
-
 function CotacoesBelenusPage({ pricingMode = false }) {
-  const [configInicial] = useState(carregarConfiguracao);
-  const [cotacaoId, setCotacaoId] = useState(configInicial.cotacaoId);
+  const [cotacoes, setCotacoes] = useState([]);
+  const [cotacaoId, setCotacaoId] = useState('');
   const [copiado, setCopiado] = useState(false);
-  const [form, setForm] = useState(configInicial.form);
+  const [form, setForm] = useState(FORM_PADRAO);
+  const [configCarregada, setConfigCarregada] = useState(false);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cotacaoId, form }));
-  }, [cotacaoId, form]);
+    let ativo = true;
+    Promise.all([
+      quotesDatabase.list('Belenus'),
+      settingsDatabase.get('belenus_pricing', { cotacaoId: '', form: FORM_PADRAO }),
+    ]).then(([quotes, config]) => {
+      if (!ativo) return;
+      setCotacoes(quotes);
+      setCotacaoId(config?.cotacaoId || quotes[0]?.id || '');
+      setForm({ ...FORM_PADRAO, ...(config?.form || {}) });
+      setConfigCarregada(true);
+    }).catch((error) => {
+      if (ativo) setErro(error.message);
+    });
+    return () => { ativo = false; };
+  }, []);
 
-  const cotacao = cotacoes.find((item) => item.id === cotacaoId) || cotacoes[0];
+  useEffect(() => {
+    if (!configCarregada) return undefined;
+    const timer = window.setTimeout(() => {
+      settingsDatabase.set(
+        'belenus_pricing',
+        { cotacaoId, form },
+        'Custos, margem e seleção da calculadora de preços dos kits Belenus.',
+      ).catch((error) => setErro(error.message));
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [cotacaoId, form, configCarregada]);
+
+  const cotacao = cotacoes.find((item) => item.id === cotacaoId) || cotacoes[0] || COTACAO_VAZIA;
 
   function atualizar(event) {
     const { name, value } = event.target;
@@ -189,6 +140,8 @@ function CotacoesBelenusPage({ pricingMode = false }) {
         : 'Escolha um kit e calcule o preço final para o cliente.'}
       theme="empresa"
     >
+      {erro ? <p className="crm-message">{erro}</p> : null}
+      {!erro && !cotacoes.length ? <p className="crm-message">Carregando cotações do Supabase...</p> : null}
       <section className="belenus-quotes">
         {cotacoes.map((item) => (
           <button
