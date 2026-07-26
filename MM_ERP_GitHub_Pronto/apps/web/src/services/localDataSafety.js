@@ -11,6 +11,10 @@ const KNOWN_KEYS = [
   'mm-erp-tributos-v2',
   'mm-erp-belcred-simulacoes',
   'mm-erp-belenus-cotacoes',
+  'mm-erp-bling-contatos-v1',
+  'mm-erp-pedidos-compra-v1',
+  'mm-erp-pedidos-venda-v1',
+  'mm-erp-bling-historico-v1',
 ];
 
 function safeParse(raw) {
