@@ -318,6 +318,8 @@ function CotacoesBelenusPage({ pricingMode = false }) {
         modulo={cotacao.modulo}
         inversor={`${cotacao.inversores}x ${cotacao.inversor}`}
         potenciaSistemaKw={cotacao.potencia}
+        supplierQuoteId={cotacao.databaseId}
+        quoteNumber={cotacao.id}
       />
     </FinanceLayout>
   );
