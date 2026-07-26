@@ -7,7 +7,10 @@ function asArray(value) {
 
 function normalizeDate(value) {
   if (!value) return null;
-  return String(value).slice(0, 10);
+  const text = String(value).trim();
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return text.slice(0, 10);
 }
 
 function withoutUndefined(row) {
@@ -170,9 +173,10 @@ async function migrateClients(items, userId) {
       if (error) throw new Error(`clients: ${error.message}`);
       existingId = data?.id || null;
     }
+    const { id: localId, ...updateRow } = row;
     const query = existingId
-      ? supabase.from('clients').update(row).eq('id', existingId)
-      : supabase.from('clients').insert(row);
+      ? supabase.from('clients').update(updateRow).eq('id', existingId)
+      : supabase.from('clients').insert(localId ? { id: localId, ...updateRow } : updateRow);
     const { error } = await query;
     if (error) throw new Error(`clients: ${error.message}`);
     saved += 1;
