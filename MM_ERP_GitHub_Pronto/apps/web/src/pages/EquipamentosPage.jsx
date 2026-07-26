@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import FinanceTable from '../components/finance/FinanceTable.jsx';
-import { carregarDados, salvarDados, gerarId, formatarMoeda } from '../components/finance/storage.js';
+import { gerarId, formatarMoeda } from '../components/finance/storage.js';
+import { productsDatabase } from '../services/erpDatabaseService.js';
 
 const CHAVE = 'mm-erp-equipamentos-v1';
 const DATA_BELENUS = '24/07/2026';
@@ -159,24 +160,9 @@ const catalogoSoollar = [
   atualizadoEm: DATA_SOOLLAR,
 }));
 
-function carregarEquipamentos() {
-  const salvos = carregarDados(CHAVE, iniciais);
-  const existentes = new Set(
-    salvos.map((item) =>
-      `${item.fornecedor || ''}|${item.tipo}|${item.marca}|${item.modelo}`.toLowerCase(),
-    ),
-  );
-  const novos = [...catalogoBelenus, ...catalogoSoollar].filter(
-    (item) =>
-      !existentes.has(
-        `${item.fornecedor}|${item.tipo}|${item.marca}|${item.modelo}`.toLowerCase(),
-      ),
-  );
-  return [...salvos, ...novos];
-}
-
 function EquipamentosPage() {
-  const [itens, setItens] = useState(carregarEquipamentos);
+  const [itens, setItens] = useState([]);
+  const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState('');
   const [fornecedor, setFornecedor] = useState('Todos');
   const [form, setForm] = useState({
@@ -189,7 +175,28 @@ function EquipamentosPage() {
     fornecedor: '',
   });
 
-  useEffect(() => salvarDados(CHAVE, itens), [itens]);
+  async function carregarEquipamentos() {
+    setCarregando(true);
+    try {
+      let dados = await productsDatabase.list();
+      if (!dados.length) {
+        const catalogo = [...iniciais, ...catalogoBelenus, ...catalogoSoollar].map((item) => ({
+          ...item,
+          externalId: `catalogo-${item.fornecedor || 'anterior'}-${item.marca}-${item.modelo}`.toLowerCase(),
+          origem: 'Catálogo inicial',
+        }));
+        await productsDatabase.saveMany(catalogo);
+        dados = await productsDatabase.list();
+      }
+      setItens(dados);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => { carregarEquipamentos(); }, []);
 
   const fornecedores = useMemo(
     () => [
@@ -215,22 +222,20 @@ function EquipamentosPage() {
   const atualizar = (event) =>
     setForm((atual) => ({ ...atual, [event.target.name]: event.target.value }));
 
-  const salvar = (event) => {
+  const salvar = async (event) => {
     event.preventDefault();
     if (!form.marca.trim() || !form.modelo.trim() || Number(form.custo) <= 0) {
       return alert('Preencha marca, modelo e custo.');
     }
-    setItens((atual) => [
-      {
+    await productsDatabase.saveMany([{
         id: gerarId(),
         ...form,
         potencia: Number(form.potencia || 0),
         custo: Number(form.custo),
         estoque: Number(form.estoque || 0),
         atualizadoEm: new Date().toLocaleDateString('pt-BR'),
-      },
-      ...atual,
-    ]);
+      }]);
+    await carregarEquipamentos();
     setForm({
       tipo: 'Placa',
       marca: '',
@@ -242,8 +247,9 @@ function EquipamentosPage() {
     });
   };
 
-  const excluir = (id) => {
+  const excluir = async (id) => {
     if (confirm('Excluir este equipamento?')) {
+      await productsDatabase.remove(id);
       setItens((atual) => atual.filter((item) => item.id !== id));
     }
   };
