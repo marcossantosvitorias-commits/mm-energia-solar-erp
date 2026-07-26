@@ -5,9 +5,6 @@ on:
     branches:
       - supabase-source-of-truth
   pull_request:
-    paths:
-      - 'MM_ERP_GitHub_Pronto/apps/web/**'
-      - 'MM_ERP_GitHub_Pronto/supabase/**'
 
 jobs:
   build:
