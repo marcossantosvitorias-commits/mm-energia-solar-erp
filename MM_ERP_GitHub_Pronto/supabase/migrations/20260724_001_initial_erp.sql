@@ -145,11 +145,17 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
+drop trigger if exists profiles_updated_at on public.profiles;
 create trigger profiles_updated_at before update on public.profiles for each row execute procedure public.set_updated_at();
+drop trigger if exists clients_updated_at on public.clients;
 create trigger clients_updated_at before update on public.clients for each row execute procedure public.set_updated_at();
+drop trigger if exists suppliers_updated_at on public.suppliers;
 create trigger suppliers_updated_at before update on public.suppliers for each row execute procedure public.set_updated_at();
+drop trigger if exists financial_transactions_updated_at on public.financial_transactions;
 create trigger financial_transactions_updated_at before update on public.financial_transactions for each row execute procedure public.set_updated_at();
+drop trigger if exists accounts_payable_updated_at on public.accounts_payable;
 create trigger accounts_payable_updated_at before update on public.accounts_payable for each row execute procedure public.set_updated_at();
+drop trigger if exists accounts_receivable_updated_at on public.accounts_receivable;
 create trigger accounts_receivable_updated_at before update on public.accounts_receivable for each row execute procedure public.set_updated_at();
 
 alter table public.profiles enable row level security;
@@ -161,15 +167,24 @@ alter table public.accounts_receivable enable row level security;
 alter table public.data_imports enable row level security;
 alter table public.belcred_simulations enable row level security;
 
+drop policy if exists "profiles_select_self_or_admin" on public.profiles;
 create policy "profiles_select_self_or_admin" on public.profiles for select to authenticated using (id = auth.uid() or public.is_admin());
+drop policy if exists "profiles_update_self_or_admin" on public.profiles;
 create policy "profiles_update_self_or_admin" on public.profiles for update to authenticated using (id = auth.uid() or public.is_admin()) with check (id = auth.uid() or public.is_admin());
 
+drop policy if exists "clients_authenticated_all" on public.clients;
 create policy "clients_authenticated_all" on public.clients for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+drop policy if exists "suppliers_authenticated_all" on public.suppliers;
 create policy "suppliers_authenticated_all" on public.suppliers for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+drop policy if exists "transactions_authenticated_all" on public.financial_transactions;
 create policy "transactions_authenticated_all" on public.financial_transactions for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+drop policy if exists "payable_authenticated_all" on public.accounts_payable;
 create policy "payable_authenticated_all" on public.accounts_payable for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+drop policy if exists "receivable_authenticated_all" on public.accounts_receivable;
 create policy "receivable_authenticated_all" on public.accounts_receivable for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+drop policy if exists "imports_authenticated_all" on public.data_imports;
 create policy "imports_authenticated_all" on public.data_imports for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+drop policy if exists "belcred_authenticated_all" on public.belcred_simulations;
 create policy "belcred_authenticated_all" on public.belcred_simulations for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
 
 create index if not exists clients_name_idx on public.clients using gin (to_tsvector('simple', coalesce(name,'') || ' ' || coalesce(phone,'') || ' ' || coalesce(email,'')));
