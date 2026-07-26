@@ -23,5 +23,12 @@ jobs:
           cache-dependency-path: MM_ERP_GitHub_Pronto/package-lock.json
       - name: Install dependencies
         run: npm install
+      - name: Audit browser persistence
+        run: |
+          matches=$(grep -R --line-number --include='*.js' --include='*.jsx' 'localStorage' src | grep -v 'src/services/localDataSafety.js' || true)
+          if [ -n "$matches" ]; then
+            echo "$matches"
+            exit 1
+          fi
       - name: Build
         run: npm run build
