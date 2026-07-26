@@ -151,6 +151,33 @@ export const contractsDatabase = {
   },
 };
 
+export const belcredDatabase = {
+  async save(item) {
+    requireSupabase();
+    const { data, error } = await supabase
+      .from('belcred_simulations')
+      .insert({
+        client_id: item.clientId || null,
+        project_value: Number(item.projectValue || item.valor || 0),
+        simulation: item.simulation || item.simulacao || {},
+      })
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async list() {
+    requireSupabase();
+    const { data, error } = await supabase
+      .from('belcred_simulations')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+};
+
 export const proposalsDatabase = {
   async list() {
     requireSupabase();
