@@ -8,6 +8,15 @@ alter table public.financial_transactions add column if not exists scope text no
 alter table public.accounts_payable add column if not exists scope text not null default 'company';
 alter table public.accounts_receivable add column if not exists scope text not null default 'company';
 
+insert into public.profiles (id, name, role, active)
+select
+  u.id,
+  coalesce(u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)),
+  'admin',
+  true
+from auth.users u
+on conflict (id) do nothing;
+
 create table if not exists public.contracts (
   id uuid primary key default gen_random_uuid(),
   external_id text not null unique,
