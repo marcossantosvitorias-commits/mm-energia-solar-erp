@@ -62,11 +62,14 @@ function receivableRow(item, userId) {
   return {
     external_id: String(item.external_id || item.externalId || item.id || '').trim() || null,
     description: item.description || item.descricao || 'Conta a receber importada',
+    client_name: item.client_name || item.client || item.cliente || null,
+    category: item.category || item.categoria || 'Venda de sistema solar',
     amount: Math.abs(Number(item.amount ?? item.valor ?? 0)),
     due_date: normalizeDate(item.due_date || item.dueDate || item.vencimento),
     received_date: normalizeDate(item.received_date || item.receivedDate || item.dataRecebimento),
     status: item.status || 'pendente',
     payment_method: item.payment_method || item.paymentMethod || item.formaPagamento || null,
+    origin: item.origin || item.source || item.origem || 'Migração do navegador',
     notes: item.notes || item.observacoes || null,
     created_by: userId,
   };
@@ -74,21 +77,21 @@ function receivableRow(item, userId) {
 
 function productRow(item, userId) {
   return {
-    external_id: String(item.externalId || item.id || `${item.fornecedor || 'local'}-${item.marca || ''}-${item.modelo || ''}`),
+    external_id: String(item.externalId || item.external_id || item.id || `${item.fornecedor || 'local'}-${item.marca || ''}-${item.modelo || ''}`),
     bling_id: item.blingId ? String(item.blingId) : null,
     sku: item.sku || null,
-    product_type: item.tipo || 'Outro',
-    brand: item.marca || null,
-    model: item.modelo || item.nome || 'Produto migrado',
-    power_w: Number(item.potencia || 0),
-    supplier: item.fornecedor || null,
-    cost_price: Number(item.custo || 0),
-    sale_price: Number(item.precoVenda || 0),
-    stock_quantity: Number(item.estoque || 0),
-    warehouse: item.deposito || null,
+    product_type: item.tipo || item.product_type || 'Outro',
+    brand: item.marca || item.brand || null,
+    model: item.modelo || item.model || item.nome || 'Produto migrado',
+    power_w: Number(item.potencia ?? item.power_w ?? 0),
+    supplier: item.fornecedor || item.supplier || null,
+    cost_price: Number(item.custo ?? item.cost_price ?? 0),
+    sale_price: Number(item.precoVenda ?? item.sale_price ?? 0),
+    stock_quantity: Number(item.estoque ?? item.stock_quantity ?? 0),
+    warehouse: item.deposito || item.warehouse || null,
     ncm: item.ncm || null,
-    unit: item.unidade || 'UN',
-    origin: item.origem || 'Migração do navegador',
+    unit: item.unidade || item.unit || 'UN',
+    origin: item.origem || item.origin || 'Migração do navegador',
     created_by: userId,
   };
 }
@@ -118,7 +121,12 @@ export async function migrateLocalDataToSupabase() {
   results.push(await upsertBatch('financial_transactions', asArray(local['mm-erp-movimentacoes-v2']).map((item) => transactionRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('accounts_payable', asArray(local['mm-erp-contas-pagar-v2']).map((item) => payableRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('accounts_receivable', asArray(local['mm-erp-contas-receber-v2']).map((item) => receivableRow(item, userId)), 'external_id'));
-  results.push(await upsertBatch('erp_products', asArray(local['mm-erp-equipamentos-v1']).map((item) => productRow(item, userId)), 'external_id'));
+
+  const localProducts = [
+    ...asArray(local['mm-erp-equipamentos-v1']),
+    ...asArray(local['mm-erp-equipamentos-v2']),
+  ];
+  results.push(await upsertBatch('erp_products', localProducts.map((item) => productRow(item, userId)), 'external_id'));
 
   const summary = {
     exportedAt: snapshot.exportedAt,
