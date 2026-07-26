@@ -10,9 +10,36 @@ function normalizeDate(value) {
   return String(value).slice(0, 10);
 }
 
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+function stableUuid(value) {
+  const source = String(value || 'cliente-local').trim().toLowerCase();
+  const words = [];
+
+  for (let seed = 0; seed < 4; seed += 1) {
+    let hash = (2166136261 ^ seed) >>> 0;
+    for (let index = 0; index < source.length; index += 1) {
+      hash ^= source.charCodeAt(index);
+      hash = Math.imul(hash, 16777619) >>> 0;
+    }
+    words.push(hash.toString(16).padStart(8, '0'));
+  }
+
+  const hex = words.join('').slice(0, 32).split('');
+  hex[12] = '4';
+  hex[16] = ['8', '9', 'a', 'b'][parseInt(hex[16], 16) % 4];
+  const normalized = hex.join('');
+
+  return `${normalized.slice(0, 8)}-${normalized.slice(8, 12)}-${normalized.slice(12, 16)}-${normalized.slice(16, 20)}-${normalized.slice(20, 32)}`;
+}
+
 function clientRow(item, userId) {
+  const identity = item.id || item.document || item.documento || item.email || item.phone || item.telefone || item.name || item.nome;
+
   return {
-    id: /^[0-9a-f-]{36}$/i.test(item.id || '') ? item.id : undefined,
+    id: isUuid(item.id) ? item.id : stableUuid(identity),
     name: item.name || item.nome || 'Sem nome',
     document: item.document || item.documento || null,
     phone: item.phone || item.telefone || 'Não informado',
@@ -117,7 +144,7 @@ export async function migrateLocalDataToSupabase() {
   const userId = userData.user.id;
 
   const results = [];
-  results.push(await upsertBatch('clients', asArray(local['mm-erp-clients']).map((item) => clientRow(item, userId))));
+  results.push(await upsertBatch('clients', asArray(local['mm-erp-clients']).map((item) => clientRow(item, userId)), 'id'));
   results.push(await upsertBatch('financial_transactions', asArray(local['mm-erp-movimentacoes-v2']).map((item) => transactionRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('accounts_payable', asArray(local['mm-erp-contas-pagar-v2']).map((item) => payableRow(item, userId)), 'external_id'));
   results.push(await upsertBatch('accounts_receivable', asArray(local['mm-erp-contas-receber-v2']).map((item) => receivableRow(item, userId)), 'external_id'));
