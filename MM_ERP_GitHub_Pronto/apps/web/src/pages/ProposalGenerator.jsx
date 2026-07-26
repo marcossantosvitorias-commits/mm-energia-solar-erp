@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, ShieldCheck, Sparkles } from 'lucide-react';
 import { formatarMoeda } from '../components/finance/storage.js';
 
 const BELCRED = [
@@ -60,9 +60,10 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
 
     janela.opener = null;
     const data = new Intl.DateTimeFormat('pt-BR').format(new Date());
+    const logoUrl = `${window.location.origin}/logo-mm.png`;
     const linhasParcelas = parcelas.map((item) => `
       <tr>
-        <td>${item.parcelas}x</td>
+        <td><strong>${item.parcelas}x</strong></td>
         <td>${formatarMoeda(item.valor)}</td>
         <td>${item.taxa} a.m.</td>
       </tr>
@@ -75,58 +76,105 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Proposta MM Energia Solar - ${escapeHtml(dados.cliente)}</title>
   <style>
-    *{box-sizing:border-box} body{margin:0;background:#eef2f7;color:#10233f;font-family:Arial,sans-serif}
-    .page{width:210mm;min-height:297mm;margin:0 auto;background:white;padding:17mm}
-    .header{display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #f5c400;padding-bottom:16px}
-    .brand{display:flex;gap:12px;align-items:center}.mark{width:54px;height:54px;border-radius:15px;background:#f5c400;display:grid;place-items:center;font-size:25px;font-weight:900}
-    h1{font-size:25px;margin:0}.muted{color:#667085}.badge{background:#10233f;color:white;border-radius:999px;padding:8px 14px;font-weight:700}
-    .hero{margin:24px 0;padding:22px;border-radius:18px;background:linear-gradient(135deg,#071a35,#123f70);color:white}
-    .hero h2{margin:0 0 8px;font-size:24px}.hero p{margin:5px 0;color:#d9e7f7}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.card{border:1px solid #d8e0ea;border-radius:14px;padding:15px}
-    .card span{display:block;color:#667085;font-size:12px;text-transform:uppercase;font-weight:700}.card strong{display:block;margin-top:6px;font-size:17px}
-    .price{background:#fff7c7;border:1px solid #ead05c;border-radius:16px;padding:18px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
-    .price strong{font-size:26px}.section-title{font-size:18px;margin:24px 0 10px}
-    table{width:100%;border-collapse:collapse;font-size:13px}th{background:#10233f;color:white;text-align:left;padding:9px}td{padding:8px;border-bottom:1px solid #d8e0ea}
-    .note{font-size:11px;line-height:1.5;color:#667085;margin-top:18px}.footer{margin-top:24px;padding-top:14px;border-top:2px solid #f5c400;display:flex;justify-content:space-between;font-size:12px}
-    .actions{position:fixed;right:18px;bottom:18px}.actions button{border:0;border-radius:12px;padding:14px 18px;background:#f5c400;color:#10233f;font-weight:800;box-shadow:0 8px 24px #0003}
-    @media print{body{background:white}.page{margin:0;padding:13mm}.actions{display:none}@page{size:A4;margin:0}}
-    @media(max-width:800px){.page{width:100%;padding:20px}.grid{grid-template-columns:1fr}.header{align-items:flex-start}.badge{font-size:11px}}
+    *{box-sizing:border-box}
+    :root{--navy:#08274d;--navy2:#0d3c70;--gold:#f7bd16;--ink:#142033;--muted:#667085;--line:#dde4ee;--soft:#f5f8fc}
+    body{margin:0;background:#dfe6ef;color:var(--ink);font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .page{width:210mm;min-height:297mm;margin:18px auto;background:#fff;box-shadow:0 24px 70px #00152b2b;overflow:hidden}
+    .top{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:17mm 16mm 13mm;position:relative;overflow:hidden}
+    .top:after{content:'';position:absolute;width:160px;height:160px;border:34px solid #ffffff12;border-radius:50%;right:-48px;top:-58px}
+    .brand-row{display:flex;align-items:center;justify-content:space-between;gap:24px}
+    .logo{width:156px;max-height:66px;object-fit:contain;object-position:left center;filter:drop-shadow(0 4px 12px #0004)}
+    .proposal-tag{border:1px solid #ffffff66;border-radius:999px;padding:8px 14px;font-size:11px;font-weight:800;letter-spacing:1.4px}
+    .headline{margin:24px 0 5px;font-size:31px;line-height:1.06;max-width:520px}
+    .headline b{color:var(--gold)}
+    .sub{margin:0;color:#d9e8f7;font-size:14px;line-height:1.55;max-width:560px}
+    .client-strip{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;margin-top:22px}
+    .client-box{background:#ffffff12;border:1px solid #ffffff26;border-radius:12px;padding:11px 12px}
+    .client-box span{display:block;color:#b9cee3;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:800}
+    .client-box strong{display:block;margin-top:5px;font-size:13px;color:#fff}
+    .content{padding:11mm 16mm 13mm}
+    .section-title{display:flex;align-items:center;gap:9px;margin:0 0 12px;color:var(--navy);font-size:16px}
+    .section-title:before{content:'';width:5px;height:19px;border-radius:4px;background:var(--gold)}
+    .system-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .metric{background:var(--soft);border:1px solid var(--line);border-radius:13px;padding:13px;min-height:91px}
+    .metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.8px;font-weight:800}
+    .metric strong{display:block;margin-top:8px;color:var(--navy);font-size:14px;line-height:1.3}
+    .investment{margin:17px 0;background:linear-gradient(135deg,#fff8dc,#fffdf5);border:1px solid #f0d26a;border-radius:16px;padding:18px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:18px}
+    .investment span{display:block;color:#8b6a00;font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:1px}
+    .investment small{display:block;color:var(--muted);margin-top:5px}
+    .investment strong{font-size:29px;color:var(--navy)}
+    .included{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 18px}
+    .included div{border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}
+    .included b{display:block;color:var(--navy);font-size:11px}.included small{display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.35}
+    table{width:100%;border-collapse:separate;border-spacing:0;font-size:11px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    th{background:var(--navy);color:#fff;text-align:left;padding:9px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+    td{padding:8px 10px;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}tbody tr:nth-child(even){background:#f8fafc}
+    .notes{margin-top:16px;border-radius:12px;background:#f8fafc;border-left:5px solid var(--gold);padding:13px 14px}
+    .notes strong{color:var(--navy);font-size:12px}.notes p{margin:6px 0 0;color:var(--muted);font-size:10px;line-height:1.5}
+    .legal{font-size:8.6px;line-height:1.5;color:#7b8798;margin:15px 0}
+    .footer{background:var(--navy);color:#fff;padding:10mm 16mm;display:flex;justify-content:space-between;align-items:center;gap:20px}
+    .footer-logo{width:112px;max-height:46px;object-fit:contain;object-position:left center}.footer div{font-size:10px;line-height:1.6;text-align:right;color:#d9e8f7}.footer b{color:#fff}
+    .actions{position:fixed;right:18px;bottom:18px}.actions button{border:0;border-radius:14px;padding:15px 20px;background:var(--gold);color:var(--navy);font-weight:900;box-shadow:0 10px 30px #0004;cursor:pointer}
+    @media print{body{background:#fff}.page{margin:0;box-shadow:none}.actions{display:none}@page{size:A4;margin:0}}
+    @media(max-width:800px){.page{width:100%;margin:0}.top,.content,.footer{padding-left:22px;padding-right:22px}.system-grid,.included{grid-template-columns:1fr 1fr}.client-strip{grid-template-columns:1fr}.investment{grid-template-columns:1fr}.brand-row{align-items:flex-start}.logo{width:130px}}
   </style>
 </head>
 <body>
   <main class="page">
-    <header class="header">
-      <div class="brand"><div class="mark">☀</div><div><h1>MM Energia Solar</h1><div class="muted">Energia inteligente para sua casa ou empresa</div></div></div>
-      <div class="badge">PROPOSTA COMERCIAL</div>
-    </header>
-
-    <section class="hero">
-      <h2>Olá, ${escapeHtml(dados.cliente)}!</h2>
-      <p>Preparamos uma solução fotovoltaica para reduzir sua conta de energia com segurança e acompanhamento completo.</p>
-      <p><strong>Local:</strong> ${escapeHtml(dados.cidade)} ${dados.telefone ? `• <strong>Contato:</strong> ${escapeHtml(dados.telefone)}` : ''}</p>
+    <section class="top">
+      <div class="brand-row">
+        <img class="logo" src="${logoUrl}" alt="MM Energia Solar" />
+        <div class="proposal-tag">PROPOSTA COMERCIAL</div>
+      </div>
+      <h1 class="headline">Energia solar pensada para <b>economizar todos os meses</b>.</h1>
+      <p class="sub">Solução fotovoltaica completa, com equipamentos de qualidade, instalação especializada, homologação e suporte pós-venda.</p>
+      <div class="client-strip">
+        <div class="client-box"><span>Cliente</span><strong>${escapeHtml(dados.cliente)}</strong></div>
+        <div class="client-box"><span>Local</span><strong>${escapeHtml(dados.cidade)}</strong></div>
+        <div class="client-box"><span>Contato</span><strong>${escapeHtml(dados.telefone || 'Não informado')}</strong></div>
+      </div>
     </section>
 
-    <div class="grid">
-      <div class="card"><span>Sistema</span><strong>${quantidadePlacas} painéis de ${escapeHtml(dados.potenciaPlaca)} W</strong></div>
-      <div class="card"><span>Potência instalada</span><strong>${potenciaSistema.toFixed(2).replace('.', ',')} kWp</strong></div>
-      <div class="card"><span>Geração estimada</span><strong>${escapeHtml(dados.geracaoMensal)} kWh/mês</strong></div>
-      <div class="card"><span>Equipamentos</span><strong>${escapeHtml(dados.marcaPlaca)} + ${escapeHtml(dados.inversor)}</strong></div>
-    </div>
+    <section class="content">
+      <h2 class="section-title">Resumo do sistema</h2>
+      <div class="system-grid">
+        <div class="metric"><span>Quantidade</span><strong>${quantidadePlacas} painéis</strong></div>
+        <div class="metric"><span>Potência instalada</span><strong>${potenciaSistema.toFixed(2).replace('.', ',')} kWp</strong></div>
+        <div class="metric"><span>Geração estimada</span><strong>${escapeHtml(dados.geracaoMensal)} kWh/mês</strong></div>
+        <div class="metric"><span>Validade</span><strong>${escapeHtml(dados.validade)} dias</strong></div>
+      </div>
 
-    <div class="price"><div><span>Investimento à vista</span><div class="muted">Projeto completo instalado</div></div><strong>${formatarMoeda(valor)}</strong></div>
+      <div class="investment">
+        <div><span>Investimento total</span><small>Projeto completo instalado e homologado</small></div>
+        <strong>${formatarMoeda(valor)}</strong>
+      </div>
 
-    <h3 class="section-title">Simulação de financiamento BelCred</h3>
-    <table>
-      <thead><tr><th>Prazo</th><th>Parcela estimada</th><th>Taxa informada</th></tr></thead>
-      <tbody>${linhasParcelas}</tbody>
-    </table>
+      <h2 class="section-title">Equipamentos e serviços</h2>
+      <div class="included">
+        <div><b>Painéis</b><small>${escapeHtml(dados.marcaPlaca)} — ${escapeHtml(dados.potenciaPlaca)} W</small></div>
+        <div><b>Inversor</b><small>${escapeHtml(dados.inversor)}</small></div>
+        <div><b>Instalação</b><small>Equipe especializada, estrutura e proteções</small></div>
+        <div><b>Homologação</b><small>Processo junto à concessionária incluso</small></div>
+      </div>
 
-    <h3 class="section-title">O que está incluso</h3>
-    <div class="card"><strong>${escapeHtml(dados.observacoes)}</strong><p class="muted">Equipamentos, estrutura, proteções elétricas, instalação e trâmites de homologação conforme escopo comercial.</p></div>
+      <h2 class="section-title">Simulação de financiamento BelCred</h2>
+      <table>
+        <thead><tr><th>Prazo</th><th>Parcela estimada</th><th>Taxa informada</th></tr></thead>
+        <tbody>${linhasParcelas}</tbody>
+      </table>
 
-    <p class="note">Simulação BelCred meramente indicativa, calculada pelos coeficientes das cotações fornecidas. Valores, taxas, prazo, IOF, disponibilidade e aprovação estão sujeitos à análise de crédito e confirmação da instituição financeira. A geração é uma estimativa e pode variar conforme localização, orientação, sombreamento, clima e condições da instalação.</p>
+      <div class="notes">
+        <strong>Observações da proposta</strong>
+        <p>${escapeHtml(dados.observacoes)}</p>
+      </div>
 
-    <footer class="footer"><strong>MM Energia Solar • Bauru/SP</strong><span>Emitida em ${data} • Validade: ${escapeHtml(dados.validade)} dias</span></footer>
+      <p class="legal">A simulação BelCred é meramente indicativa, calculada com base nos coeficientes das cotações fornecidas. Valores, taxas, prazo, IOF, disponibilidade e aprovação estão sujeitos à análise de crédito e confirmação da instituição financeira. A geração apresentada é uma estimativa e pode variar conforme localização, orientação, sombreamento, clima e condições da instalação.</p>
+    </section>
+
+    <footer class="footer">
+      <img class="footer-logo" src="${logoUrl}" alt="MM Energia Solar" />
+      <div><b>MM Energia Solar • Bauru/SP</b><br/>Proposta emitida em ${data} • Validade: ${escapeHtml(dados.validade)} dias<br/>Projeto, instalação, homologação e pós-venda.</div>
+    </footer>
   </main>
   <div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div>
 </body>
@@ -139,51 +187,21 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
       <div className="finance-panel-header">
         <div>
           <h2>Gerador de proposta para o cliente</h2>
-          <p>Crie uma proposta em PDF com o preço do kit e a simulação BelCred.</p>
+          <p>Crie uma proposta comercial profissional com a identidade da MM Energia Solar.</p>
         </div>
       </div>
 
       <div className="finance-form">
-        <label className="finance-field">
-          <span>Nome do cliente *</span>
-          <input name="cliente" value={dados.cliente} onChange={atualizar} placeholder="Nome completo" />
-        </label>
-        <label className="finance-field">
-          <span>Cidade/UF</span>
-          <input name="cidade" value={dados.cidade} onChange={atualizar} />
-        </label>
-        <label className="finance-field">
-          <span>Telefone</span>
-          <input name="telefone" value={dados.telefone} onChange={atualizar} placeholder="(14) 99999-9999" />
-        </label>
-        <label className="finance-field">
-          <span>Potência de cada painel (W)</span>
-          <input type="number" name="potenciaPlaca" value={dados.potenciaPlaca} onChange={atualizar} />
-        </label>
-        <label className="finance-field">
-          <span>Marca/modelo dos painéis</span>
-          <input name="marcaPlaca" value={dados.marcaPlaca} onChange={atualizar} />
-        </label>
-        <label className="finance-field">
-          <span>Inversor ou microinversor</span>
-          <input name="inversor" value={dados.inversor} onChange={atualizar} />
-        </label>
-        <label className="finance-field">
-          <span>Geração estimada (kWh/mês)</span>
-          <input type="number" name="geracaoMensal" value={dados.geracaoMensal} onChange={atualizar} />
-        </label>
-        <label className="finance-field">
-          <span>Valor final da proposta</span>
-          <input type="number" step="0.01" name="valorProposta" value={dados.valorProposta} onChange={atualizar} />
-        </label>
-        <label className="finance-field">
-          <span>Validade da proposta (dias)</span>
-          <input type="number" name="validade" value={dados.validade} onChange={atualizar} />
-        </label>
-        <label className="finance-field">
-          <span>Itens e observações</span>
-          <textarea name="observacoes" value={dados.observacoes} onChange={atualizar} rows="3" />
-        </label>
+        <label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar} placeholder="Nome completo" /></label>
+        <label className="finance-field"><span>Cidade/UF</span><input name="cidade" value={dados.cidade} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Telefone</span><input name="telefone" value={dados.telefone} onChange={atualizar} placeholder="(14) 99999-9999" /></label>
+        <label className="finance-field"><span>Potência de cada painel (W)</span><input type="number" name="potenciaPlaca" value={dados.potenciaPlaca} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Marca/modelo dos painéis</span><input name="marcaPlaca" value={dados.marcaPlaca} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Inversor ou microinversor</span><input name="inversor" value={dados.inversor} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Geração estimada (kWh/mês)</span><input type="number" name="geracaoMensal" value={dados.geracaoMensal} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Valor final da proposta</span><input type="number" step="0.01" name="valorProposta" value={dados.valorProposta} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Validade da proposta (dias)</span><input type="number" name="validade" value={dados.validade} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Itens e observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar} rows="3" /></label>
       </div>
 
       <div className="pricing-highlight">
@@ -191,10 +209,38 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
         <strong>{formatarMoeda(parcelas.find((item) => item.parcelas === 96)?.valor || 0)}</strong>
       </div>
 
-      <button type="button" className="finance-primary-button" onClick={gerarPdf}>
-        <FileDown size={19} />
-        Gerar proposta em PDF
-      </button>
+      <div style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16, background: 'linear-gradient(135deg, #f8fbff, #fffdf3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, color: '#0b2b52' }}>
+          <Sparkles size={20} />
+          <strong>Proposta pronta para apresentação</strong>
+        </div>
+        <button
+          type="button"
+          onClick={gerarPdf}
+          style={{
+            width: '100%',
+            minHeight: 62,
+            border: 0,
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, #08274d, #0d3c70)',
+            color: '#fff',
+            fontSize: 17,
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 11,
+            boxShadow: '0 12px 28px rgba(8,39,77,.25)',
+            cursor: 'pointer',
+          }}
+        >
+          <FileDown size={22} />
+          Gerar proposta profissional em PDF
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, color: '#667085', fontSize: 12 }}>
+          <ShieldCheck size={15} /> Com logotipo, dados do sistema, investimento e financiamento
+        </div>
+      </div>
     </section>
   );
 }
