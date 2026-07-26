@@ -7,6 +7,9 @@ alter table public.clients add column if not exists zip_code text;
 alter table public.financial_transactions add column if not exists scope text not null default 'company';
 alter table public.accounts_payable add column if not exists scope text not null default 'company';
 alter table public.accounts_receivable add column if not exists scope text not null default 'company';
+alter table public.accounts_receivable add column if not exists client_name text;
+alter table public.accounts_receivable add column if not exists category text;
+alter table public.accounts_receivable add column if not exists origin text;
 
 insert into public.profiles (id, name, role, active)
 select
