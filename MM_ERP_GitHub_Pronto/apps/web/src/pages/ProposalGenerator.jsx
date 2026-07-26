@@ -98,7 +98,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   <title>Proposta MM Energia Solar - ${escapeHtml(dados.cliente)}</title>
   <style>
     *{box-sizing:border-box}
-    :root{--navy:#08274d;--navy2:#0d3c70;--gold:#f7bd16;--ink:#142033;--muted:#667085;--line:#dde4ee;--soft:#f5f8fc;--green:#107c5b}
+    :root{--navy:#08274d;--navy2:#0d3c70;--gold:#f7bd16;--ink:#142033;--muted:#667085;--line:#dde4ee;--soft:#f5f8fc}
     body{margin:0;background:#dfe6ef;color:var(--ink);font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .page{width:210mm;min-height:297mm;margin:18px auto;background:#fff;box-shadow:0 24px 70px #00152b2b;overflow:hidden;page-break-after:always}
     .page:last-of-type{page-break-after:auto}
@@ -114,7 +114,6 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     .system-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{background:var(--soft);border:1px solid var(--line);border-radius:13px;padding:13px;min-height:91px}.metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.8px;font-weight:800}.metric strong{display:block;margin-top:8px;color:var(--navy);font-size:14px;line-height:1.3}
     .investment{margin:17px 0;background:linear-gradient(135deg,#fff8dc,#fffdf5);border:1px solid #f0d26a;border-radius:16px;padding:18px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:18px}.investment span{display:block;color:#8b6a00;font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:1px}.investment small{display:block;color:var(--muted);margin-top:5px}.investment strong{font-size:29px;color:var(--navy)}
     .included{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 18px}.included div{border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}.included b{display:block;color:var(--navy);font-size:11px}.included small{display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.35}
-    .formula{border:1px solid #b9d8cb;background:#f0faf6;border-radius:14px;padding:14px;margin:14px 0}.formula b{color:var(--green);font-size:12px}.formula .equation{font-size:14px;font-weight:800;color:var(--navy);margin:7px 0}.formula small{color:var(--muted);line-height:1.45}
     .equipment-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.equipment-card{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}.equipment-photo{height:158px;background:#eef3f8;display:flex;align-items:center;justify-content:center;overflow:hidden}.equipment-photo img{width:100%;height:100%;object-fit:contain;background:#fff}.equipment-body{padding:14px}.equipment-body h3{margin:0;color:var(--navy);font-size:15px}.equipment-body p{font-size:10px;color:var(--muted);line-height:1.5;margin:7px 0}.specs{margin:0;padding-left:16px;font-size:9.5px;color:#344054;line-height:1.55}
     .guarantees{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:12px 0}.guarantee{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px}.guarantee b{display:block;color:var(--navy);font-size:11px}.guarantee span{font-size:9px;color:var(--muted)}
     table{width:100%;border-collapse:separate;border-spacing:0;font-size:11px;border:1px solid var(--line);border-radius:12px;overflow:hidden}th{background:var(--navy);color:#fff;text-align:left;padding:9px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.6px}td{padding:8px 10px;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}tbody tr:nth-child(even){background:#f8fafc}
@@ -140,11 +139,6 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
         <div class="metric"><span>Potência instalada</span><strong>${potenciaSistema.toFixed(2).replace('.', ',')} kWp</strong></div>
         <div class="metric"><span>Geração estimada</span><strong>${Number(dados.geracaoMensal || geracaoCalculada).toLocaleString('pt-BR')} kWh/mês</strong></div>
         <div class="metric"><span>Geração por painel</span><strong>${geracaoPorPainel.toFixed(2).replace('.', ',')} kWh/mês</strong></div>
-      </div>
-      <div class="formula">
-        <b>Metodologia de cálculo da geração</b>
-        <div class="equation">${escapeHtml(dados.potenciaPlaca)} W × 5,2 × 0,8 × 30 ÷ 1.000 = ${geracaoPorPainel.toFixed(2).replace('.', ',')} kWh/mês por painel</div>
-        <small>Consideramos irradiação solar média de 5,2 horas de sol pleno por dia, fator de desempenho de 80% e 30 dias por mês. A geração total estimada é o resultado por painel multiplicado por ${quantidadePlacas} módulos.</small>
       </div>
       <div class="investment"><div><span>Investimento total</span><small>Projeto completo instalado e homologado</small></div><strong>${formatarMoeda(valor)}</strong></div>
       <h2 class="section-title">Escopo incluso</h2>
@@ -194,7 +188,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
 
   return (
     <section className="finance-panel">
-      <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Crie uma proposta detalhada, com cálculo técnico, fotos e identidade da MM Energia Solar.</p></div></div>
+      <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Crie uma proposta detalhada, com geração estimada, fotos e identidade da MM Energia Solar.</p></div></div>
 
       <div className="finance-form">
         <label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar} placeholder="Nome completo" /></label>
@@ -211,13 +205,13 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
         <label className="finance-field"><span>Itens e observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar} rows="3" /></label>
       </div>
 
-      <div className="pricing-highlight"><span>Geração calculada: {geracaoPorPainel.toFixed(2).replace('.', ',')} kWh/mês por painel</span><strong>{Math.round(geracaoCalculada).toLocaleString('pt-BR')} kWh/mês no sistema</strong></div>
+      <div className="pricing-highlight"><span>Geração estimada por painel: {geracaoPorPainel.toFixed(2).replace('.', ',')} kWh/mês</span><strong>{Math.round(geracaoCalculada).toLocaleString('pt-BR')} kWh/mês no sistema</strong></div>
       <div className="pricing-highlight"><span>BelCred: exemplo em 96x</span><strong>{formatarMoeda(parcelas.find((item) => item.parcelas === 96)?.valor || 0)}</strong></div>
 
       <div style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16, background: 'linear-gradient(135deg, #f8fbff, #fffdf3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, color: '#0b2b52' }}><Sparkles size={20} /><strong>Proposta detalhada pronta para apresentação</strong></div>
         <button type="button" onClick={gerarPdf} style={{ width: '100%', minHeight: 62, border: 0, borderRadius: 16, background: 'linear-gradient(135deg, #08274d, #0d3c70)', color: '#fff', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 11, boxShadow: '0 12px 28px rgba(8,39,77,.25)', cursor: 'pointer' }}><FileDown size={22} />Gerar proposta detalhada em PDF</button>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Com logotipo, fotos, cálculo de geração, equipamentos, garantias e financiamento</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Com logotipo, fotos, geração estimada, equipamentos, garantias e financiamento</div>
       </div>
     </section>
   );
