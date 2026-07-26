@@ -1,18 +1,5 @@
-export function carregarDados(chave, valorPadrao) {
-  try {
-    const dados = localStorage.getItem(chave);
-    return dados ? JSON.parse(dados) : valorPadrao;
-  } catch {
-    return valorPadrao;
-  }
-}
-
-export function salvarDados(chave, dados) {
-  localStorage.setItem(chave, JSON.stringify(dados));
-}
-
 export function gerarId() {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return crypto.randomUUID();
 }
 
 export function dataHoje() {
@@ -28,7 +15,7 @@ export function formatarMoeda(valor) {
 
 export function formatarData(data) {
   if (!data) return '-';
-  return new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR');
+  return new Date(`${String(data).slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
 }
 
 export function exportarCSV(nomeArquivo, linhas) {
@@ -45,21 +32,14 @@ export function exportarCSV(nomeArquivo, linhas) {
 
   const conteudo = [
     colunas.map(escapar).join(';'),
-    ...linhas.map((linha) =>
-      colunas.map((coluna) => escapar(linha[coluna])).join(';')
-    ),
+    ...linhas.map((linha) => colunas.map((coluna) => escapar(linha[coluna])).join(';')),
   ].join('\n');
 
-  const blob = new Blob(['\ufeff', conteudo], {
-    type: 'text/csv;charset=utf-8;',
-  });
-
+  const blob = new Blob(['\ufeff', conteudo], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-
   link.href = url;
   link.download = nomeArquivo;
   link.click();
-
   URL.revokeObjectURL(url);
 }
