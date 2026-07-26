@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FileDown } from 'lucide-react';
 import { formatarMoeda } from '../components/finance/storage.js';
+import { proposalsDatabase, settingsDatabase } from '../services/businessDatabaseService.js';
 
 const BELCRED = [
   { parcelas: 24, taxa: '1,91%', fator: 730.42 / 12232.56 },
@@ -20,7 +21,10 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#039;');
 
-export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw }) {
+export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw, supplierQuoteId, quoteNumber }) {
+  const draftKey = `proposal_draft_${quoteNumber || supplierQuoteId || 'default'}`;
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [dados, setDados] = useState({
     cliente: '',
     cidade: 'Bauru/SP',
@@ -34,6 +38,27 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     observacoes: 'Projeto, instalação, homologação e pós-venda inclusos.',
   });
 
+  useEffect(() => {
+    let ativo = true;
+    settingsDatabase.get(draftKey, null)
+      .then((draft) => {
+        if (ativo && draft) setDados((atual) => ({ ...atual, ...draft }));
+      })
+      .catch((error) => { if (ativo) setSaveError(error.message); })
+      .finally(() => { if (ativo) setDraftLoaded(true); });
+    return () => { ativo = false; };
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftLoaded) return undefined;
+    const timer = window.setTimeout(() => {
+      settingsDatabase.set(draftKey, dados, 'Rascunho da proposta comercial.')
+        .then(() => setSaveError(''))
+        .catch((error) => setSaveError(error.message));
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [dados, draftKey, draftLoaded]);
+
   const valor = Number(dados.valorProposta || precoRecomendado || 0);
   const potenciaSistema = (quantidadePlacas * Number(dados.potenciaPlaca || 0)) / 1000;
   const parcelas = useMemo(
@@ -46,7 +71,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     setDados((atual) => ({ ...atual, [name]: value }));
   };
 
-  const gerarPdf = () => {
+  const gerarPdf = async () => {
     if (!dados.cliente.trim()) {
       window.alert('Informe o nome do cliente para gerar a proposta.');
       return;
@@ -59,6 +84,32 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     }
 
     janela.opener = null;
+
+    try {
+      await proposalsDatabase.save({
+        externalId: `proposta-${Date.now()}-${crypto.randomUUID()}`,
+        clientName: dados.cliente,
+        supplierQuoteId,
+        proposalDate: new Date().toISOString().slice(0, 10),
+        validityDays: Number(dados.validade || 7),
+        projectValue: valor,
+        discountedValue: valor,
+        financingSimulation: parcelas,
+        calculation: {
+          quoteNumber,
+          quantidadePlacas,
+          potenciaSistema,
+          dados,
+        },
+        status: 'enviada',
+      });
+    } catch (error) {
+      janela.close();
+      setSaveError(error.message);
+      window.alert(`Não foi possível salvar a proposta no Supabase: ${error.message}`);
+      return;
+    }
+
     const data = new Intl.DateTimeFormat('pt-BR').format(new Date());
     const linhasParcelas = parcelas.map((item) => `
       <tr>
@@ -190,6 +241,8 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
         <span>BelCred: exemplo em 96x</span>
         <strong>{formatarMoeda(parcelas.find((item) => item.parcelas === 96)?.valor || 0)}</strong>
       </div>
+
+      {saveError ? <p className="crm-message">{saveError}</p> : null}
 
       <button type="button" className="finance-primary-button" onClick={gerarPdf}>
         <FileDown size={19} />
