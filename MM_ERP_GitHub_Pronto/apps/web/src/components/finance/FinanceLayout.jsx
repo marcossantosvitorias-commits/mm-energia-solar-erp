@@ -11,6 +11,7 @@ import {
   Scale,
   UserRound,
   UsersRound,
+  CalendarDays,
   DatabaseBackup,
   PlugZap,
   Globe2,
@@ -28,6 +29,7 @@ import '../crm/crm.css';
 const mainItems = [
   { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound },
+  { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/app', label: 'Financeiro', icon: WalletCards, end: true },
   { to: '/app/precos', label: 'Preço dos kits', icon: Calculator },
   { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign },
