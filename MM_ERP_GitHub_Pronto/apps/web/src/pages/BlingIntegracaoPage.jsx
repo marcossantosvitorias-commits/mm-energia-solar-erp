@@ -2,15 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { CheckCircle2, FileCheck2, RefreshCw, UploadCloud } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import {
-  aplicarSaldos,
-  BLING_STORAGE_KEYS,
   converterArquivoBling,
   detectarTipoBling,
   lerCSVBling,
-  lerLocal,
-  mesclarPorId,
   nomeTipoBling,
 } from '../components/bling/blingImporters.js';
+import { blingDatabase } from '../services/erpDatabaseService.js';
+import { financeDatabase } from '../services/financeDatabaseService.js';
 import './BlingIntegracaoPage.css';
 
 const tiposEsperados = ['contatos', 'produtos', 'saldos', 'caixa', 'pagar', 'receber', 'compras', 'vendas'];
@@ -50,7 +48,7 @@ function BlingIntegracaoPage() {
     });
   }
 
-  function importar() {
+  async function importar() {
     const validos = arquivos.filter((arquivo) => arquivo.tipo && !arquivo.erro);
     if (!validos.length) {
       setMensagem('Selecione pelo menos um arquivo CSV válido do Bling.');
@@ -62,34 +60,20 @@ function BlingIntegracaoPage() {
     setImportando(true);
     try {
       const resumo = [];
-      let equipamentosAtualizados = null;
-
-      validos.forEach((arquivo) => {
-        if (arquivo.tipo === 'saldos') return;
-        const chave = BLING_STORAGE_KEYS[arquivo.tipo];
-        const resultado = mesclarPorId(lerLocal(chave), arquivo.registros);
-        localStorage.setItem(chave, JSON.stringify(resultado.dados));
-        resumo.push(`${nomeTipoBling(arquivo.tipo)}: ${resultado.adicionados} novos e ${resultado.atualizados} atualizados`);
-        if (arquivo.tipo === 'produtos') equipamentosAtualizados = resultado.dados;
-      });
-
-      const arquivoSaldos = porTipo.saldos;
-      if (arquivoSaldos) {
-        const equipamentos = equipamentosAtualizados || lerLocal(BLING_STORAGE_KEYS.produtos);
-        const resultado = aplicarSaldos(equipamentos, arquivoSaldos.registros);
-        localStorage.setItem(BLING_STORAGE_KEYS.produtos, JSON.stringify(resultado.dados));
-        resumo.push(`Estoque: ${resultado.atualizados} produtos atualizados`);
+      for (const arquivo of validos) {
+        let resultado;
+        if (arquivo.tipo === 'contatos') resultado = await blingDatabase.contacts(arquivo.registros);
+        if (arquivo.tipo === 'produtos') resultado = await blingDatabase.products(arquivo.registros);
+        if (arquivo.tipo === 'saldos') resultado = await blingDatabase.stock(arquivo.registros);
+        if (arquivo.tipo === 'caixa') resultado = await financeDatabase.importTransactions(arquivo.registros);
+        if (arquivo.tipo === 'pagar') resultado = await financeDatabase.importPayables(arquivo.registros);
+        if (arquivo.tipo === 'receber') resultado = await financeDatabase.importReceivables(arquivo.registros);
+        if (arquivo.tipo === 'compras') resultado = await blingDatabase.purchases(arquivo.registros);
+        if (arquivo.tipo === 'vendas') resultado = await blingDatabase.sales(arquivo.registros);
+        await blingDatabase.registerImport(arquivo.nome, arquivo.tipo, arquivo.registros.length);
+        resumo.push(`${nomeTipoBling(arquivo.tipo)}: ${resultado?.saved ?? arquivo.registros.length} gravados`);
       }
-
-      const historico = lerLocal(BLING_STORAGE_KEYS.historico);
-      historico.unshift({
-        id: crypto.randomUUID(),
-        data: new Date().toISOString(),
-        arquivos: validos.map((arquivo) => arquivo.nome),
-        registros: validos.reduce((soma, arquivo) => soma + arquivo.registros.length, 0),
-      });
-      localStorage.setItem(BLING_STORAGE_KEYS.historico, JSON.stringify(historico.slice(0, 30)));
-      setMensagem(`Importação concluída. ${resumo.join(' · ')}. Recarregue o ERP para atualizar todos os painéis.`);
+      setMensagem(`Importação concluída no Supabase. ${resumo.join(' · ')}.`);
     } catch (error) {
       setMensagem(error?.message || 'Não foi possível concluir a importação.');
     } finally {
@@ -170,7 +154,7 @@ function BlingIntegracaoPage() {
       </section>
 
       <aside className="bling-security-note">
-        Os CSVs são processados dentro do seu navegador. Nenhum dado financeiro ou de cliente é incluído no código do site ou enviado para o GitHub.
+        Os CSVs são processados no navegador e os registros validados são gravados diretamente no Supabase com controle de acesso.
       </aside>
     </FinanceLayout>
   );

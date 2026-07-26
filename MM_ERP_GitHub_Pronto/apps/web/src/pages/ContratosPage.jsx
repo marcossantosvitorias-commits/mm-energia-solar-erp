@@ -2,65 +2,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, FileCheck2, Search } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import StatCard from '../components/finance/StatCard.jsx';
-import { carregarDados, formatarData, formatarMoeda, salvarDados } from '../components/finance/storage.js';
+import { formatarData, formatarMoeda } from '../components/finance/storage.js';
+import { contractsDatabase } from '../services/businessDatabaseService.js';
 import './ContratosPage.css';
 
-const CHAVE_CONTRATOS = 'mm-erp-contratos-v1';
-const CHAVE_RECEBER = 'mm-erp-contas-receber-v2';
-
-const contratoOsvaldo = {
-  id: 'contrato-osvaldo-cestari-2026',
-  cliente: 'Osvaldo Herminio Cestari Filho',
-  documento: '130.796.368-48',
-  endereco: 'R. Sebastião Francisco Arruda, 663 - Vila Operária, Barra Bonita/SP',
-  assinatura: '2026-07-20',
-  prazoLimite: '2026-08-18',
-  status: 'assinado',
-  valorTotal: 12908,
-  recebido: 6454,
-  aReceber: 6454,
-  sistema: '8 módulos bifaciais e 2 microinversores de 2,25 kW',
-  pagamento: '50% na assinatura e 50% no dia da instalação',
-  validacao: 'https://valida.ae/cb4fe3bc4c6b6dbd3fca9a85fc229fe810a791180b34f415b',
-};
-
-function carregarContratos() {
-  const salvos = carregarDados(CHAVE_CONTRATOS, []);
-  if (!salvos.some((item) => item.id === contratoOsvaldo.id)) {
-    return [contratoOsvaldo, ...salvos];
-  }
-  return salvos.map((item) =>
-    item.id === contratoOsvaldo.id
-      ? { ...item, prazoLimite: contratoOsvaldo.prazoLimite }
-      : item
-  );
-}
-
 export default function ContratosPage() {
-  const [contratos, setContratos] = useState(carregarContratos);
+  const [contratos, setContratos] = useState([]);
   const [busca, setBusca] = useState('');
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
-    salvarDados(CHAVE_CONTRATOS, contratos);
-
-    const contas = carregarDados(CHAVE_RECEBER, []);
-    const idParcela = 'contrato-osvaldo-cestari-parcela-2';
-    const parcela = {
-      id: idParcela,
-      descricao: 'Saldo do contrato solar - Osvaldo Cestari',
-      cliente: contratoOsvaldo.cliente,
-      categoria: 'Venda de sistema solar',
-      valor: contratoOsvaldo.aReceber,
-      vencimento: contratoOsvaldo.prazoLimite,
-      status: 'pendente',
-      origem: 'Contrato assinado',
-      observacoes: 'Receber no dia da instalação. Previsão ajustada para 18/08/2026.',
-    };
-    const atualizadas = contas.some((item) => item.id === idParcela)
-      ? contas.map((item) => item.id === idParcela ? { ...item, vencimento: parcela.vencimento, observacoes: parcela.observacoes } : item)
-      : [parcela, ...contas];
-    salvarDados(CHAVE_RECEBER, atualizadas);
-  }, [contratos]);
+    let ativo = true;
+    contractsDatabase.list()
+      .then((dados) => { if (ativo) setContratos(dados); })
+      .catch((error) => { if (ativo) setErro(error.message); })
+      .finally(() => { if (ativo) setCarregando(false); });
+    return () => { ativo = false; };
+  }, []);
 
   const filtrados = useMemo(
     () => contratos.filter((item) =>
@@ -79,27 +38,28 @@ export default function ContratosPage() {
   ), [contratos]);
 
   return (
-    <FinanceLayout
-      title="Contratos"
-      subtitle="Contratos assinados, valores recebidos e saldos pendentes."
-    >
+    <FinanceLayout title="Contratos" subtitle="Contratos e valores carregados diretamente do Supabase.">
+      {erro ? <p className="crm-message">{erro}</p> : null}
       <section className="finance-grid">
         <StatCard label="Total contratado" value={formatarMoeda(totais.total)} helper={`${contratos.length} contrato(s)`} tone="primary" />
         <StatCard label="Já recebido" value={formatarMoeda(totais.recebido)} helper="Pagamentos confirmados" tone="positive" />
-        <StatCard label="A receber" value={formatarMoeda(totais.receber)} helper="Enviado ao Financeiro" tone="warning" />
+        <StatCard label="A receber" value={formatarMoeda(totais.receber)} helper="Integrado ao Financeiro" tone="warning" />
       </section>
 
       <section className="finance-panel">
         <div className="finance-panel-header">
           <div>
             <h2>Contratos cadastrados</h2>
-            <p>O saldo pendente aparece automaticamente em Contas a receber.</p>
+            <p>O saldo pendente é mantido em Contas a receber no mesmo banco.</p>
           </div>
           <label className="contracts-search">
             <Search size={17} />
             <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar cliente ou CPF" />
           </label>
         </div>
+
+        {carregando ? <p>Carregando contratos...</p> : null}
+        {!carregando && !filtrados.length ? <p>Nenhum contrato encontrado.</p> : null}
 
         <div className="contracts-list">
           {filtrados.map((contrato) => (
@@ -110,19 +70,19 @@ export default function ContratosPage() {
                   <h3>{contrato.cliente}</h3>
                   <span>Assinado em {formatarData(contrato.assinatura)}</span>
                 </div>
-                <span className="finance-badge paga">Assinado</span>
+                <span className={`finance-badge ${contrato.status === 'assinado' ? 'paga' : ''}`}>{contrato.status}</span>
               </div>
 
               <div className="contract-details">
-                <div><span>CPF</span><strong>{contrato.documento}</strong></div>
-                <div><span>Sistema</span><strong>{contrato.sistema}</strong></div>
-                <div><span>Endereço da obra</span><strong>{contrato.endereco}</strong></div>
-                <div><span>Condição</span><strong>{contrato.pagamento}</strong></div>
+                <div><span>CPF</span><strong>{contrato.documento || '-'}</strong></div>
+                <div><span>Sistema</span><strong>{contrato.sistema || '-'}</strong></div>
+                <div><span>Endereço da obra</span><strong>{contrato.endereco || '-'}</strong></div>
+                <div><span>Condição</span><strong>{contrato.pagamento || '-'}</strong></div>
               </div>
 
               <div className="contract-payments">
                 <div className="received">
-                  <span>Entrada considerada recebida</span>
+                  <span>Valor recebido</span>
                   <strong>{formatarMoeda(contrato.recebido)}</strong>
                 </div>
                 <div className="pending">
@@ -132,9 +92,11 @@ export default function ContratosPage() {
                 </div>
               </div>
 
-              <a className="finance-secondary-button contract-link" href={contrato.validacao} target="_blank" rel="noreferrer">
-                <ExternalLink size={16} /> Validar contrato assinado
-              </a>
+              {contrato.validacao ? (
+                <a className="finance-secondary-button contract-link" href={contrato.validacao} target="_blank" rel="noreferrer">
+                  <ExternalLink size={16} /> Validar contrato assinado
+                </a>
+              ) : null}
             </article>
           ))}
         </div>

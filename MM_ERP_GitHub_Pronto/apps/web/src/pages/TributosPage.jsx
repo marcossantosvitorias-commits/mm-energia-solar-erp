@@ -1,11 +1,33 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import StatCard from '../components/finance/StatCard.jsx';
 import { formatarMoeda } from '../components/finance/storage.js';
+import { settingsDatabase } from '../services/businessDatabaseService.js';
 
+const DEFAULT_VALUES = { venda: 15000, compras: 10000, outrosCustos: 1000, simples: 4, ibsCbs: 26.5, creditoCompras: 26.5, percentualCreditavel: 100 };
 const n = v => Number(v || 0); const p = v => n(v) / 100;
 function TributosPage() {
-  const [f, setF] = useState({ venda: 15000, compras: 10000, outrosCustos: 1000, simples: 4, ibsCbs: 26.5, creditoCompras: 26.5, percentualCreditavel: 100 });
+  const [f, setF] = useState(DEFAULT_VALUES);
+  const [loaded, setLoaded] = useState(false);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    let ativo = true;
+    settingsDatabase.get('tax_simulator', DEFAULT_VALUES)
+      .then((values) => { if (ativo) setF({ ...DEFAULT_VALUES, ...(values || {}) }); })
+      .catch((error) => { if (ativo) setErro(error.message); })
+      .finally(() => { if (ativo) setLoaded(true); });
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return undefined;
+    const timer = window.setTimeout(() => {
+      settingsDatabase.set('tax_simulator', f, 'Últimos valores usados no simulador tributário.')
+        .catch((error) => setErro(error.message));
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [f, loaded]);
   const atualizar = e => setF(x => ({ ...x, [e.target.name]: e.target.value }));
   const r = useMemo(() => {
     const impostoAtual = n(f.venda) * p(f.simples);
@@ -18,6 +40,7 @@ function TributosPage() {
     return { impostoAtual, impostoBruto, credito, impostoLiquido, liquidoSplit: n(f.venda) - impostoLiquido, lucroAtual, lucroReforma, impacto: lucroReforma - lucroAtual };
   }, [f]);
   return <FinanceLayout title="Simulador tributário" subtitle="Compare o modelo atual com IBS, CBS, créditos e split payment.">
+    {erro ? <p className="crm-message">{erro}</p> : null}
     <section className="finance-panel"><h2>Dados da operação</h2><div className="finance-form">
       <label className="finance-field"><span>Valor da venda</span><input type="number" name="venda" value={f.venda} onChange={atualizar} /></label>
       <label className="finance-field"><span>Compras/equipamentos</span><input type="number" name="compras" value={f.compras} onChange={atualizar} /></label>

@@ -1,9 +1,13 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 function ensureDatabase() {
-  if (!isSupabaseConfigured) {
-    throw new Error('O banco central ainda não está configurado. Informe as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY na Hostinger.');
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('O banco central ainda não está configurado. Informe VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY na Hostinger.');
   }
+}
+
+function scopeOf(item) {
+  return item.scope || item.escopo || 'company';
 }
 
 function transactionPayload(item) {
@@ -17,6 +21,7 @@ function transactionPayload(item) {
     payment_method: item.paymentMethod || item.formaPagamento || null,
     origin: item.source || item.origem || 'Cadastro manual',
     notes: item.notes || item.observacoes || null,
+    scope: scopeOf(item),
   };
 }
 
@@ -32,14 +37,16 @@ function payablePayload(item) {
     status: item.status || 'pendente',
     origin: item.source || item.origem || 'Cadastro manual',
     notes: item.notes || item.observacoes || null,
+    scope: scopeOf(item),
   };
 }
 
 function receivablePayload(item) {
   return {
     external_id: String(item.externalId || item.id || '').trim() || null,
+    client_id: item.clientId || item.client_id || null,
+    client_name: item.client || item.cliente || item.clientName || null,
     description: item.description || item.descricao || '',
-    client_name: item.client || item.cliente || null,
     category: item.category || item.categoria || 'Venda de sistema solar',
     amount: Number(item.amount ?? item.valor ?? 0),
     due_date: item.dueDate || item.vencimento,
@@ -48,12 +55,15 @@ function receivablePayload(item) {
     payment_method: item.paymentMethod || item.formaPagamento || null,
     origin: item.source || item.origem || 'Cadastro manual',
     notes: item.notes || item.observacoes || null,
+    scope: scopeOf(item),
   };
 }
 
-async function listAll(table, orderColumn, ascending = false) {
+async function listAll(table, orderColumn, ascending = false, scope = 'company') {
   ensureDatabase();
-  const { data, error } = await supabase.from(table).select('*').order(orderColumn, { ascending });
+  let query = supabase.from(table).select('*').order(orderColumn, { ascending });
+  if (scope) query = query.eq('scope', scope);
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
@@ -73,7 +83,6 @@ async function upsertByExternalId(table, item, payloadBuilder) {
     .upsert(payload, { onConflict: 'external_id' })
     .select('*')
     .single();
-
   if (error) throw error;
   return data;
 }
@@ -81,7 +90,6 @@ async function upsertByExternalId(table, item, payloadBuilder) {
 async function importMany(table, items, payloadBuilder) {
   ensureDatabase();
   const result = { saved: 0, failed: 0, errors: [] };
-
   for (const item of items) {
     try {
       await upsertByExternalId(table, item, payloadBuilder);
@@ -91,7 +99,6 @@ async function importMany(table, items, payloadBuilder) {
       result.errors.push({ id: item.id || item.externalId, message: error?.message || 'Erro desconhecido' });
     }
   }
-
   return result;
 }
 
@@ -101,20 +108,39 @@ async function remove(table, id) {
   if (error) throw error;
 }
 
+async function updateById(table, id, patch) {
+  ensureDatabase();
+  const { data, error } = await supabase.from(table).update(patch).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
 export const financeDatabase = {
-  listTransactions: () => listAll('financial_transactions', 'transaction_date'),
+  listTransactions: (scope = 'company') => listAll('financial_transactions', 'transaction_date', false, scope),
   saveTransaction: (item) => upsertByExternalId('financial_transactions', item, transactionPayload),
   importTransactions: (items) => importMany('financial_transactions', items, transactionPayload),
+  updateTransaction: (id, patch) => updateById('financial_transactions', id, transactionPayload(patch)),
   deleteTransaction: (id) => remove('financial_transactions', id),
 
-  listPayables: () => listAll('accounts_payable', 'due_date', true),
+  listPayables: (scope = 'company') => listAll('accounts_payable', 'due_date', true, scope),
   savePayable: (item) => upsertByExternalId('accounts_payable', item, payablePayload),
   importPayables: (items) => importMany('accounts_payable', items, payablePayload),
+  updatePayable: (id, patch) => updateById('accounts_payable', id, {
+    ...(patch.status ? { status: patch.status } : {}),
+    ...((patch.paidDate || patch.dataPagamento) ? { paid_date: patch.paidDate || patch.dataPagamento } : {}),
+    ...(patch.notes || patch.observacoes ? { notes: patch.notes || patch.observacoes } : {}),
+  }),
   deletePayable: (id) => remove('accounts_payable', id),
 
-  listReceivables: () => listAll('accounts_receivable', 'due_date', true),
+  listReceivables: (scope = 'company') => listAll('accounts_receivable', 'due_date', true, scope),
   saveReceivable: (item) => upsertByExternalId('accounts_receivable', item, receivablePayload),
   importReceivables: (items) => importMany('accounts_receivable', items, receivablePayload),
+  updateReceivable: (id, patch) => updateById('accounts_receivable', id, {
+    ...(patch.status ? { status: patch.status } : {}),
+    ...((patch.receivedDate || patch.dataRecebimento) ? { received_date: patch.receivedDate || patch.dataRecebimento } : {}),
+    ...(patch.paymentMethod || patch.formaPagamento ? { payment_method: patch.paymentMethod || patch.formaPagamento } : {}),
+    ...(patch.notes || patch.observacoes ? { notes: patch.notes || patch.observacoes } : {}),
+  }),
   deleteReceivable: (id) => remove('accounts_receivable', id),
 
   async registerImport(data) {
@@ -130,7 +156,6 @@ export const financeDatabase = {
       })
       .select('*')
       .single();
-
     if (error) throw error;
     return record;
   },

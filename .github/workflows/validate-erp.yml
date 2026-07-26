@@ -1,0 +1,34 @@
+name: Validate ERP
+
+on:
+  push:
+    branches:
+      - supabase-source-of-truth
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: MM_ERP_GitHub_Pronto/apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: MM_ERP_GitHub_Pronto/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Audit browser persistence
+        run: |
+          matches=$(grep -R --line-number --include='*.js' --include='*.jsx' 'localStorage' src | grep -v 'src/services/localDataSafety.js' || true)
+          if [ -n "$matches" ]; then
+            echo "$matches"
+            exit 1
+          fi
+      - name: Build
+        run: npm run build

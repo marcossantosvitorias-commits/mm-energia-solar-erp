@@ -26,6 +26,7 @@ export const productsDatabase = {
       custo: Number(row.cost_price || 0), precoVenda: Number(row.sale_price || 0),
       estoque: Number(row.stock_quantity || 0), deposito: row.warehouse,
       ncm: row.ncm, unidade: row.unit, origem: row.origin,
+      atualizadoEm: row.updated_at ? new Date(row.updated_at).toLocaleDateString('pt-BR') : null,
     }));
   },
   saveMany(items) {
@@ -55,7 +56,7 @@ export const blingDatabase = {
       phone: x.telefone || null, email: x.email || null,
       address: { endereco: x.endereco, numero: x.numero, bairro: x.bairro, cep: x.cep, cidade: x.cidade, estado: x.estado },
       contact_type: x.tipoContato || null, status: x.situacao || null, raw_data: x,
-    }))),
+    })));
   },
   products: (items) => productsDatabase.saveMany(items),
   async stock(items) {
@@ -106,5 +107,23 @@ export const moduleDatabase = {
     return upsertMany('erp_module_records', [{
       module, external_id: String(item.externalId || item.id || crypto.randomUUID()), payload: item,
     }], 'module,external_id');
+  },
+  saveMany(module, items) {
+    return upsertMany('erp_module_records', items.map((item) => ({
+      module,
+      external_id: String(item.externalId || item.id || crypto.randomUUID()),
+      payload: item,
+    })), 'module,external_id');
+  },
+  async remove(module, id) {
+    requireSupabase();
+    const { error } = await supabase.from('erp_module_records').delete().eq('module', module).eq('id', id);
+    if (error) throw error;
+  },
+  async replace(module, items) {
+    requireSupabase();
+    const { error } = await supabase.from('erp_module_records').delete().eq('module', module);
+    if (error) throw error;
+    return this.saveMany(module, items);
   },
 };

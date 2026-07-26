@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Calculator, Copy, Check } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import { belcredDatabase, settingsDatabase } from '../services/businessDatabaseService.js';
 import './BelCredSimuladorPage.css';
 
 const BASE_REFERENCIA = 16383.49;
@@ -36,6 +37,26 @@ function exibirCampo(valor) {
 function BelCredSimuladorPage() {
   const [valor, setValor] = useState(16383.49);
   const [copiado, setCopiado] = useState(false);
+  const [configCarregada, setConfigCarregada] = useState(false);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    let ativo = true;
+    settingsDatabase.get('belcred_last_value', { valor: 16383.49 })
+      .then((config) => { if (ativo) setValor(Number(config?.valor || 16383.49)); })
+      .catch((error) => { if (ativo) setErro(error.message); })
+      .finally(() => { if (ativo) setConfigCarregada(true); });
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!configCarregada) return undefined;
+    const timer = window.setTimeout(() => {
+      settingsDatabase.set('belcred_last_value', { valor }, 'Último valor usado no simulador BelCred.')
+        .catch((error) => setErro(error.message));
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [valor, configCarregada]);
 
   const simulacoes = useMemo(
     () =>
@@ -62,7 +83,14 @@ function BelCredSimuladorPage() {
       'Valores estimados, sujeitos à aprovação e às condições da financeira.',
     ].join('\n');
 
-    await navigator.clipboard.writeText(texto);
+    try {
+      await belcredDatabase.save({ projectValue: valor, simulation: simulacoes });
+      await navigator.clipboard.writeText(texto);
+      setErro('');
+    } catch (error) {
+      setErro(error.message);
+      return;
+    }
     setCopiado(true);
     window.setTimeout(() => setCopiado(false), 1800);
   }
@@ -73,6 +101,7 @@ function BelCredSimuladorPage() {
       subtitle="Calcule as parcelas do financiamento para apresentar ao cliente."
       theme="empresa"
     >
+      {erro ? <p className="crm-message">{erro}</p> : null}
       <section className="belcred-hero">
         <div className="belcred-logo">
           <img src="/belcred-logo.svg" alt="BelCred" />

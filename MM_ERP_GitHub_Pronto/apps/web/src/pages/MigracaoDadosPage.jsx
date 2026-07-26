@@ -1,21 +1,21 @@
-import React, { useMemo, useState } from 'react';
-import { DatabaseBackup, Download, ShieldCheck, Upload, CloudUpload } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CloudUpload, DatabaseBackup, Download, ShieldCheck } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
-import {
-  collectLocalErpData,
-  downloadLocalErpBackup,
-  getMigrationStatus,
-  restoreLocalErpBackup,
-} from '../services/localDataSafety.js';
+import { collectLocalErpData, downloadLocalErpBackup } from '../services/localDataSafety.js';
 import { migrateLocalDataToSupabase } from '../services/supabaseMigrationService.js';
+import { settingsDatabase } from '../services/businessDatabaseService.js';
 import { isSupabaseConfigured } from '../lib/supabase.js';
 
 const LABELS = {
   'mm-erp-clients': 'Clientes e leads',
-  'mm-erp-movimentacoes-v2': 'Movimentações financeiras',
+  'mm-erp-movimentacoes-v2': 'Movimentações da empresa',
   'mm-erp-contas-pagar-v2': 'Contas a pagar',
   'mm-erp-contas-receber-v2': 'Contas a receber',
+  'mm-erp-marcos-v2': 'Financeiro do Marcos',
+  'mm-erp-equipamentos-v1': 'Equipamentos',
   'mm-erp-equipamentos-v2': 'Equipamentos',
+  'mm-erp-contratos-v1': 'Contratos',
+  'mm-erp-cotacoes-belenus-config-v1': 'Configuração de preços Belenus',
   'mm-erp-tributos-v2': 'Tributos',
   'mm-erp-belcred-simulacoes': 'Simulações BelCred',
   'mm-erp-belenus-cotacoes': 'Cotações Belenus',
@@ -29,45 +29,29 @@ function countValue(value) {
 
 export default function MigracaoDadosPage() {
   const [snapshot, setSnapshot] = useState(() => collectLocalErpData());
-  const [migrationStatus, setMigrationStatus] = useState(() => getMigrationStatus());
+  const [migrationStatus, setMigrationStatus] = useState(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    settingsDatabase.get('browser_data_migration', null)
+      .then(setMigrationStatus)
+      .catch(() => {});
+  }, []);
+
   const rows = useMemo(
-    () => Object.entries(snapshot.data).map(([key, value]) => ({
-      key,
-      label: LABELS[key] || key,
-      count: countValue(value),
-    })),
+    () => Object.entries(snapshot.data).map(([key, value]) => ({ key, label: LABELS[key] || key, count: countValue(value) })),
     [snapshot],
   );
-
   const totalRecords = rows.reduce((total, row) => total + row.count, 0);
 
-  const refresh = () => {
-    setSnapshot(collectLocalErpData());
-    setMigrationStatus(getMigrationStatus());
-  };
+  const refresh = () => setSnapshot(collectLocalErpData());
 
   const handleBackup = () => {
     const backup = downloadLocalErpBackup();
     setSnapshot(backup);
-    setMessage('Backup baixado. Guarde o arquivo em local seguro antes de migrar.');
-  };
-
-  const handleRestore = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    try {
-      const backup = JSON.parse(await file.text());
-      const restoredKeys = restoreLocalErpBackup(backup);
-      refresh();
-      setMessage(`${restoredKeys} conjuntos de dados foram restaurados no navegador. Recarregue o ERP para visualizar tudo.`);
-    } catch (error) {
-      setMessage(error?.message || 'Não foi possível restaurar o backup.');
-    }
+    setMessage('Backup baixado. Guarde o arquivo até confirmar os dados no Supabase.');
   };
 
   const handleMigration = async () => {
@@ -77,98 +61,50 @@ export default function MigracaoDadosPage() {
     }
 
     const confirmed = window.confirm(
-      'Confirma a cópia dos dados locais para o Supabase? Os dados do navegador serão preservados e nada será apagado.',
+      'Confirma a migração? Primeiro todos os dados serão gravados no Supabase. Somente após sucesso, os dados antigos do navegador serão removidos.',
     );
     if (!confirmed) return;
 
     setBusy(true);
-    setMessage('Copiando dados para o banco central...');
+    setMessage('Migrando e verificando os dados no banco central...');
     try {
-      const summary = await migrateLocalDataToSupabase();
-      refresh();
-      setMessage(`${summary.records} registros processados com segurança. Os dados locais continuam preservados.`);
+      const summary = await migrateLocalDataToSupabase({ clearAfterSuccess: true });
+      setMigrationStatus(summary);
+      setSnapshot(collectLocalErpData());
+      setMessage(`${summary.records} registros processados no Supabase e ${summary.localKeysRemoved} conjuntos antigos removidos do navegador.`);
     } catch (error) {
-      setMessage(error?.message || 'Não foi possível concluir a migração. Nenhum dado local foi apagado.');
+      setMessage(error?.message || 'Não foi possível concluir a migração. Os dados locais não foram apagados.');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <FinanceLayout
-      title="Proteção e migração dos dados"
-      subtitle="Faça backup e copie os dados já cadastrados para o Supabase sem apagar o conteúdo do navegador."
-    >
+    <FinanceLayout title="Migração para o Supabase" subtitle="Transfira os dados antigos e elimine a dependência do armazenamento local.">
       <section className="finance-grid">
-        <article className="finance-stat-card tone-primary">
-          <span>Registros locais encontrados</span>
-          <strong>{totalRecords}</strong>
-          <small>{rows.length} conjuntos de dados no navegador</small>
-        </article>
-        <article className="finance-stat-card">
-          <span>Banco central</span>
-          <strong>{isSupabaseConfigured ? 'Configurado' : 'Pendente'}</strong>
-          <small>Supabase PostgreSQL</small>
-        </article>
-        <article className="finance-stat-card tone-positive">
-          <span>Dados locais</span>
-          <strong>Preservados</strong>
-          <small>A migração não remove o localStorage</small>
-        </article>
-        <article className="finance-stat-card tone-warning">
-          <span>Última migração</span>
-          <strong>{migrationStatus?.completedAt ? 'Concluída' : 'Ainda não feita'}</strong>
-          <small>{migrationStatus?.completedAt ? new Date(migrationStatus.completedAt).toLocaleString('pt-BR') : 'Faça o backup primeiro'}</small>
-        </article>
+        <article className="finance-stat-card tone-primary"><span>Registros locais encontrados</span><strong>{totalRecords}</strong><small>{rows.length} conjuntos antigos no navegador</small></article>
+        <article className="finance-stat-card"><span>Banco central</span><strong>{isSupabaseConfigured ? 'Configurado' : 'Pendente'}</strong><small>Supabase PostgreSQL</small></article>
+        <article className="finance-stat-card tone-positive"><span>Fonte oficial</span><strong>Supabase</strong><small>Todos os módulos do ERP</small></article>
+        <article className="finance-stat-card tone-warning"><span>Última migração</span><strong>{migrationStatus?.completedAt ? 'Concluída' : 'Ainda não feita'}</strong><small>{migrationStatus?.completedAt ? new Date(migrationStatus.completedAt).toLocaleString('pt-BR') : 'Baixe o backup antes de começar'}</small></article>
       </section>
 
       <section className="finance-panel">
-        <div className="finance-panel-header">
-          <div>
-            <h2>Etapas de segurança</h2>
-            <p>Siga a ordem abaixo. A cópia para o Supabase é de mão única e não apaga os dados atuais.</p>
-          </div>
-          <ShieldCheck size={24} />
-        </div>
-
+        <div className="finance-panel-header"><div><h2>Migração segura</h2><p>O navegador só é limpo depois que todas as gravações no Supabase terminam sem erro.</p></div><ShieldCheck size={24} /></div>
         <div className="finance-panel-actions">
-          <button type="button" className="finance-secondary-button" onClick={handleBackup}>
-            <Download size={16} /> Baixar backup JSON
-          </button>
-          <label className="finance-secondary-button finance-import-button">
-            <Upload size={16} /> Restaurar backup
-            <input type="file" accept="application/json,.json" onChange={handleRestore} />
-          </label>
-          <button type="button" className="finance-button" onClick={handleMigration} disabled={busy}>
-            <CloudUpload size={16} /> {busy ? 'Migrando...' : 'Copiar para o Supabase'}
-          </button>
-          <button type="button" className="finance-secondary-button" onClick={refresh}>
-            <DatabaseBackup size={16} /> Atualizar contagem
-          </button>
+          <button type="button" className="finance-secondary-button" onClick={handleBackup}><Download size={16} /> Baixar backup JSON</button>
+          <button type="button" className="finance-button" onClick={handleMigration} disabled={busy || !isSupabaseConfigured}><CloudUpload size={16} /> {busy ? 'Migrando...' : 'Migrar e limpar navegador'}</button>
+          <button type="button" className="finance-secondary-button" onClick={refresh}><DatabaseBackup size={16} /> Atualizar contagem</button>
         </div>
-
         {message ? <p className="crm-message">{message}</p> : null}
       </section>
 
       <section className="finance-panel">
-        <div className="finance-panel-header">
-          <div>
-            <h2>Dados encontrados neste navegador</h2>
-            <p>Somente os módulos compatíveis serão copiados agora; os demais permanecem protegidos no backup.</p>
-          </div>
-        </div>
+        <div className="finance-panel-header"><div><h2>Dados encontrados neste navegador</h2><p>Todos os conjuntos são enviados ao banco; formatos antigos desconhecidos ficam preservados como dados legados.</p></div></div>
         <div className="finance-table-wrapper">
           <table className="finance-table">
-            <thead><tr><th>Módulo</th><th>Chave local</th><th>Registros</th><th>Destino atual</th></tr></thead>
+            <thead><tr><th>Módulo</th><th>Chave local</th><th>Registros</th><th>Destino</th></tr></thead>
             <tbody>
-              {rows.length ? rows.map((row) => (
-                <tr key={row.key}>
-                  <td><strong>{row.label}</strong></td>
-                  <td>{row.key}</td>
-                  <td>{row.count}</td>
-                  <td>{['mm-erp-clients', 'mm-erp-movimentacoes-v2', 'mm-erp-contas-pagar-v2', 'mm-erp-contas-receber-v2'].includes(row.key) ? 'Supabase + navegador' : 'Backup local protegido'}</td>
-                </tr>
-              )) : <tr><td className="finance-empty-cell" colSpan="4">Nenhum dado local encontrado neste navegador.</td></tr>}
+              {rows.length ? rows.map((row) => <tr key={row.key}><td><strong>{row.label}</strong></td><td>{row.key}</td><td>{row.count}</td><td>Supabase</td></tr>) : <tr><td className="finance-empty-cell" colSpan="4">Nenhum dado empresarial permanece neste navegador.</td></tr>}
             </tbody>
           </table>
         </div>

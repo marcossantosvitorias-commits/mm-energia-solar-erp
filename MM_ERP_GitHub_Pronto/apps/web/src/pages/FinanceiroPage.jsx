@@ -3,9 +3,6 @@ import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import StatCard from '../components/finance/StatCard.jsx';
 import FinanceTable from '../components/finance/FinanceTable.jsx';
 import {
-  carregarDados,
-  salvarDados,
-  gerarId,
   dataHoje,
   formatarMoeda,
   formatarData,
@@ -14,41 +11,59 @@ import {
 import {
   importarOFX,
   importarContasCSV,
-  mesclarSemDuplicar,
 } from '../components/finance/importers.js';
 import {
   movimentacoesSantanderJulho2026,
   contasPagarSantander2026,
 } from '../components/finance/seedSantanderJul2026.js';
+import { financeDatabase } from '../services/financeDatabaseService.js';
+import { settingsDatabase } from '../services/businessDatabaseService.js';
 
-const CHAVE_MOVIMENTACOES = 'mm-erp-movimentacoes-v2';
-const CHAVE_PAGAR = 'mm-erp-contas-pagar-v2';
-const CHAVE_RECEBER = 'mm-erp-contas-receber-v2';
-const CHAVE_CARGA_SANTANDER = 'mm-erp-carga-santander-julho-2026-v1';
-const CHAVE_NOTIFICACAO_BOLETOS = 'mm-erp-notificacao-boletos';
+function mapearMovimento(row) {
+  return {
+    id: row.id,
+    externalId: row.external_id,
+    descricao: row.description,
+    tipo: row.transaction_type,
+    categoria: row.category,
+    valor: Number(row.amount || 0),
+    data: row.transaction_date,
+    formaPagamento: row.payment_method,
+    origem: row.origin,
+    observacoes: row.notes,
+  };
+}
 
-const RECEBIVEL_OSVALDO = {
-  id: 'contrato-osvaldo-cestari-parcela-2',
-  descricao: 'Saldo do contrato solar - Osvaldo Cestari',
-  cliente: 'Osvaldo Herminio Cestari Filho',
-  categoria: 'Venda de sistema solar',
-  valor: 6454,
-  vencimento: '2026-08-18',
-  status: 'pendente',
-  origem: 'Contrato assinado',
-  observacoes: 'Receber no dia da instalação. Previsão ajustada para 18/08/2026.',
-};
+function mapearPagar(row) {
+  return {
+    id: row.id,
+    externalId: row.external_id,
+    descricao: row.description,
+    fornecedor: row.supplier,
+    categoria: row.category,
+    valor: Number(row.amount || 0),
+    vencimento: row.due_date,
+    dataPagamento: row.paid_date,
+    status: row.status,
+    origem: row.origin,
+    observacoes: row.notes,
+  };
+}
 
-function carregarContasReceber() {
-  const contas = carregarDados(CHAVE_RECEBER, []);
-  if (!contas.some((item) => item.id === RECEBIVEL_OSVALDO.id)) {
-    return [RECEBIVEL_OSVALDO, ...contas];
-  }
-  return contas.map((item) =>
-    item.id === RECEBIVEL_OSVALDO.id
-      ? { ...item, vencimento: RECEBIVEL_OSVALDO.vencimento, observacoes: RECEBIVEL_OSVALDO.observacoes }
-      : item
-  );
+function mapearReceber(row) {
+  return {
+    id: row.id,
+    externalId: row.external_id,
+    descricao: row.description,
+    cliente: row.client_name,
+    categoria: row.category,
+    valor: Number(row.amount || 0),
+    vencimento: row.due_date,
+    dataRecebimento: row.received_date,
+    status: row.status,
+    origem: row.origin,
+    observacoes: row.notes,
+  };
 }
 
 function chaveMes(data) {
@@ -63,49 +78,14 @@ function nomeMes(chave) {
     .replace(/^./, (letra) => letra.toUpperCase());
 }
 
-function carregarComCargaInicial(chave, carga, tipo) {
-  const atuais = carregarDados(chave, []);
-  const chaveMigracao = `${CHAVE_CARGA_SANTANDER}-${tipo}`;
-
-  try {
-    if (localStorage.getItem(chaveMigracao)) return atuais;
-
-    if (
-      tipo === 'movimentacoes' &&
-      atuais.some((item) => item.origem === 'OFX Santander')
-    ) {
-      localStorage.setItem(chaveMigracao, 'concluida');
-      return atuais;
-    }
-
-    const resultado = mesclarSemDuplicar(atuais, carga).dados;
-    localStorage.setItem(chaveMigracao, 'concluida');
-    return resultado;
-  } catch {
-    return atuais;
-  }
-}
 
 function FinanceiroPage() {
   const [secao, setSecao] = useState('dashboard');
-
-  const [movimentacoes, setMovimentacoes] = useState(() =>
-    carregarComCargaInicial(
-      CHAVE_MOVIMENTACOES,
-      movimentacoesSantanderJulho2026,
-      'movimentacoes'
-    )
-  );
-
-  const [contasPagar, setContasPagar] = useState(() =>
-    carregarComCargaInicial(
-      CHAVE_PAGAR,
-      contasPagarSantander2026,
-      'contas-pagar'
-    )
-  );
-
-  const [contasReceber, setContasReceber] = useState(carregarContasReceber);
+  const [movimentacoes, setMovimentacoes] = useState([]);
+  const [contasPagar, setContasPagar] = useState([]);
+  const [contasReceber, setContasReceber] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
 
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [permissaoNotificacao, setPermissaoNotificacao] = useState(
@@ -138,9 +118,43 @@ function FinanceiroPage() {
     vencimento: dataHoje(),
   });
 
-  useEffect(() => salvarDados(CHAVE_MOVIMENTACOES, movimentacoes), [movimentacoes]);
-  useEffect(() => salvarDados(CHAVE_PAGAR, contasPagar), [contasPagar]);
-  useEffect(() => salvarDados(CHAVE_RECEBER, contasReceber), [contasReceber]);
+  async function carregarBanco() {
+    setCarregando(true);
+    try {
+      setErro('');
+      const seed = await settingsDatabase.get('finance_seed_santander_july_2026', { completed: false });
+      if (!seed?.completed) {
+        await Promise.all([
+          financeDatabase.importTransactions(
+            movimentacoesSantanderJulho2026.map((item) => ({ ...item, escopo: 'company' }))
+          ),
+          financeDatabase.importPayables(
+            contasPagarSantander2026.map((item) => ({ ...item, escopo: 'company' }))
+          ),
+        ]);
+        await settingsDatabase.set(
+          'finance_seed_santander_july_2026',
+          { completed: true, importedAt: new Date().toISOString() },
+          'Controle da carga inicial Santander de julho de 2026.'
+        );
+      }
+
+      const [movimentosDb, pagarDb, receberDb] = await Promise.all([
+        financeDatabase.listTransactions('company'),
+        financeDatabase.listPayables('company'),
+        financeDatabase.listReceivables('company'),
+      ]);
+      setMovimentacoes(movimentosDb.map(mapearMovimento));
+      setContasPagar(pagarDb.map(mapearPagar));
+      setContasReceber(receberDb.map(mapearReceber));
+    } catch (error) {
+      setErro(error.message);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => { carregarBanco(); }, []);
 
   const boletosVencendoHoje = useMemo(
     () => contasPagar.filter(
@@ -151,15 +165,25 @@ function FinanceiroPage() {
 
   useEffect(() => {
     if (!boletosVencendoHoje.length || permissaoNotificacao !== 'granted') return;
-    const chaveHoje = `${CHAVE_NOTIFICACAO_BOLETOS}-${dataHoje()}`;
-    if (localStorage.getItem(chaveHoje)) return;
+    let ativo = true;
+    const chaveHoje = `notification_boletos_${dataHoje()}`;
 
-    const total = boletosVencendoHoje.reduce((soma, item) => soma + Number(item.valor || 0), 0);
-    new Notification('Boletos vencendo hoje', {
-      body: `${boletosVencendoHoje.length} boleto(s), total de ${formatarMoeda(total)}.`,
-      icon: '/logo-mm.png',
-    });
-    localStorage.setItem(chaveHoje, 'enviada');
+    settingsDatabase.get(chaveHoje, null).then((registro) => {
+      if (!ativo || registro?.sentAt) return;
+      const total = boletosVencendoHoje.reduce((soma, item) => soma + Number(item.valor || 0), 0);
+      new Notification('Boletos vencendo hoje', {
+        body: `${boletosVencendoHoje.length} boleto(s), total de ${formatarMoeda(total)}.`,
+        icon: '/logo-mm.png',
+        tag: chaveHoje,
+      });
+      return settingsDatabase.set(
+        chaveHoje,
+        { sentAt: new Date().toISOString(), total, count: boletosVencendoHoje.length },
+        'Controle do aviso diário de boletos.'
+      );
+    }).catch((error) => { if (ativo) setErro(error.message); });
+
+    return () => { ativo = false; };
   }, [boletosVencendoHoje, permissaoNotificacao]);
 
   async function ativarNotificacoes() {
@@ -264,12 +288,13 @@ function FinanceiroPage() {
     try {
       const conteudo = await arquivo.text();
       const { movimentacoes: importadas, ignorados } = importarOFX(conteudo);
-      const resultado = mesclarSemDuplicar(movimentacoes, importadas);
-
-      setMovimentacoes(resultado.dados);
+      const resultado = await financeDatabase.importTransactions(
+        importadas.map((item) => ({ ...item, escopo: 'company' }))
+      );
+      await carregarBanco();
       alert(
-        `${resultado.adicionados} lançamentos importados. ` +
-        `${resultado.duplicados} duplicados ignorados. ` +
+        `${resultado.saved} lançamentos gravados no Supabase. ` +
+        `${resultado.failed} falharam. ` +
         `${ignorados.length} transferências ContaMax desconsideradas.`
       );
     } catch (erro) {
@@ -285,143 +310,130 @@ function FinanceiroPage() {
     try {
       const conteudo = await arquivo.text();
       const importadas = importarContasCSV(conteudo);
-      const resultado = mesclarSemDuplicar(contasPagar, importadas);
-
-      setContasPagar(resultado.dados);
-      alert(
-        `${resultado.adicionados} contas importadas. ` +
-        `${resultado.duplicados} duplicadas ignoradas.`
+      const resultado = await financeDatabase.importPayables(
+        importadas.map((item) => ({ ...item, escopo: 'company' }))
       );
+      await carregarBanco();
+      alert(`${resultado.saved} contas gravadas no Supabase. ${resultado.failed} falharam.`);
     } catch (erro) {
       alert(`Não foi possível importar as contas: ${erro.message}`);
     }
   }
 
-  function salvarMovimento(event) {
+  async function salvarMovimento(event) {
     event.preventDefault();
-
     if (!validar(formMovimento.descricao, formMovimento.valor)) return;
-
-    setMovimentacoes((atuais) => [
-      {
-        id: gerarId(),
+    try {
+      await financeDatabase.saveTransaction({
+        externalId: `manual-${crypto.randomUUID()}`,
         ...formMovimento,
         valor: Number(formMovimento.valor),
-      },
-      ...atuais,
-    ]);
-
-    setFormMovimento({
-      descricao: '',
-      tipo: 'entrada',
-      categoria: 'Venda de sistema solar',
-      valor: '',
-      data: dataHoje(),
-      formaPagamento: 'PIX',
-    });
+        escopo: 'company',
+      });
+      setFormMovimento({
+        descricao: '', tipo: 'entrada', categoria: 'Venda de sistema solar',
+        valor: '', data: dataHoje(), formaPagamento: 'PIX',
+      });
+      await carregarBanco();
+    } catch (error) {
+      setErro(error.message);
+    }
   }
 
-  function salvarContaPagar(event) {
+  async function salvarContaPagar(event) {
     event.preventDefault();
-
     if (!validar(formPagar.descricao, formPagar.valor)) return;
-
-    setContasPagar((atuais) => [
-      {
-        id: gerarId(),
+    try {
+      await financeDatabase.savePayable({
+        externalId: `payable-${crypto.randomUUID()}`,
         ...formPagar,
         valor: Number(formPagar.valor),
         status: 'pendente',
-      },
-      ...atuais,
-    ]);
-
-    setFormPagar({
-      descricao: '',
-      fornecedor: '',
-      categoria: 'Fornecedor',
-      valor: '',
-      vencimento: dataHoje(),
-    });
+        escopo: 'company',
+      });
+      setFormPagar({
+        descricao: '', fornecedor: '', categoria: 'Fornecedor',
+        valor: '', vencimento: dataHoje(),
+      });
+      await carregarBanco();
+    } catch (error) {
+      setErro(error.message);
+    }
   }
 
-  function salvarContaReceber(event) {
+  async function salvarContaReceber(event) {
     event.preventDefault();
-
     if (!validar(formReceber.descricao, formReceber.valor)) return;
-
-    setContasReceber((atuais) => [
-      {
-        id: gerarId(),
+    try {
+      await financeDatabase.saveReceivable({
+        externalId: `receivable-${crypto.randomUUID()}`,
         ...formReceber,
         valor: Number(formReceber.valor),
         status: 'pendente',
-      },
-      ...atuais,
-    ]);
-
-    setFormReceber({
-      descricao: '',
-      cliente: '',
-      categoria: 'Venda de sistema solar',
-      valor: '',
-      vencimento: dataHoje(),
-    });
-  }
-
-  function excluir(setter, id, mensagem) {
-    if (!window.confirm(mensagem)) return;
-    setter((atuais) => atuais.filter((item) => item.id !== id));
-  }
-
-  function pagarConta(conta) {
-    if (!window.confirm(`Confirmar pagamento de ${formatarMoeda(conta.valor)}?`)) {
-      return;
+        escopo: 'company',
+      });
+      setFormReceber({
+        descricao: '', cliente: '', categoria: 'Venda de sistema solar',
+        valor: '', vencimento: dataHoje(),
+      });
+      await carregarBanco();
+    } catch (error) {
+      setErro(error.message);
     }
+  }
 
-    setContasPagar((atuais) =>
-      atuais.map((item) =>
-        item.id === conta.id ? { ...item, status: 'paga' } : item
-      )
-    );
+  async function excluir(setter, id, mensagem) {
+    if (!window.confirm(mensagem)) return;
+    try {
+      if (setter === setMovimentacoes) await financeDatabase.deleteTransaction(id);
+      if (setter === setContasPagar) await financeDatabase.deletePayable(id);
+      if (setter === setContasReceber) await financeDatabase.deleteReceivable(id);
+      await carregarBanco();
+    } catch (error) {
+      setErro(error.message);
+    }
+  }
 
-    setMovimentacoes((atuais) => [
-      {
-        id: gerarId(),
+  async function pagarConta(conta) {
+    if (!window.confirm(`Confirmar pagamento de ${formatarMoeda(conta.valor)}?`)) return;
+    try {
+      await financeDatabase.updatePayable(conta.id, { status: 'paga', dataPagamento: dataHoje() });
+      await financeDatabase.saveTransaction({
+        externalId: `payment-payable-${conta.id}`,
         descricao: conta.descricao,
         tipo: 'saida',
         categoria: conta.categoria,
         valor: Number(conta.valor),
         data: dataHoje(),
         formaPagamento: 'Pagamento de conta',
-      },
-      ...atuais,
-    ]);
+        origem: 'Baixa de conta a pagar',
+        escopo: 'company',
+      });
+      await carregarBanco();
+    } catch (error) {
+      setErro(error.message);
+    }
   }
 
-  function receberConta(conta) {
-    if (!window.confirm(`Confirmar recebimento de ${formatarMoeda(conta.valor)}?`)) {
-      return;
-    }
-
-    setContasReceber((atuais) =>
-      atuais.map((item) =>
-        item.id === conta.id ? { ...item, status: 'recebida' } : item
-      )
-    );
-
-    setMovimentacoes((atuais) => [
-      {
-        id: gerarId(),
+  async function receberConta(conta) {
+    if (!window.confirm(`Confirmar recebimento de ${formatarMoeda(conta.valor)}?`)) return;
+    try {
+      await financeDatabase.updateReceivable(conta.id, { status: 'recebida', dataRecebimento: dataHoje() });
+      await financeDatabase.saveTransaction({
+        externalId: `payment-receivable-${conta.id}`,
         descricao: conta.descricao,
         tipo: 'entrada',
         categoria: conta.categoria,
         valor: Number(conta.valor),
         data: dataHoje(),
         formaPagamento: 'Recebimento',
-      },
-      ...atuais,
-    ]);
+        origem: 'Baixa de conta a receber',
+        escopo: 'company',
+      });
+      await carregarBanco();
+    } catch (error) {
+      setErro(error.message);
+    }
   }
 
   function Dashboard() {
@@ -957,6 +969,8 @@ function FinanceiroPage() {
       activeSection={secao}
       onSectionChange={setSecao}
     >
+      {erro ? <p className="crm-message">{erro}</p> : null}
+      {carregando ? <p className="crm-message">Carregando dados do Supabase...</p> : null}
       {secao === 'dashboard' && <Dashboard />}
       {secao === 'fluxo' && <Fluxo />}
       {secao === 'pagar' && <ContasPagar />}

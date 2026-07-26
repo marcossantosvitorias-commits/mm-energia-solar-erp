@@ -35,7 +35,7 @@ const mainItems = [
   { to: '/app/contratos', label: 'Contratos', icon: FileSignature },
   { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch },
   { to: '/app/tributos', label: 'Tributação', icon: Scale },
-  { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup },
+  { to: '/app/migracao-dados', label: 'Migração Supabase', icon: DatabaseBackup },
   { to: '/app/bling', label: 'Integração Bling', icon: PlugZap },
   { to: '/app/marcos', label: 'Marcos', icon: UserRound },
 ];
