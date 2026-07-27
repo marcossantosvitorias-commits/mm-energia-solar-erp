@@ -12,6 +12,11 @@ const carregar = () => {
 
 const somenteNumeros = (valor = '') => valor.replace(/\D/g, '');
 
+const numeroComPais = (valor = '') => {
+  const numeros = somenteNumeros(valor);
+  return numeros.startsWith('55') ? numeros : `55${numeros}`;
+};
+
 function AgendaPage() {
   const [agendamentos, setAgendamentos] = useState(carregar);
   const [form, setForm] = useState({ cliente: '', telefone: '', tipo: 'Visita técnica', data: '', horario: '', endereco: '', observacoes: '' });
@@ -31,10 +36,19 @@ function AgendaPage() {
   const remover = (id) => salvarLista(agendamentos.filter((item) => item.id !== id));
 
   const abrirWhatsApp = (item) => {
-    const telefone = somenteNumeros(item.telefone);
+    const telefone = numeroComPais(item.telefone);
     const data = item.data ? new Date(`${item.data}T12:00:00`).toLocaleDateString('pt-BR') : '';
     const texto = `Olá, ${item.cliente}! Confirmando nosso agendamento com a MM Energia Solar:\n\n📅 ${data}\n⏰ ${item.horario}\n📍 ${item.tipo}${item.endereco ? `\nEndereço: ${item.endereco}` : ''}\n\nPode confirmar, por favor?`;
-    window.open(`https://wa.me/55${telefone}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
+    const linkPadrao = `https://wa.me/${telefone}?text=${encodeURIComponent(texto)}`;
+    const android = /Android/i.test(navigator.userAgent);
+
+    if (android) {
+      const intentBusiness = `intent://send?phone=${telefone}&text=${encodeURIComponent(texto)}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=${encodeURIComponent(linkPadrao)};end`;
+      window.location.href = intentBusiness;
+      return;
+    }
+
+    window.open(linkPadrao, '_blank', 'noopener,noreferrer');
   };
 
   const ordenados = useMemo(() => [...agendamentos].sort((a, b) => `${a.data}${a.horario}`.localeCompare(`${b.data}${b.horario}`)), [agendamentos]);
@@ -61,7 +75,7 @@ function AgendaPage() {
               <div className="agenda-item-head"><div><strong>{item.cliente}</strong><span>{item.tipo}</span></div><span className="agenda-status">Agendado</span></div>
               <div className="agenda-meta"><span><CalendarDays size={15} />{new Date(`${item.data}T12:00:00`).toLocaleDateString('pt-BR')}</span><span><Clock3 size={15} />{item.horario}</span><span><UserRound size={15} />{item.telefone}</span>{item.endereco && <span><MapPin size={15} />{item.endereco}</span>}</div>
               {item.observacoes && <p className="agenda-nota">{item.observacoes}</p>}
-              <div className="agenda-actions"><button className="agenda-whatsapp" onClick={() => abrirWhatsApp(item)}><MessageCircle size={17} /> Confirmar no WhatsApp</button><button className="agenda-delete" onClick={() => remover(item.id)} aria-label="Excluir"><Trash2 size={17} /></button></div>
+              <div className="agenda-actions"><button className="agenda-whatsapp" onClick={() => abrirWhatsApp(item)}><MessageCircle size={17} /> Confirmar no WhatsApp Business</button><button className="agenda-delete" onClick={() => remover(item.id)} aria-label="Excluir"><Trash2 size={17} /></button></div>
             </article>
           ))}
         </div>
