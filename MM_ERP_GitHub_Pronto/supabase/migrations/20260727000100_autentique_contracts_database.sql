@@ -26,10 +26,7 @@ alter table public.contracts drop constraint if exists contracts_status_check;
 alter table public.contracts add constraint contracts_status_check
   check (status in ('rascunho','enviado','visualizado','assinado','recusado','expirado','concluido','cancelado'));
 
--- Facilita a deduplicação de clientes sem bloquear cadastros antigos incompletos.
-create unique index if not exists clients_document_unique_nonempty
-  on public.clients(document)
-  where document is not null and btrim(document) <> '';
-
+-- Índices de consulta; a deduplicação é feita pela função usando CPF/CNPJ, e-mail ou telefone.
+create index if not exists clients_document_lookup_idx on public.clients(document);
 create index if not exists clients_phone_lookup_idx on public.clients(phone);
 create index if not exists clients_email_lookup_idx on public.clients(lower(email));
