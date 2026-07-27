@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { CreditCard, FileDown, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CreditCard, FileDown, MessageCircle, RefreshCw, Search, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 import { formatarMoeda } from '../components/finance/storage.js';
+import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const BELCRED = [
   { parcelas: 24, taxa: '1,91%', fator: 730.42 / 12232.56 },
@@ -13,29 +14,8 @@ const BELCRED = [
   { parcelas: 96, taxa: '2,32%', fator: 370.80 / 12232.56 },
 ];
 
-const TAXAS_CARTAO = [
-  { parcelas: 1, taxa: 4.59 },
-  { parcelas: 2, taxa: 6.09 },
-  { parcelas: 3, taxa: 6.65 },
-  { parcelas: 4, taxa: 7.15 },
-  { parcelas: 5, taxa: 7.69 },
-  { parcelas: 6, taxa: 8.19 },
-  { parcelas: 7, taxa: 9.09 },
-  { parcelas: 8, taxa: 9.69 },
-  { parcelas: 9, taxa: 10.25 },
-  { parcelas: 10, taxa: 10.79 },
-  { parcelas: 11, taxa: 11.39 },
-  { parcelas: 12, taxa: 11.69 },
-  { parcelas: 13, taxa: 12.55 },
-  { parcelas: 14, taxa: 12.99 },
-  { parcelas: 15, taxa: 13.69 },
-  { parcelas: 16, taxa: 14.29 },
-  { parcelas: 17, taxa: 14.85 },
-  { parcelas: 18, taxa: 15.49 },
-  { parcelas: 19, taxa: 16.39 },
-  { parcelas: 20, taxa: 17.39 },
-  { parcelas: 21, taxa: 18.28 },
-];
+const TAXAS_CARTAO = [4.59, 6.09, 6.65, 7.15, 7.69, 8.19, 9.09, 9.69, 10.25, 10.79, 11.39, 11.69, 12.55, 12.99, 13.69, 14.29, 14.85, 15.49, 16.39, 17.39, 18.28]
+  .map((taxa, index) => ({ parcelas: index + 1, taxa }));
 
 const IRRADIACAO_MEDIA = 5.2;
 const FATOR_DESEMPENHO = 0.8;
@@ -44,15 +24,14 @@ const DEFAULT_PANEL_IMAGE = 'https://images.unsplash.com/photo-1509391366360-2e9
 const DEFAULT_INVERTER_IMAGE = 'https://www.deyeinverter.com/deyeinverter/2025/06/03/%E4%BA%A7%E5%93%81%E5%B0%81%E9%9D%A2-3-3.png';
 
 const escapeHtml = (value) => String(value ?? '')
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-  .replaceAll("'", '&#039;');
-
-function calcularGeracaoPorPainel(potenciaW) {
-  return (Number(potenciaW || 0) * IRRADIACAO_MEDIA * FATOR_DESEMPENHO * DIAS_MES) / 1000;
-}
+  .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+const somenteNumeros = (valor = '') => valor.replace(/\D/g, '');
+const numeroComPais = (valor = '') => {
+  const numero = somenteNumeros(valor);
+  return numero.startsWith('55') ? numero : `55${numero}`;
+};
+const calcularGeracaoPorPainel = (potenciaW) => (Number(potenciaW || 0) * IRRADIACAO_MEDIA * FATOR_DESEMPENHO * DIAS_MES) / 1000;
 
 export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw }) {
   const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadePlacas) || 620;
@@ -61,10 +40,14 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     marcaPlaca: modulo || 'TCL Solar bifacial N-Type 620 W',
     inversor: inversor || 'Microinversor Deye 2,25 kW 220 V',
     geracaoMensal: Math.round(calcularGeracaoPorPainel(potenciaInicial) * quantidadePlacas),
-    valorProposta: precoRecomendado.toFixed(2), validade: 7,
+    valorProposta: Number(precoRecomendado || 0).toFixed(2), validade: 7,
     observacoes: 'Projeto executivo, instalação, homologação junto à concessionária, estrutura, proteções elétricas e pós-venda inclusos.',
     fotoPainel: DEFAULT_PANEL_IMAGE, fotoInversor: DEFAULT_INVERTER_IMAGE,
   });
+  const [historico, setHistorico] = useState([]);
+  const [busca, setBusca] = useState('');
+  const [mensagem, setMensagem] = useState('');
+  const [salvando, setSalvando] = useState(false);
 
   const valor = Number(dados.valorProposta || precoRecomendado || 0);
   const potenciaSistema = (quantidadePlacas * Number(dados.potenciaPlaca || 0)) / 1000;
@@ -76,6 +59,22 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     return { ...opcao, total, valorParcela: total / opcao.parcelas };
   }), [valor]);
 
+  const carregarHistorico = async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const { data, error } = await supabase.from('sales_proposals').select('*').order('created_at', { ascending: false }).limit(100);
+    if (error) setMensagem(`Não foi possível carregar o histórico: ${error.message}`);
+    else setHistorico(data || []);
+  };
+
+  useEffect(() => {
+    carregarHistorico();
+    if (!isSupabaseConfigured || !supabase) return undefined;
+    const canal = supabase.channel('sales-proposals-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_proposals' }, carregarHistorico)
+      .subscribe();
+    return () => supabase.removeChannel(canal);
+  }, []);
+
   const atualizar = (event) => {
     const { name, value } = event.target;
     setDados((atual) => name === 'potenciaPlaca'
@@ -83,32 +82,90 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
       : { ...atual, [name]: value });
   };
 
-  const gerarPdf = () => {
-    if (!dados.cliente.trim()) { window.alert('Informe o nome do cliente para gerar a proposta.'); return; }
-    const janela = window.open('', '_blank');
-    if (!janela) { window.alert('Permita a abertura de janelas para gerar a proposta em PDF.'); return; }
-    janela.opener = null;
-    const data = new Intl.DateTimeFormat('pt-BR').format(new Date());
-    const logoUrl = `${window.location.origin}/logo-mm.png`;
-    const linhasParcelas = parcelas.map((item) => `<tr><td><strong>${item.parcelas}x</strong></td><td>${formatarMoeda(item.valor)}</td><td>${item.taxa} a.m.</td></tr>`).join('');
-    const linhasCartao = cartao.map((item) => `<tr><td><strong>${item.parcelas === 1 ? 'Crédito à vista' : `${item.parcelas}x`}</strong></td><td>${formatarMoeda(item.valorParcela)}</td><td>${formatarMoeda(item.total)}</td><td>${item.taxa.toFixed(2).replace('.', ',')}%</td></tr>`).join('');
+  const validarCliente = () => {
+    if (!dados.cliente.trim()) { window.alert('Informe o nome do cliente.'); return false; }
+    if (somenteNumeros(dados.telefone).length < 10) { window.alert('Informe o WhatsApp do cliente com DDD.'); return false; }
+    return true;
+  };
 
-    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Proposta MM Energia Solar - ${escapeHtml(dados.cliente)}</title><style>
-*{box-sizing:border-box}:root{--navy:#08274d;--navy2:#0d3c70;--gold:#f7bd16;--ink:#142033;--muted:#667085;--line:#dde4ee;--soft:#f5f8fc}body{margin:0;background:#dfe6ef;color:var(--ink);font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{width:210mm;min-height:297mm;margin:18px auto;background:#fff;box-shadow:0 24px 70px #00152b2b;overflow:hidden;page-break-after:always}.page:last-of-type{page-break-after:auto}.top{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:16mm 16mm 12mm;position:relative;overflow:hidden}.brand-row{display:flex;align-items:center;justify-content:space-between;gap:24px}.logo{width:156px;max-height:66px;object-fit:contain}.proposal-tag{border:1px solid #ffffff66;border-radius:999px;padding:8px 14px;font-size:11px;font-weight:800;letter-spacing:1.4px}.headline{margin:24px 0 5px;font-size:31px;line-height:1.06;max-width:540px}.headline b{color:var(--gold)}.sub{margin:0;color:#d9e8f7;font-size:14px;line-height:1.55}.client-strip{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;margin-top:22px}.client-box{background:#ffffff12;border:1px solid #ffffff26;border-radius:12px;padding:11px}.client-box span{display:block;color:#b9cee3;font-size:9px;text-transform:uppercase}.client-box strong{display:block;margin-top:5px;font-size:13px}.content{padding:10mm 16mm 12mm}.section-title{display:flex;align-items:center;gap:9px;margin:0 0 12px;color:var(--navy);font-size:16px}.section-title:before{content:'';width:5px;height:19px;border-radius:4px;background:var(--gold)}.system-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{background:var(--soft);border:1px solid var(--line);border-radius:13px;padding:13px}.metric span{display:block;color:var(--muted);font-size:9px}.metric strong{display:block;margin-top:8px;color:var(--navy);font-size:14px}.investment{margin:17px 0;background:#fff8dc;border:1px solid #f0d26a;border-radius:16px;padding:18px;display:grid;grid-template-columns:1fr auto}.investment strong{font-size:29px;color:var(--navy)}.included,.guarantees{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 18px}.included div,.guarantee{border:1px solid var(--line);border-radius:11px;padding:10px}.equipment-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.equipment-card{border:1px solid var(--line);border-radius:16px;overflow:hidden}.equipment-photo{height:158px;display:flex;align-items:center;justify-content:center}.equipment-photo img{width:100%;height:100%;object-fit:contain}.equipment-body{padding:14px}.equipment-body h3{margin:0;color:var(--navy)}.equipment-body p,.specs{font-size:10px;color:var(--muted);line-height:1.5}table{width:100%;border-collapse:separate;border-spacing:0;font-size:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:10px}th{background:var(--navy);color:#fff;text-align:left;padding:8px}td{padding:7px 8px;border-bottom:1px solid var(--line)}tbody tr:nth-child(even){background:#f8fafc}.legal{font-size:8.6px;line-height:1.5;color:#7b8798}.notes{margin-top:16px;border-left:5px solid var(--gold);padding:13px;background:#f8fafc}.footer{background:var(--navy);color:#fff;padding:9mm 16mm;display:flex;justify-content:space-between}.footer-logo{width:112px}.footer div{font-size:10px;text-align:right}.actions{position:fixed;right:18px;bottom:18px}.actions button{border:0;border-radius:14px;padding:15px 20px;background:var(--gold);font-weight:900}@media print{body{background:#fff}.page{margin:0;box-shadow:none}.actions{display:none}@page{size:A4;margin:0}}@media(max-width:800px){.page{width:100%;margin:0}.system-grid,.included,.guarantees,.equipment-grid{grid-template-columns:1fr 1fr}.client-strip{grid-template-columns:1fr}}
-</style></head><body>
-<main class="page"><section class="top"><div class="brand-row"><img class="logo" src="${logoUrl}"/><div class="proposal-tag">PROPOSTA COMERCIAL</div></div><h1 class="headline">Energia solar pensada para <b>economizar todos os meses</b>.</h1><p class="sub">Solução fotovoltaica completa, com instalação, homologação e suporte.</p><div class="client-strip"><div class="client-box"><span>Cliente</span><strong>${escapeHtml(dados.cliente)}</strong></div><div class="client-box"><span>Local</span><strong>${escapeHtml(dados.cidade)}</strong></div><div class="client-box"><span>Contato</span><strong>${escapeHtml(dados.telefone || 'Não informado')}</strong></div></div></section><section class="content"><h2 class="section-title">Resumo do sistema</h2><div class="system-grid"><div class="metric"><span>Quantidade</span><strong>${quantidadePlacas} painéis</strong></div><div class="metric"><span>Potência instalada</span><strong>${potenciaSistema.toFixed(2).replace('.', ',')} kWp</strong></div><div class="metric"><span>Geração estimada</span><strong>${Number(dados.geracaoMensal || geracaoCalculada).toLocaleString('pt-BR')} kWh/mês</strong></div><div class="metric"><span>Geração por painel</span><strong>${geracaoPorPainel.toFixed(2).replace('.', ',')} kWh/mês</strong></div></div><div class="investment"><div><span>Investimento total</span><small>Projeto completo instalado e homologado</small></div><strong>${formatarMoeda(valor)}</strong></div><h2 class="section-title">Escopo incluso</h2><div class="included"><div><b>Projeto</b><small>Documentação técnica</small></div><div><b>Instalação</b><small>Estrutura e proteções</small></div><div><b>Homologação</b><small>Junto à concessionária</small></div><div><b>Pós-venda</b><small>Suporte especializado</small></div></div><h2 class="section-title">Pagamento no cartão de crédito</h2><table><thead><tr><th>Condição</th><th>Valor da parcela</th><th>Total no cartão</th><th>Taxa</th></tr></thead><tbody>${linhasCartao}</tbody></table><p class="legal">Valores do cartão calculados com a taxa da operação incluída, preservando o valor líquido da proposta. Condições sujeitas à disponibilidade da operadora.</p><h2 class="section-title">Financiamento BelCred</h2><table><thead><tr><th>Prazo</th><th>Parcela estimada</th><th>Taxa informada</th></tr></thead><tbody>${linhasParcelas}</tbody></table><p class="legal">Simulação indicativa, sujeita à análise de crédito.</p></section><footer class="footer"><img class="footer-logo" src="${logoUrl}"/><div><b>MM Energia Solar • Bauru/SP</b><br/>Proposta emitida em ${data} • Validade: ${escapeHtml(dados.validade)} dias</div></footer></main>
-<main class="page"><section class="top"><div class="brand-row"><img class="logo" src="${logoUrl}"/><div class="proposal-tag">DETALHES TÉCNICOS</div></div><h1 class="headline">Equipamentos selecionados para <b>desempenho e segurança</b>.</h1></section><section class="content"><div class="equipment-grid"><article class="equipment-card"><div class="equipment-photo"><img src="${escapeHtml(dados.fotoPainel)}"/></div><div class="equipment-body"><h3>${escapeHtml(dados.marcaPlaca)}</h3><p>Quantidade: ${quantidadePlacas} unidades • Potência: ${escapeHtml(dados.potenciaPlaca)} W.</p></div></article><article class="equipment-card"><div class="equipment-photo"><img src="${escapeHtml(dados.fotoInversor)}"/></div><div class="equipment-body"><h3>${escapeHtml(dados.inversor)}</h3><p>Conversão, proteção e monitoramento do sistema.</p></div></article></div><h2 class="section-title" style="margin-top:20px">Garantias e segurança</h2><div class="guarantees"><div class="guarantee"><b>Módulos</b><br/><small>Conforme fabricante</small></div><div class="guarantee"><b>Inversor</b><br/><small>Conforme fabricante</small></div><div class="guarantee"><b>Instalação</b><br/><small>Garantia de serviço</small></div><div class="guarantee"><b>Homologação</b><br/><small>Acompanhamento incluso</small></div></div><div class="notes"><strong>Observações</strong><p>${escapeHtml(dados.observacoes)}</p></div></section><footer class="footer"><img class="footer-logo" src="${logoUrl}"/><div><b>MM Energia Solar • Bauru/SP</b><br/>Energia limpa, economia e acompanhamento profissional.</div></footer></main><div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div></body></html>`);
+  const payload = (status = 'Gerada') => ({
+    client_name: dados.cliente.trim(), phone: somenteNumeros(dados.telefone), city: dados.cidade || null,
+    status, total_amount: valor, panel_count: Number(quantidadePlacas || 0), panel_power_w: Number(dados.potenciaPlaca || 0),
+    system_power_kw: potenciaSistema, monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada),
+    panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Number(dados.validade || 7),
+    notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null,
+    proposal_data: { ...dados, quantidadePlacas, potenciaSistema, cartao, parcelas },
+  });
+
+  const salvarProposta = async (status = 'Gerada') => {
+    if (!validarCliente()) return null;
+    if (!isSupabaseConfigured || !supabase) {
+      window.alert('O Supabase não está configurado. A proposta não será enviada para evitar perda de dados.');
+      return null;
+    }
+    setSalvando(true); setMensagem('Salvando proposta no banco de dados...');
+    const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
+    setSalvando(false);
+    if (error) { setMensagem(`Erro ao salvar proposta: ${error.message}`); return null; }
+    setMensagem(status === 'Enviada' ? 'Proposta salva e registrada como enviada.' : 'Proposta salva no histórico.');
+    await carregarHistorico();
+    return data;
+  };
+
+  const abrirPdf = (proposta = dados) => {
+    const cliente = proposta.cliente || proposta.client_name || '';
+    const telefone = proposta.telefone || proposta.phone || '';
+    const cidade = proposta.cidade || proposta.city || 'Bauru/SP';
+    const valorPdf = Number(proposta.valorProposta || proposta.total_amount || valor);
+    const painel = proposta.marcaPlaca || proposta.panel_model || dados.marcaPlaca;
+    const inv = proposta.inversor || proposta.inverter_model || dados.inversor;
+    const qtd = Number(proposta.quantidadePlacas || proposta.panel_count || quantidadePlacas);
+    const potencia = Number(proposta.potenciaPlaca || proposta.panel_power_w || dados.potenciaPlaca);
+    const geracao = Number(proposta.geracaoMensal || proposta.monthly_generation_kwh || dados.geracaoMensal);
+    const observacoes = proposta.observacoes || proposta.notes || dados.observacoes;
+    const validade = proposta.validade || proposta.validity_days || dados.validade;
+    const janela = window.open('', '_blank');
+    if (!janela) { window.alert('Permita a abertura de janelas para gerar o PDF.'); return; }
+    const logoUrl = `${window.location.origin}/logo-mm.png`;
+    const data = new Intl.DateTimeFormat('pt-BR').format(new Date());
+    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Proposta - ${escapeHtml(cliente)}</title><style>*{box-sizing:border-box}body{margin:0;background:#e8edf4;font-family:Arial;color:#172033}.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff}.head{padding:38px 48px;background:linear-gradient(135deg,#08274d,#0d3c70);color:#fff}.head img{width:150px}.head h1{font-size:31px;margin:28px 0 8px}.gold{color:#f7bd16}.content{padding:36px 48px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{border:1px solid #dce5ef;border-radius:12px;padding:14px}.card small{display:block;color:#667085}.price{margin:20px 0;padding:20px;border-radius:14px;background:#fff7d6;border:1px solid #efd264;font-size:30px;font-weight:800;color:#08274d}.equipment{margin-top:20px;padding:16px;border-left:5px solid #f7bd16;background:#f7f9fc}.footer{padding:25px 48px;background:#08274d;color:#fff}.actions{position:fixed;right:18px;bottom:18px}.actions button{padding:15px 20px;border:0;border-radius:12px;background:#f7bd16;font-weight:800}@media print{body{background:#fff}.page{margin:0}.actions{display:none}@page{size:A4;margin:0}}</style></head><body><main class="page"><section class="head"><img src="${logoUrl}"><h1>Proposta personalizada para <span class="gold">${escapeHtml(cliente)}</span></h1><p>Energia solar completa, instalada e homologada.</p></section><section class="content"><div class="grid"><div class="card"><small>Cliente</small><strong>${escapeHtml(cliente)}</strong></div><div class="card"><small>WhatsApp</small><strong>${escapeHtml(telefone)}</strong></div><div class="card"><small>Cidade</small><strong>${escapeHtml(cidade)}</strong></div><div class="card"><small>Sistema</small><strong>${qtd} painéis • ${(qtd * potencia / 1000).toFixed(2).replace('.', ',')} kWp</strong></div><div class="card"><small>Geração estimada</small><strong>${geracao.toLocaleString('pt-BR')} kWh/mês</strong></div><div class="card"><small>Validade</small><strong>${escapeHtml(validade)} dias</strong></div></div><div class="price">${formatarMoeda(valorPdf)}</div><div class="equipment"><h3>Equipamentos</h3><p><b>Painéis:</b> ${escapeHtml(painel)}</p><p><b>Inversor:</b> ${escapeHtml(inv)}</p><p>${escapeHtml(observacoes)}</p></div></section><footer class="footer">MM Energia Solar • Bauru/SP • Emitida em ${data}</footer></main><div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div></body></html>`);
     janela.document.close();
   };
 
+  const gerarESalvar = async () => {
+    const registro = await salvarProposta('Gerada');
+    if (registro) abrirPdf(registro.proposal_data || registro);
+  };
+
+  const enviarWhatsApp = async () => {
+    const registro = await salvarProposta('Enviada');
+    if (!registro) return;
+    abrirPdf(registro.proposal_data || registro);
+    const texto = `Olá, ${dados.cliente.trim()}!\nSegue sua proposta personalizada da MM Energia Solar.\nFico à disposição para esclarecer qualquer dúvida.`;
+    window.open(`https://wa.me/${numeroComPais(dados.telefone)}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const reenviar = async (item) => {
+    const texto = `Olá, ${item.client_name}!\nSegue sua proposta personalizada da MM Energia Solar.\nFico à disposição para esclarecer qualquer dúvida.`;
+    await supabase.from('sales_proposals').update({ status: 'Enviada', sent_at: new Date().toISOString() }).eq('id', item.id);
+    window.open(`https://wa.me/${numeroComPais(item.phone)}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const excluir = async (id) => {
+    if (!window.confirm('Excluir esta proposta do histórico?')) return;
+    const { error } = await supabase.from('sales_proposals').delete().eq('id', id);
+    if (error) setMensagem(`Erro ao excluir: ${error.message}`); else carregarHistorico();
+  };
+
+  const filtrado = historico.filter((item) => `${item.client_name} ${item.phone}`.toLowerCase().includes(busca.toLowerCase()));
   const exemplo12 = cartao.find((item) => item.parcelas === 12);
 
   return <section className="finance-panel">
-    <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Crie uma proposta detalhada com opções de pagamento.</p></div></div>
+    <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Preencha os dados, salve no banco e envie pelo WhatsApp Business.</p></div></div>
     <div className="finance-form">
       <label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar} placeholder="Nome completo" /></label>
+      <label className="finance-field"><span>WhatsApp do cliente *</span><input name="telefone" value={dados.telefone} onChange={atualizar} placeholder="(14) 99999-9999" inputMode="tel" /></label>
       <label className="finance-field"><span>Cidade/UF</span><input name="cidade" value={dados.cidade} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Telefone</span><input name="telefone" value={dados.telefone} onChange={atualizar} /></label>
       <label className="finance-field"><span>Potência de cada painel (W)</span><input type="number" name="potenciaPlaca" value={dados.potenciaPlaca} onChange={atualizar} /></label>
       <label className="finance-field"><span>Marca/modelo dos painéis</span><input name="marcaPlaca" value={dados.marcaPlaca} onChange={atualizar} /></label>
       <label className="finance-field"><span>Inversor ou microinversor</span><input name="inversor" value={dados.inversor} onChange={atualizar} /></label>
@@ -122,6 +179,23 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     <div className="pricing-highlight"><span>Geração estimada</span><strong>{Math.round(geracaoCalculada).toLocaleString('pt-BR')} kWh/mês</strong></div>
     <div className="pricing-highlight"><span><CreditCard size={17} /> Cartão em 12x com taxa de 11,69%</span><strong>12x de {formatarMoeda(exemplo12?.valorParcela || 0)} • total {formatarMoeda(exemplo12?.total || 0)}</strong></div>
     <div className="pricing-highlight"><span>BelCred: exemplo em 96x</span><strong>{formatarMoeda(parcelas.find((item) => item.parcelas === 96)?.valor || 0)}</strong></div>
-    <div style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16, background: 'linear-gradient(135deg, #f8fbff, #fffdf3)' }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, color: '#0b2b52' }}><Sparkles size={20} /><strong>Proposta detalhada pronta</strong></div><button type="button" onClick={gerarPdf} style={{ width: '100%', minHeight: 62, border: 0, borderRadius: 16, background: 'linear-gradient(135deg, #08274d, #0d3c70)', color: '#fff', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 11 }}><FileDown size={22} />Gerar proposta detalhada em PDF</button><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Com cartão, BelCred, equipamentos e garantias</div></div>
+    {mensagem && <p style={{ padding: 12, borderRadius: 12, background: '#f1f6fb' }}>{mensagem}</p>}
+    <div style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16, background: 'linear-gradient(135deg, #f8fbff, #fffdf3)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, color: '#0b2b52' }}><Sparkles size={20} /><strong>Proposta pronta</strong></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
+        <button type="button" disabled={salvando} onClick={gerarESalvar} style={{ minHeight: 58, border: 0, borderRadius: 16, background: '#08274d', color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><FileDown size={21} />Salvar e gerar PDF</button>
+        <button type="button" disabled={salvando} onClick={enviarWhatsApp} style={{ minHeight: 58, border: 0, borderRadius: 16, background: '#1f9d55', color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><MessageCircle size={21} />Enviar para WhatsApp Business</button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Os dados são salvos no Supabase antes do envio</div>
+    </div>
+
+    <div style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}>
+      <div className="finance-panel-header"><div><h2>Histórico de propostas enviadas</h2><p>Consulte, gere novamente o PDF ou reenvie pelo WhatsApp.</p></div><button type="button" onClick={carregarHistorico} title="Atualizar" style={{ border: 0, background: 'transparent' }}><RefreshCw size={20} /></button></div>
+      <label className="finance-field" style={{ maxWidth: 420 }}><span>Pesquisar cliente ou telefone</span><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Search size={18} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Digite para pesquisar" /></div></label>
+      <div style={{ overflowX: 'auto', marginTop: 14 }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={{ textAlign: 'left', padding: 10 }}>Data</th><th style={{ textAlign: 'left', padding: 10 }}>Cliente</th><th style={{ textAlign: 'left', padding: 10 }}>WhatsApp</th><th style={{ textAlign: 'left', padding: 10 }}>Valor</th><th style={{ textAlign: 'left', padding: 10 }}>Status</th><th style={{ textAlign: 'left', padding: 10 }}>Ações</th></tr></thead><tbody>
+        {filtrado.map((item) => <tr key={item.id} style={{ borderTop: '1px solid #e5e9ef' }}><td style={{ padding: 10 }}>{new Date(item.created_at).toLocaleDateString('pt-BR')}</td><td style={{ padding: 10 }}><strong>{item.client_name}</strong></td><td style={{ padding: 10 }}>{item.phone}</td><td style={{ padding: 10 }}>{formatarMoeda(Number(item.total_amount || 0))}</td><td style={{ padding: 10 }}>{item.status}</td><td style={{ padding: 10 }}><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" onClick={() => abrirPdf(item.proposal_data || item)}><FileDown size={16} /> PDF</button><button type="button" onClick={() => reenviar(item)}><MessageCircle size={16} /> Reenviar</button><button type="button" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button></div></td></tr>)}
+        {!filtrado.length && <tr><td colSpan="6" style={{ padding: 18, textAlign: 'center', color: '#667085' }}>Nenhuma proposta encontrada.</td></tr>}
+      </tbody></table></div>
+    </div>
   </section>;
 }
