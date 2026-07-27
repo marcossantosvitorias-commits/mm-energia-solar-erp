@@ -42,6 +42,8 @@ function writeLocalClients(clients) {
 function fromDatabase(client) {
   return {
     ...client,
+    address: client.address || '',
+    zipCode: client.zip_code || '',
     customerType: client.customer_type,
     monthlyBill: Number(client.monthly_bill || 0),
     created: client.created_at,
@@ -55,6 +57,8 @@ function toDatabase(data) {
     document: data.document || null,
     phone: data.phone,
     email: data.email || null,
+    address: data.address || null,
+    zip_code: data.zipCode || null,
     city: data.city || null,
     state: data.state || null,
     customer_type: data.customerType || 'residencial',
@@ -66,72 +70,39 @@ function toDatabase(data) {
 
 export async function listClients() {
   if (isSupabaseConfigured) {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .order('created_at', { ascending: false });
-
+    const { data, error } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     const clients = (data || []).map(fromDatabase);
     if (!clients.some((client) => client.document === CLIENTE_OSVALDO.document)) {
-      const { data: created, error: createError } = await supabase
-        .from('clients')
-        .insert(toDatabase(CLIENTE_OSVALDO))
-        .select('*')
-        .single();
+      const { data: created, error: createError } = await supabase.from('clients').insert(toDatabase(CLIENTE_OSVALDO)).select('*').single();
       if (createError) throw createError;
       return [fromDatabase(created), ...clients];
     }
     return clients;
   }
-
   return readLocalClients().sort((a, b) => new Date(b.created) - new Date(a.created));
 }
 
 export async function createClient(data) {
   if (isSupabaseConfigured) {
-    const { data: created, error } = await supabase
-      .from('clients')
-      .insert(toDatabase(data))
-      .select('*')
-      .single();
-
+    const { data: created, error } = await supabase.from('clients').insert(toDatabase(data)).select('*').single();
     if (error) throw error;
     return fromDatabase(created);
   }
-
   const clients = readLocalClients();
-  const client = {
-    id: crypto.randomUUID(),
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-    ...data,
-  };
-
+  const client = { id: crypto.randomUUID(), created: new Date().toISOString(), updated: new Date().toISOString(), ...data };
   writeLocalClients([client, ...clients]);
   return client;
 }
 
 export async function updateClient(id, data) {
   if (isSupabaseConfigured) {
-    const { data: updated, error } = await supabase
-      .from('clients')
-      .update(toDatabase(data))
-      .eq('id', id)
-      .select('*')
-      .single();
-
+    const { data: updated, error } = await supabase.from('clients').update(toDatabase(data)).eq('id', id).select('*').single();
     if (error) throw error;
     return fromDatabase(updated);
   }
-
   const clients = readLocalClients();
-  const updated = clients.map((client) =>
-    client.id === id
-      ? { ...client, ...data, updated: new Date().toISOString() }
-      : client,
-  );
-
+  const updated = clients.map((client) => client.id === id ? { ...client, ...data, updated: new Date().toISOString() } : client);
   writeLocalClients(updated);
   return updated.find((client) => client.id === id);
 }
@@ -142,6 +113,5 @@ export async function deleteClient(id) {
     if (error) throw error;
     return;
   }
-
   writeLocalClients(readLocalClients().filter((client) => client.id !== id));
 }
