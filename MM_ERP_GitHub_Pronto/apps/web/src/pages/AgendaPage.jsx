@@ -5,13 +5,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import { requestErpNotificationPermission } from '../services/notificationService.js';
 import './AgendaPage.css';
 
-const STORAGE_KEY = 'mm-erp-agendamentos-v1';
 const EMPTY_FORM = { cliente: '', telefone: '', tipo: 'Visita técnica', data: '', horario: '', endereco: '', observacoes: '' };
-
-const carregarLocal = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-  catch { return []; }
-};
 
 const somenteNumeros = (valor = '') => valor.replace(/\D/g, '');
 const numeroComPais = (valor = '') => {
@@ -35,22 +29,35 @@ function mapAppointment(row) {
 }
 
 function AgendaPage() {
-  const [agendamentos, setAgendamentos] = useState(carregarLocal);
+  const [agendamentos, setAgendamentos] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [mensagemNotificacao, setMensagemNotificacao] = useState('');
   const [mensagem, setMensagem] = useState('');
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
 
   async function carregarAgenda() {
-    if (!isSupabaseConfigured || !supabase) return;
+    if (!isSupabaseConfigured || !supabase) {
+      setAgendamentos([]);
+      setMensagem('A agenda exige conexão com o Supabase. Verifique as variáveis do ambiente.');
+      setCarregando(false);
+      return;
+    }
+
+    setCarregando(true);
     try {
-      const { data, error } = await supabase.from('appointments').select('*').order('appointment_at', { ascending: true });
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .order('appointment_at', { ascending: true });
       if (error) throw error;
-      const mapped = (data || []).map(mapAppointment);
-      setAgendamentos(mapped);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+      setAgendamentos((data || []).map(mapAppointment));
       setMensagem('');
     } catch (error) {
+      setAgendamentos([]);
       setMensagem(`Não foi possível carregar a agenda central: ${error.message}`);
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -79,51 +86,51 @@ function AgendaPage() {
     };
   }, []);
 
-  const salvarListaLocal = (lista) => {
-    setAgendamentos(lista);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
-  };
-
   const adicionar = async (event) => {
     event.preventDefault();
-    setMensagem('Salvando agendamento...');
-    const novo = { ...form, id: crypto.randomUUID(), status: 'Agendado', criadoEm: new Date().toISOString() };
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const appointmentAt = new Date(`${form.data}T${form.horario}:00-03:00`).toISOString();
-        const { error } = await supabase.from('appointments').insert({
-          client_name: form.cliente,
-          phone: form.telefone,
-          appointment_type: form.tipo,
-          appointment_at: appointmentAt,
-          address: form.endereco || null,
-          notes: form.observacoes || null,
-          status: 'Agendado',
-        });
-        if (error) throw error;
-        await carregarAgenda();
-        setMensagem('Agendamento salvo no Supabase.');
-      } catch (error) {
-        setMensagem(`Erro ao salvar no Supabase: ${error.message}`);
-        return;
-      }
-    } else {
-      salvarListaLocal([...agendamentos, novo]);
-      setMensagem('Agendamento salvo somente neste aparelho.');
+    if (!isSupabaseConfigured || !supabase) {
+      setMensagem('Não é possível salvar sem conexão com o Supabase.');
+      return;
     }
-    setForm(EMPTY_FORM);
+
+    setSalvando(true);
+    setMensagem('Salvando agendamento...');
+    try {
+      const appointmentAt = new Date(`${form.data}T${form.horario}:00-03:00`).toISOString();
+      const { error } = await supabase.from('appointments').insert({
+        client_name: form.cliente.trim(),
+        phone: form.telefone.trim(),
+        appointment_type: form.tipo,
+        appointment_at: appointmentAt,
+        address: form.endereco.trim() || null,
+        notes: form.observacoes.trim() || null,
+        status: 'Agendado',
+      });
+      if (error) throw error;
+      setForm(EMPTY_FORM);
+      await carregarAgenda();
+      setMensagem('Agendamento salvo no banco de dados.');
+    } catch (error) {
+      setMensagem(`Erro ao salvar no Supabase: ${error.message}`);
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const remover = async (id) => {
     if (!window.confirm('Excluir este agendamento?')) return;
-    if (isSupabaseConfigured && supabase) {
+    if (!isSupabaseConfigured || !supabase) {
+      setMensagem('Não é possível excluir sem conexão com o Supabase.');
+      return;
+    }
+
+    try {
       const { error } = await supabase.from('appointments').delete().eq('id', id);
-      if (error) { setMensagem(error.message); return; }
+      if (error) throw error;
       await carregarAgenda();
       setMensagem('Agendamento excluído.');
-    } else {
-      salvarListaLocal(agendamentos.filter((item) => item.id !== id));
+    } catch (error) {
+      setMensagem(`Erro ao excluir: ${error.message}`);
     }
   };
 
@@ -148,7 +155,10 @@ function AgendaPage() {
     window.open(linkPadrao, '_blank', 'noopener,noreferrer');
   };
 
-  const ordenados = useMemo(() => [...agendamentos].sort((a, b) => `${a.data}${a.horario}`.localeCompare(`${b.data}${b.horario}`)), [agendamentos]);
+  const ordenados = useMemo(
+    () => [...agendamentos].sort((a, b) => `${a.data}${a.horario}`.localeCompare(`${b.data}${b.horario}`)),
+    [agendamentos],
+  );
 
   return (
     <FinanceLayout title="Agenda de reuniões e visitas" subtitle="Cadastre compromissos, receba lembretes e confirme pelo WhatsApp Business.">
@@ -164,17 +174,17 @@ function AgendaPage() {
           <div className="agenda-row"><label>Data<input required type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} /></label><label>Horário<input required type="time" value={form.horario} onChange={(e) => setForm({ ...form, horario: e.target.value })} /></label></div>
           <label>Endereço<input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, número, bairro e cidade" /></label>
           <label>Observações<textarea rows="3" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="Ex.: levar proposta, verificar padrão de entrada..." /></label>
-          <button className="agenda-primary" type="submit"><CalendarDays size={18} /> Salvar agendamento</button>
+          <button className="agenda-primary" type="submit" disabled={salvando || !isSupabaseConfigured}><CalendarDays size={18} /> {salvando ? 'Salvando...' : 'Salvar agendamento'}</button>
         </form>
 
         <div className="agenda-card agenda-lista">
-          <div className="agenda-card-title"><CalendarDays size={20} /><div><h2>Próximos compromissos</h2><p>{ordenados.length} agendamento(s) salvo(s).</p></div></div>
-          {ordenados.length === 0 ? <div className="agenda-empty"><CalendarDays size={42} /><strong>Nenhum compromisso agendado</strong><span>Use o formulário ao lado para criar o primeiro.</span></div> : ordenados.map((item) => (
+          <div className="agenda-card-title"><CalendarDays size={20} /><div><h2>Próximos compromissos</h2><p>{carregando ? 'Carregando agenda...' : `${ordenados.length} agendamento(s) salvo(s) no banco.`}</p></div></div>
+          {!carregando && ordenados.length === 0 ? <div className="agenda-empty"><CalendarDays size={42} /><strong>Nenhum compromisso agendado</strong><span>Use o formulário ao lado para criar o primeiro.</span></div> : ordenados.map((item) => (
             <article className="agenda-item" key={item.id}>
               <div className="agenda-item-head"><div><strong>{item.cliente}</strong><span>{item.tipo}</span></div><span className="agenda-status">{item.status || 'Agendado'}</span></div>
               <div className="agenda-meta"><span><CalendarDays size={15} />{new Date(`${item.data}T12:00:00`).toLocaleDateString('pt-BR')}</span><span><Clock3 size={15} />{item.horario}</span><span><UserRound size={15} />{item.telefone}</span>{item.endereco && <span><MapPin size={15} />{item.endereco}</span>}</div>
               {item.observacoes && <p className="agenda-nota">{item.observacoes}</p>}
-              <div className="agenda-actions"><button className="agenda-whatsapp" onClick={() => abrirWhatsApp(item)}><MessageCircle size={17} /> Confirmar no WhatsApp Business</button><button className="agenda-delete" onClick={() => remover(item.id)} aria-label="Excluir"><Trash2 size={17} /></button></div>
+              <div className="agenda-actions"><button className="agenda-whatsapp" type="button" onClick={() => abrirWhatsApp(item)}><MessageCircle size={17} /> Confirmar no WhatsApp Business</button><button className="agenda-delete" type="button" onClick={() => remover(item.id)} aria-label="Excluir"><Trash2 size={17} /></button></div>
             </article>
           ))}
         </div>
