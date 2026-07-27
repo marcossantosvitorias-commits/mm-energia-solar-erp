@@ -38,7 +38,7 @@ export async function sendContractToAutentique({ blob, fileName, contract, deliv
   return payload;
 }
 
-export async function listAutentiqueContracts({ limit = 60, pages = 10 } = {}) {
+export async function syncAutentiqueContracts({ limit = 60, pages = 20 } = {}) {
   const session = await getSession();
   const response = await fetch(endpoint(), {
     method: 'POST',
@@ -52,5 +52,48 @@ export async function listAutentiqueContracts({ limit = 60, pages = 10 } = {}) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || 'Não foi possível buscar os contratos no Autentique.');
-  return payload.documents || [];
+  return payload;
+}
+
+export async function listStoredContracts() {
+  await getSession();
+  const { data, error } = await supabase
+    .from('contracts')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveLocalContract(contract) {
+  await getSession();
+  const payload = {
+    external_id: contract.externalId || `erp-${crypto.randomUUID()}`,
+    client_id: contract.clientId || null,
+    client_name: contract.clientName || 'Cliente',
+    client_document: contract.clientDocument || null,
+    client_phone: contract.clientPhone || null,
+    client_email: contract.clientEmail || null,
+    title: contract.title || `Contrato de energia solar - ${contract.clientName || 'Cliente'}`,
+    total_amount: Number(contract.totalValue || 0),
+    amount_received: Number(contract.amountReceived || 0),
+    amount_receivable: Number(contract.amountReceivable ?? contract.totalValue ?? 0),
+    status: contract.status || 'rascunho',
+    document_url: contract.documentUrl || null,
+    source: 'ERP',
+    notes: contract.notes || null,
+    payload: {
+      sistema: contract.systemDescription || '',
+      endereco: contract.installationAddress || '',
+      pagamento: contract.paymentTerms || '',
+      components: contract.components || '',
+    },
+  };
+  const { data, error } = await supabase
+    .from('contracts')
+    .upsert(payload, { onConflict: 'external_id' })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
 }
