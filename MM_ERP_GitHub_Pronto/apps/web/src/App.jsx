@@ -11,7 +11,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 
 import LoginPage from './pages/LoginPage.jsx';
-import FinanceiroPage from './pages/FinanceiroPage.jsx';
+import FinanceiroPage from './pages/FinanceiroSupabasePage.jsx';
 import MarcosFinancePage from './pages/MarcosFinancePage.jsx';
 import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
 import EquipamentosPage from './pages/EquipamentosPage.jsx';
