@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { CalendarDays, Clock3, MapPin, MessageCircle, Plus, Trash2, UserRound } from 'lucide-react';
+import { BellRing, CalendarDays, Clock3, MapPin, MessageCircle, Plus, Trash2, UserRound } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import { requestErpNotificationPermission } from '../services/notificationService.js';
 import './AgendaPage.css';
 
 const STORAGE_KEY = 'mm-erp-agendamentos-v1';
@@ -20,6 +21,7 @@ const numeroComPais = (valor = '') => {
 function AgendaPage() {
   const [agendamentos, setAgendamentos] = useState(carregar);
   const [form, setForm] = useState({ cliente: '', telefone: '', tipo: 'Visita técnica', data: '', horario: '', endereco: '', observacoes: '' });
+  const [mensagemNotificacao, setMensagemNotificacao] = useState('');
 
   const salvarLista = (lista) => {
     setAgendamentos(lista);
@@ -34,6 +36,11 @@ function AgendaPage() {
   };
 
   const remover = (id) => salvarLista(agendamentos.filter((item) => item.id !== id));
+
+  const ativarNotificacoes = async () => {
+    const resultado = await requestErpNotificationPermission();
+    setMensagemNotificacao(resultado.message);
+  };
 
   const abrirWhatsApp = (item) => {
     const telefone = numeroComPais(item.telefone);
@@ -54,10 +61,13 @@ function AgendaPage() {
   const ordenados = useMemo(() => [...agendamentos].sort((a, b) => `${a.data}${a.horario}`.localeCompare(`${b.data}${b.horario}`)), [agendamentos]);
 
   return (
-    <FinanceLayout title="Agenda de reuniões e visitas" subtitle="Cadastre compromissos e confirme cada agendamento diretamente pelo WhatsApp.">
+    <FinanceLayout title="Agenda de reuniões e visitas" subtitle="Cadastre compromissos, receba lembretes e confirme pelo WhatsApp Business.">
       <section className="agenda-grid">
         <form className="agenda-card agenda-form" onSubmit={adicionar}>
           <div className="agenda-card-title"><Plus size={20} /><div><h2>Novo agendamento</h2><p>Preencha os dados do cliente e da visita.</p></div></div>
+
+          <button className="agenda-primary" type="button" onClick={ativarNotificacoes}><BellRing size={18} /> Ativar notificações no celular</button>
+          {mensagemNotificacao && <p className="agenda-nota">{mensagemNotificacao}</p>}
 
           <label>Cliente<input required value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} placeholder="Nome do cliente" /></label>
           <label>WhatsApp<input required inputMode="tel" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(14) 99999-9999" /></label>
