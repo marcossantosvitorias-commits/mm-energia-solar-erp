@@ -19,6 +19,24 @@ function normalizePhone(value: string) {
   return `+${digits.startsWith('55') ? digits : `55${digits}`}`;
 }
 
+async function autentiqueRequest(token: string, query: string, variables: Record<string, unknown> = {}) {
+  const response = await fetch('https://api.autentique.com.br/v2/graphql', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const result = await response.json();
+  if (!response.ok || result.errors?.length) {
+    const message = result.errors?.map((item: { message?: string }) => item.message).filter(Boolean).join(' | ')
+      || 'O Autentique recusou a solicitação.';
+    throw new Error(message);
+  }
+  return result.data;
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
@@ -37,6 +55,53 @@ Deno.serve(async (request) => {
     });
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) return json({ error: 'Sessão inválida. Entre novamente no ERP.' }, 401);
+
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const payload = await request.json().catch(() => ({}));
+      if (payload.action !== 'list') return json({ error: 'Ação não reconhecida.' }, 400);
+
+      const limit = Math.min(Math.max(Number(payload.limit || 60), 1), 60);
+      const maxPages = Math.min(Math.max(Number(payload.pages || 5), 1), 20);
+      const all: unknown[] = [];
+      let total = 0;
+
+      const query = `
+        query ListDocuments($limit: Int!, $page: Int!) {
+          documents(limit: $limit, page: $page) {
+            total
+            data {
+              id
+              name
+              created_at
+              signatures {
+                public_id
+                name
+                email
+                created_at
+                link { short_link }
+                viewed { created_at }
+                signed { created_at }
+                rejected { created_at }
+                user { id name email phone }
+              }
+              files { original signed }
+            }
+          }
+        }
+      `;
+
+      for (let page = 1; page <= maxPages; page += 1) {
+        const data = await autentiqueRequest(autentiqueToken, query, { limit, page });
+        const result = data?.documents;
+        const rows = result?.data || [];
+        total = Number(result?.total || rows.length);
+        all.push(...rows);
+        if (!rows.length || all.length >= total || rows.length < limit) break;
+      }
+
+      return json({ ok: true, total, documents: all });
+    }
 
     const body = await request.formData();
     const file = body.get('file');
@@ -108,6 +173,6 @@ Deno.serve(async (request) => {
       deliveryMethod,
     });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : 'Erro inesperado ao enviar contrato.' }, 500);
+    return json({ error: error instanceof Error ? error.message : 'Erro inesperado ao processar contrato.' }, 500);
   }
 });
