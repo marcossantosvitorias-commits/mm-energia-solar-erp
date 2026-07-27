@@ -2,46 +2,18 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const AuthContext = createContext(null);
-const TEMPORARY_SESSION_KEY = 'mm-erp-temporary-session-v2';
-const TEMPORARY_ADMIN_EMAIL = 'marcossantosvitorias@gmail.com';
-const TEMPORARY_PASSWORD_HASH = '5d8defe14ebca58ce9fb89114defb2302452b09faead6998e09a26e7e784b5f9';
-
-const TEMPORARY_ADMIN = {
-  id: 'temporary-admin-access',
-  name: 'Marcos Santos',
-  email: TEMPORARY_ADMIN_EMAIL,
-  role: 'admin',
-  active: true,
-  temporaryAccess: true,
-};
-
-function readTemporarySession() {
-  try {
-    const session = JSON.parse(localStorage.getItem(TEMPORARY_SESSION_KEY) || 'null');
-    return session?.authenticated === true && session?.email === TEMPORARY_ADMIN_EMAIL
-      ? TEMPORARY_ADMIN
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-async function sha256(value) {
-  const data = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-}
 
 async function normalizeUser(authUser) {
   if (!authUser) return null;
+
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('name, role, active')
     .eq('id', authUser.id)
     .maybeSingle();
+
   if (error) throw error;
+
   return {
     id: authUser.id,
     name: profile?.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuário',
@@ -53,15 +25,14 @@ async function normalizeUser(authUser) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => (
-    isSupabaseConfigured ? null : readTemporarySession()
-  ));
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
     let active = true;
 
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !supabase) {
+      setUser(null);
       setLoading(false);
       return undefined;
     }
@@ -79,6 +50,8 @@ export function AuthProvider({ children }) {
       try {
         const current = await normalizeUser(session?.user);
         if (active) setUser(current?.active ? current : null);
+      } catch {
+        if (active) setUser(null);
       } finally {
         if (active) setLoading(false);
       }
@@ -92,25 +65,16 @@ export function AuthProvider({ children }) {
 
   const login = async ({ email, password }) => {
     const normalizedEmail = email?.trim().toLowerCase();
+
     if (!normalizedEmail || !password) {
       return { ok: false, message: 'Informe e-mail e senha.' };
     }
 
-    if (!isSupabaseConfigured) {
-      const passwordHash = await sha256(password);
-      if (
-        normalizedEmail !== TEMPORARY_ADMIN_EMAIL
-        || passwordHash !== TEMPORARY_PASSWORD_HASH
-      ) {
-        return { ok: false, message: 'E-mail ou senha inválidos.' };
-      }
-
-      localStorage.setItem(TEMPORARY_SESSION_KEY, JSON.stringify({
-        authenticated: true,
-        email: TEMPORARY_ADMIN_EMAIL,
-      }));
-      setUser(TEMPORARY_ADMIN);
-      return { ok: true, temporaryAccess: true };
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        ok: false,
+        message: 'O acesso está indisponível porque o Supabase não foi configurado na publicação.',
+      };
     }
 
     try {
@@ -118,6 +82,7 @@ export function AuthProvider({ children }) {
         email: normalizedEmail,
         password,
       });
+
       if (error) throw error;
 
       const current = await normalizeUser(data.user);
@@ -138,13 +103,9 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
-      setUser(null);
-      return;
     }
-
-    localStorage.removeItem(TEMPORARY_SESSION_KEY);
     setUser(null);
   };
 
@@ -153,12 +114,12 @@ export function AuthProvider({ children }) {
     user,
     loading,
     isAuthenticated: Boolean(user),
-    isDemoMode: !isSupabaseConfigured,
+    isDemoMode: false,
     login,
     logout,
     hasRole,
     databaseConfigured: isSupabaseConfigured,
-    temporaryAccess: !isSupabaseConfigured,
+    temporaryAccess: false,
   }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
