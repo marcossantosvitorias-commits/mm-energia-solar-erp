@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -6,90 +6,83 @@ import {
   Cloud,
   ExternalLink,
   Gauge,
-  Link2,
   PlugZap,
   RefreshCw,
   Search,
-  Settings2,
+  ShieldCheck,
   Sun,
-  Unplug,
   WifiOff,
-  X,
   Zap,
 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import { checkSolarMonitoring, syncSolarmanPlants } from '../services/solarMonitoringApi.js';
 import './monitoramento-solar.css';
 
 const PROVIDERS = [
-  { id: 'fronius', name: 'Fronius Solar.web', api: 'API oficial', status: 'ready', tone: 'green' },
-  { id: 'solarman', name: 'SOLARMAN Business', api: 'API para parceiros', status: 'ready', tone: 'blue' },
-  { id: 'growatt', name: 'Growatt Shine', api: 'API para parceiros', status: 'ready', tone: 'orange' },
-  { id: 'apsystems', name: 'APsystems EMA', api: 'API para integradores', status: 'ready', tone: 'violet' },
-  { id: 'tsun', name: 'TSUN Smart', api: 'API para parceiros', status: 'ready', tone: 'cyan' },
+  { id: 'fronius', name: 'Fronius Solar.web', api: 'Próxima integração', tone: 'green' },
+  { id: 'solarman', name: 'SOLARMAN Business', api: 'Conector de servidor pronto', tone: 'blue' },
+  { id: 'growatt', name: 'Growatt Shine', api: 'Próxima integração', tone: 'orange' },
+  { id: 'apsystems', name: 'APsystems EMA', api: 'Próxima integração', tone: 'violet' },
+  { id: 'tsun', name: 'TSUN Smart', api: 'Próxima integração', tone: 'cyan' },
 ];
 
 const DEMO_PLANTS = [
-  { id: 1, client: 'Adilson - casa', provider: 'solarman', power: 0, today: 28.53, capacity: 12.32, online: false, alert: false, updatedAt: '18:22' },
-  { id: 2, client: 'Adilson - Clebinho', provider: 'solarman', power: 0, today: 39.77, capacity: 8.96, online: false, alert: false, updatedAt: '18:17' },
-  { id: 3, client: 'Adriano e Fabiana', provider: 'growatt', power: 16, today: 19.70, capacity: 4.88, online: true, alert: false, updatedAt: '17:57' },
-  { id: 4, client: 'Ana Paula', provider: 'fronius', power: 28, today: 26.30, capacity: 7.20, online: true, alert: false, updatedAt: '17:52' },
+  { id: 'demo-1', client: 'Adilson - casa', provider: 'solarman', power: 0, today: 28.53, capacity: 12.32, online: false, alert: false, updatedAt: '18:22' },
+  { id: 'demo-2', client: 'Adilson - Clebinho', provider: 'solarman', power: 0, today: 39.77, capacity: 8.96, online: false, alert: false, updatedAt: '18:17' },
+  { id: 'demo-3', client: 'Adriano e Fabiana', provider: 'growatt', power: 16, today: 19.70, capacity: 4.88, online: true, alert: false, updatedAt: '17:57' },
+  { id: 'demo-4', client: 'Ana Paula', provider: 'fronius', power: 28, today: 26.30, capacity: 7.20, online: true, alert: false, updatedAt: '17:52' },
 ];
-
-const getSavedConnections = () => {
-  try {
-    return JSON.parse(localStorage.getItem('mm-erp-monitor-connections') || '{}');
-  } catch {
-    return {};
-  }
-};
 
 function MonitoramentoSolarPage() {
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
-  const [connections, setConnections] = useState(getSavedConnections);
-  const [selectedProvider, setSelectedProvider] = useState(null);
-  const [form, setForm] = useState({ label: '', clientId: '', clientSecret: '', apiKey: '', baseUrl: '' });
+  const [plants, setPlants] = useState(DEMO_PLANTS);
   const [syncing, setSyncing] = useState(false);
+  const [configured, setConfigured] = useState(false);
+  const [message, setMessage] = useState('Modo demonstração: aguardando credenciais oficiais da SOLARMAN.');
 
-  const plants = useMemo(() => DEMO_PLANTS.filter((plant) => {
+  useEffect(() => {
+    let active = true;
+    checkSolarMonitoring()
+      .then((status) => {
+        if (!active) return;
+        setConfigured(Boolean(status.configured));
+        if (status.configured) setMessage('SOLARMAN configurada no servidor. Clique em Sincronizar agora.');
+      })
+      .catch(() => {
+        if (active) setMessage('Função de servidor criada, mas ainda não foi publicada no Supabase.');
+      });
+    return () => { active = false; };
+  }, []);
+
+  const visiblePlants = useMemo(() => plants.filter((plant) => {
     const matchesText = plant.client.toLowerCase().includes(query.toLowerCase());
     const matchesProvider = providerFilter === 'all' || plant.provider === providerFilter;
     return matchesText && matchesProvider;
-  }), [query, providerFilter]);
+  }), [plants, query, providerFilter]);
 
   const totals = useMemo(() => ({
-    plants: DEMO_PLANTS.length,
-    online: DEMO_PLANTS.filter((plant) => plant.online).length,
-    alerts: DEMO_PLANTS.filter((plant) => plant.alert).length,
-    today: DEMO_PLANTS.reduce((sum, plant) => sum + plant.today, 0),
-  }), []);
+    plants: plants.length,
+    online: plants.filter((plant) => plant.online).length,
+    alerts: plants.filter((plant) => plant.alert).length,
+    today: plants.reduce((sum, plant) => sum + Number(plant.today || 0), 0),
+  }), [plants]);
 
   const providerName = (id) => PROVIDERS.find((provider) => provider.id === id)?.name || id;
 
-  const openConnection = (provider) => {
-    setSelectedProvider(provider);
-    setForm(connections[provider.id] || { label: '', clientId: '', clientSecret: '', apiKey: '', baseUrl: '' });
-  };
-
-  const saveConnection = (event) => {
-    event.preventDefault();
-    const next = { ...connections, [selectedProvider.id]: { ...form, configuredAt: new Date().toISOString() } };
-    setConnections(next);
-    localStorage.setItem('mm-erp-monitor-connections', JSON.stringify(next));
-    setSelectedProvider(null);
-  };
-
-  const disconnect = (providerId) => {
-    const next = { ...connections };
-    delete next[providerId];
-    setConnections(next);
-    localStorage.setItem('mm-erp-monitor-connections', JSON.stringify(next));
-  };
-
   const syncNow = async () => {
     setSyncing(true);
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setSyncing(false);
+    try {
+      const solarmanPlants = await syncSolarmanPlants();
+      const otherProviders = plants.filter((plant) => plant.provider !== 'solarman' && !plant.id.startsWith('demo-'));
+      setPlants([...solarmanPlants, ...otherProviders]);
+      setConfigured(true);
+      setMessage(`${solarmanPlants.length} usinas SOLARMAN sincronizadas com segurança.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível sincronizar agora.');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -101,9 +94,9 @@ function MonitoramentoSolarPage() {
         <div>
           <span className="monitor-badge"><Sun size={15} /> ERP 2.0 Preview</span>
           <h2>Visão unificada das usinas</h2>
-          <p>A estrutura está pronta para receber as APIs oficiais. As credenciais ficam configuradas por fabricante e a produção continua isolada.</p>
+          <p>{message}</p>
         </div>
-        <button className="monitor-sync" type="button" onClick={syncNow} disabled={syncing}>
+        <button className="monitor-sync" type="button" onClick={syncNow} disabled={syncing || !configured}>
           <RefreshCw size={18} className={syncing ? 'spinning' : ''} />
           {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
         </button>
@@ -118,22 +111,21 @@ function MonitoramentoSolarPage() {
 
       <section className="monitor-panel">
         <div className="monitor-panel-head">
-          <div><h3>Integrações disponíveis</h3><p>Conecte somente plataformas com acesso oficial ou credencial de parceiro.</p></div>
+          <div><h3>Integrações disponíveis</h3><p>As senhas e chaves ficam somente no servidor. Nada sensível é salvo no navegador.</p></div>
         </div>
         <div className="provider-grid">
           {PROVIDERS.map((provider) => {
-            const connected = Boolean(connections[provider.id]);
+            const connected = provider.id === 'solarman' && configured;
             return (
               <article key={provider.id} className={`provider-card ${provider.tone}`}>
                 <div className="provider-icon"><PlugZap size={23} /></div>
                 <div className="provider-copy">
                   <strong>{provider.name}</strong>
                   <span>{provider.api}</span>
-                  <small className={connected ? 'connected' : ''}>{connected ? 'Credenciais configuradas' : 'Aguardando credenciais'}</small>
+                  <small className={connected ? 'connected' : ''}>{connected ? 'Conectada no servidor' : provider.id === 'solarman' ? 'Aguardando credenciais' : 'Em preparação'}</small>
                 </div>
                 <div className="provider-actions">
-                  <button type="button" onClick={() => openConnection(provider)}><Settings2 size={16} /> {connected ? 'Editar' : 'Conectar'}</button>
-                  {connected && <button className="icon-danger" type="button" aria-label="Desconectar" onClick={() => disconnect(provider.id)}><Unplug size={16} /></button>}
+                  <span title="Credenciais protegidas no servidor"><ShieldCheck size={18} /></span>
                 </div>
               </article>
             );
@@ -151,8 +143,8 @@ function MonitoramentoSolarPage() {
         </div>
 
         <div className="plant-grid">
-          {plants.map((plant) => (
-            <article key={plant.id} className="plant-card">
+          {visiblePlants.map((plant) => (
+            <article key={`${plant.provider}-${plant.id}`} className="plant-card">
               <div className="plant-card-head">
                 <div className="plant-avatar"><Sun size={25} /></div>
                 <div><h3>{plant.client}</h3><span>{providerName(plant.provider)}</span></div>
@@ -163,32 +155,15 @@ function MonitoramentoSolarPage() {
                 <span className={plant.alert ? 'warning' : 'healthy'}>{plant.alert ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}{plant.alert ? 'Com alerta' : 'Sem alertas'}</span>
               </div>
               <div className="plant-metrics">
-                <div><small>Potência</small><strong>{plant.power} W</strong></div>
-                <div><small>Hoje</small><strong>{plant.today} kWh</strong></div>
-                <div><small>Capacidade</small><strong>{plant.capacity} kWp</strong></div>
+                <div><small>Potência</small><strong>{Number(plant.power || 0).toFixed(0)} W</strong></div>
+                <div><small>Hoje</small><strong>{Number(plant.today || 0).toFixed(2)} kWh</strong></div>
+                <div><small>Capacidade</small><strong>{Number(plant.capacity || 0).toFixed(2)} kWp</strong></div>
               </div>
-              <footer><Gauge size={15} /> Atualizado às {plant.updatedAt}</footer>
+              <footer><Gauge size={15} /> Atualizado em {plant.updatedAt}</footer>
             </article>
           ))}
         </div>
       </section>
-
-      {selectedProvider && (
-        <div className="monitor-modal-backdrop" role="presentation" onMouseDown={() => setSelectedProvider(null)}>
-          <section className="monitor-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-            <header><div><span>Configurar integração</span><h3>{selectedProvider.name}</h3></div><button type="button" onClick={() => setSelectedProvider(null)}><X size={20} /></button></header>
-            <form onSubmit={saveConnection}>
-              <label>Nome da conexão<input required value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} placeholder="Ex.: Conta MM Energia Solar" /></label>
-              <label>Client ID / Usuário<input value={form.clientId} onChange={(event) => setForm({ ...form, clientId: event.target.value })} autoComplete="off" /></label>
-              <label>Client Secret / Senha<input type="password" value={form.clientSecret} onChange={(event) => setForm({ ...form, clientSecret: event.target.value })} autoComplete="new-password" /></label>
-              <label>API Key / Token<input type="password" value={form.apiKey} onChange={(event) => setForm({ ...form, apiKey: event.target.value })} autoComplete="new-password" /></label>
-              <label>URL da API (quando fornecida pelo fabricante)<input value={form.baseUrl} onChange={(event) => setForm({ ...form, baseUrl: event.target.value })} placeholder="https://..." /></label>
-              <div className="monitor-security-note"><Link2 size={17} /><p>Nesta Preview as configurações ficam somente neste navegador. Na integração real, segredos serão armazenados no servidor/Supabase Vault, nunca no código do site.</p></div>
-              <div className="monitor-modal-actions"><button type="button" onClick={() => setSelectedProvider(null)}>Cancelar</button><button type="submit">Salvar configuração</button></div>
-            </form>
-          </section>
-        </div>
-      )}
     </FinanceLayout>
   );
 }
