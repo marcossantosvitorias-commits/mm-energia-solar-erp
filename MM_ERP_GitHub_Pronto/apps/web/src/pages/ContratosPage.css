@@ -8,96 +8,41 @@
   background: #fff;
 }
 
-.contracts-search input {
-  border: 0;
-  outline: 0;
-  min-width: 210px;
-}
-
-.contracts-list {
-  display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.contract-card {
-  border: 1px solid #dbe3ee;
-  border-radius: 18px;
-  padding: 1.25rem;
-  background: #fff;
-}
-
-.contract-card-heading {
-  display: flex;
-  align-items: center;
-  gap: .8rem;
-}
-
-.contract-card-heading h3 {
-  margin: 0;
-  color: #0b2748;
-}
-
-.contract-card-heading div span {
-  color: #667085;
-  font-size: .9rem;
-}
-
-.contract-card-heading > .finance-badge {
-  margin-left: auto;
-}
-
-.contract-details {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: .8rem;
-  margin: 1rem 0;
-}
-
+.contracts-search input { border: 0; outline: 0; min-width: 210px; }
+.contract-generator { margin-bottom: 1.2rem; }
+.contract-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.contract-form-grid .finance-field-wide { grid-column: 1 / -1; }
+.contract-form-grid textarea { resize: vertical; min-height: 76px; }
+.contract-generator-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.1rem; }
+.contract-generator-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
+.whatsapp-contract { background: #1fa855; }
+.whatsapp-contract:hover { background: #198d48; }
+.contract-message { margin-top: 1rem; }
+.contracts-list { display: grid; gap: 1rem; margin-top: 1rem; }
+.contract-card { border: 1px solid #dbe3ee; border-radius: 18px; padding: 1.25rem; background: #fff; }
+.contract-card-heading { display: flex; align-items: center; gap: .8rem; }
+.contract-card-heading h3 { margin: 0; color: #0b2748; }
+.contract-card-heading div span { color: #667085; font-size: .9rem; }
+.contract-card-heading > .finance-badge { margin-left: auto; text-transform: capitalize; }
+.contract-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0; }
 .contract-details div,
-.contract-payments div {
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-  border-radius: 12px;
-  padding: .9rem;
-  background: #f7f9fc;
-}
-
+.contract-payments div { display: flex; flex-direction: column; gap: .25rem; border-radius: 12px; padding: .9rem; background: #f7f9fc; }
 .contract-details span,
-.contract-payments span {
-  color: #667085;
-  font-size: .85rem;
-}
-
-.contract-payments {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: .8rem;
-  margin-bottom: 1rem;
-}
-
+.contract-payments span { color: #667085; font-size: .85rem; }
+.contract-payments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1rem; }
 .contract-payments .received { background: #ecfdf3; }
 .contract-payments .pending { background: #fff8db; }
 .contract-payments strong { font-size: 1.25rem; color: #0b2748; }
 .contract-payments small { color: #7a6220; }
-
-.contract-link {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  text-decoration: none;
-}
+.contract-link { display: inline-flex; align-items: center; gap: .45rem; text-decoration: none; }
 
 @media (max-width: 720px) {
   .contracts-search,
-  .contracts-search input {
-    width: 100%;
-    min-width: 0;
-  }
-
+  .contracts-search input { width: 100%; min-width: 0; }
+  .contract-form-grid,
   .contract-details,
-  .contract-payments {
-    grid-template-columns: 1fr;
-  }
+  .contract-payments { grid-template-columns: 1fr; }
+  .contract-form-grid .finance-field-wide { grid-column: auto; }
+  .contract-generator-actions { flex-direction: column; }
+  .contract-generator-actions button { width: 100%; }
 }
