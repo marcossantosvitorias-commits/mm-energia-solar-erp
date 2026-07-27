@@ -1,9 +1,13 @@
-const CACHE_NAME = 'mm-erp-assets-v1.2.3';
+const CACHE_NAME = 'mm-erp-assets-v1.2.4';
 const STATIC_FILES = ['/logo-mm.png'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_FILES)));
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -58,12 +62,19 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === 'navigate' || url.pathname === '/version.json') {
+  if (request.mode === 'navigate' || url.pathname === '/version.json' || url.pathname === '/service-worker.js') {
     event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
 
-  if (url.pathname.startsWith('/assets/') || url.pathname === '/logo-mm.png') {
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' }).catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  if (url.pathname === '/logo-mm.png') {
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request).then((response) => {
         if (response.ok) {
