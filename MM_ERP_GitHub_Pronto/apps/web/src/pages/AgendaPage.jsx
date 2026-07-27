@@ -48,12 +48,36 @@ function AgendaPage() {
       const mapped = (data || []).map(mapAppointment);
       setAgendamentos(mapped);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+      setMensagem('');
     } catch (error) {
       setMensagem(`Não foi possível carregar a agenda central: ${error.message}`);
     }
   }
 
-  useEffect(() => { carregarAgenda(); }, []);
+  useEffect(() => {
+    carregarAgenda();
+
+    const atualizarAoVoltar = () => {
+      if (document.visibilityState === 'visible') carregarAgenda();
+    };
+
+    window.addEventListener('focus', carregarAgenda);
+    document.addEventListener('visibilitychange', atualizarAoVoltar);
+
+    let canal;
+    if (isSupabaseConfigured && supabase) {
+      canal = supabase
+        .channel('appointments-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, carregarAgenda)
+        .subscribe();
+    }
+
+    return () => {
+      window.removeEventListener('focus', carregarAgenda);
+      document.removeEventListener('visibilitychange', atualizarAoVoltar);
+      if (canal && supabase) supabase.removeChannel(canal);
+    };
+  }, []);
 
   const salvarListaLocal = (lista) => {
     setAgendamentos(lista);
@@ -62,7 +86,7 @@ function AgendaPage() {
 
   const adicionar = async (event) => {
     event.preventDefault();
-    setMensagem('');
+    setMensagem('Salvando agendamento...');
     const novo = { ...form, id: crypto.randomUUID(), status: 'Agendado', criadoEm: new Date().toISOString() };
 
     if (isSupabaseConfigured && supabase) {
@@ -79,12 +103,14 @@ function AgendaPage() {
         });
         if (error) throw error;
         await carregarAgenda();
+        setMensagem('Agendamento salvo no Supabase.');
       } catch (error) {
         setMensagem(`Erro ao salvar no Supabase: ${error.message}`);
         return;
       }
     } else {
       salvarListaLocal([...agendamentos, novo]);
+      setMensagem('Agendamento salvo somente neste aparelho.');
     }
     setForm(EMPTY_FORM);
   };
@@ -95,6 +121,7 @@ function AgendaPage() {
       const { error } = await supabase.from('appointments').delete().eq('id', id);
       if (error) { setMensagem(error.message); return; }
       await carregarAgenda();
+      setMensagem('Agendamento excluído.');
     } else {
       salvarListaLocal(agendamentos.filter((item) => item.id !== id));
     }
