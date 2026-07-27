@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import '@/index.css';
 import { APP_VERSION } from './version.js';
+import { startErpReminderChecks } from './services/notificationService.js';
 
 async function atualizarVersaoSeNecessario() {
   try {
@@ -30,7 +31,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/service-worker.js', { updateViaCache: 'none' })
-      .then((registration) => registration.update())
+      .then(async (registration) => {
+        await registration.update();
+        startErpReminderChecks();
+      })
       .catch(() => {
         // O ERP continua funcionando normalmente mesmo sem instalação PWA.
       });
