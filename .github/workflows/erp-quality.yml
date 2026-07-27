@@ -1,0 +1,57 @@
+name: Verificar ERP
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erp-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    name: Lint e build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: MM_ERP_GitHub_Pronto/apps/web
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: MM_ERP_GitHub_Pronto/apps/web/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar lint
+        run: npm run lint
+
+      - name: Executar build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Salvar build para inspeção
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mm-erp-build
+          path: MM_ERP_GitHub_Pronto/apps/web/dist
+          if-no-files-found: error
+          retention-days: 7
