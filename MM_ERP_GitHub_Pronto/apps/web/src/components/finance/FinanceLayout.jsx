@@ -89,6 +89,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
   const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const pessoal = theme === 'marcos';
+  const logoUrl = `${import.meta.env.BASE_URL}logo-mm.png`;
   const financeSections = [
     ['dashboard', 'Visão geral'],
     ['fluxo', 'Fluxo de caixa'],
@@ -157,7 +158,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
 
       <aside className={`finance-sidebar ${menuAberto ? 'open' : ''}`}>
         <div className="finance-brand">
-          <div className="finance-logo-box"><img src="/logo-mm.png" alt="MM Energia Solar" /></div>
+          <div className="finance-logo-box"><img src={logoUrl} alt="MM Energia Solar" /></div>
           <div><strong>MM ERP <small style={{ color: '#f5c400', fontSize: '0.58em', marginLeft: 6 }}>v{APP_VERSION}</small></strong><span>MM Energia Solar</span></div>
         </div>
 
@@ -202,7 +203,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
 
       <main className="finance-main">
         <header className="finance-header"><span className="finance-eyebrow">{pessoal ? 'Controle pessoal' : 'Gestão empresarial'}</span><h1>{title}</h1><p>{subtitle}</p></header>
-        {children}
+        <div className="finance-content-scroll">{children}</div>
       </main>
     </div>
   );
