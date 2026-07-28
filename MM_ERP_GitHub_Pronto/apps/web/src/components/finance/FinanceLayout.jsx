@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
+  LayoutPanelTop,
   WalletCards,
   Calculator,
   BadgeDollarSign,
@@ -34,6 +35,7 @@ const menuSections = [
   {
     title: 'Comercial',
     items: [
+      { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'comercial', 'engenharia'] },
       { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
