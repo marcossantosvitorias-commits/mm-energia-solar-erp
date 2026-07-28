@@ -1,0 +1,44 @@
+{
+  "id": "./",
+  "name": "MM ERP - MM Energia Solar",
+  "short_name": "MM ERP",
+  "description": "Gestão comercial, financeira e operacional da MM Energia Solar.",
+  "lang": "pt-BR",
+  "start_url": "./?source=pwa&manifest=v2",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020617",
+  "theme_color": "#0b2f55",
+  "icons": [
+    {
+      "src": "./logo-mm.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./logo-mm.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "./app/dashboard"
+    },
+    {
+      "name": "Preço dos kits",
+      "short_name": "Kits",
+      "url": "./app/precos"
+    },
+    {
+      "name": "Financeiro",
+      "short_name": "Financeiro",
+      "url": "./app"
+    }
+  ]
+}
