@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import '@/index.css';
+import './erp-mobile-fixes.css';
 import { APP_VERSION } from './version.js';
 import { startErpReminderChecks } from './services/notificationService.js';
 
