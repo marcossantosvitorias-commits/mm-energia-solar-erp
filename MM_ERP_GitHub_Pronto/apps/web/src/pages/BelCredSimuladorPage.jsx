@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Calculator, Copy, Check, Save, Trash2 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { belcredService } from '../services/belcredService.js';
+import { createClientInteraction, listClients } from '../services/clientService.js';
 import './BelCredSimuladorPage.css';
 
 const BASE_REFERENCIA = 16383.49;
@@ -43,9 +44,14 @@ function BelCredSimuladorPage() {
   const [valor, setValor] = useState(BASE_REFERENCIA);
   const [copiado, setCopiado] = useState(false);
   const [historico, setHistorico] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [clienteId, setClienteId] = useState('');
+  const [filtroClienteId, setFiltroClienteId] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
+
+  const clienteSelecionado = clientes.find((item) => item.id === clienteId);
 
   const simulacoes = useMemo(
     () =>
@@ -60,25 +66,45 @@ function BelCredSimuladorPage() {
     [valor],
   );
 
-  async function carregarHistorico() {
+  async function carregarDados(clientFilter = filtroClienteId) {
     setCarregando(true);
     try {
-      setHistorico(await belcredService.listSimulations());
+      const [clients, simulations] = await Promise.all([
+        listClients(),
+        belcredService.listSimulations(clientFilter || null),
+      ]);
+      setClientes(clients);
+      setHistorico(simulations);
       setMensagem('');
     } catch (error) {
-      setMensagem(`Não foi possível carregar o histórico: ${error.message}`);
+      setMensagem(`Não foi possível carregar os dados: ${error.message}`);
     } finally {
       setCarregando(false);
     }
   }
 
   useEffect(() => {
-    carregarHistorico();
+    carregarDados('');
   }, []);
+
+  async function aplicarFiltroCliente(event) {
+    const value = event.target.value;
+    setFiltroClienteId(value);
+    setCarregando(true);
+    try {
+      setHistorico(await belcredService.listSimulations(value || null));
+      setMensagem('');
+    } catch (error) {
+      setMensagem(`Não foi possível filtrar o histórico: ${error.message}`);
+    } finally {
+      setCarregando(false);
+    }
+  }
 
   async function copiarSimulacao() {
     const texto = [
-      `Simulação BelCred para ${moeda.format(valor)}`,
+      `Simulação BelCred${clienteSelecionado ? ` - ${clienteSelecionado.name}` : ''}`,
+      `Valor do projeto: ${moeda.format(valor)}`,
       '',
       ...simulacoes.map(
         ({ parcelas, parcela, taxa }) =>
@@ -99,14 +125,27 @@ function BelCredSimuladorPage() {
     setMensagem('Salvando simulação no Supabase...');
     try {
       await belcredService.saveSimulation({
+        clientId: clienteId || null,
         projectValue: valor,
         simulation: {
           referenceBase: BASE_REFERENCIA,
           plans: simulacoes,
         },
       });
-      await carregarHistorico();
-      setMensagem('Simulação salva no histórico.');
+
+      if (clienteId) {
+        const planoInicial = simulacoes[0];
+        await createClientInteraction(clienteId, {
+          type: 'financiamento',
+          description: `Simulação BelCred salva para projeto de ${moeda.format(valor)}. Primeira opção: ${planoInicial.parcelas}x de ${moeda.format(planoInicial.parcela)}.`,
+          nextActionAt: '',
+        });
+      }
+
+      await carregarDados(filtroClienteId);
+      setMensagem(clienteId
+        ? 'Simulação salva e registrada no histórico comercial do cliente.'
+        : 'Simulação salva no histórico geral.');
     } catch (error) {
       setMensagem(`Não foi possível salvar: ${error.message}`);
     } finally {
@@ -118,17 +157,23 @@ function BelCredSimuladorPage() {
     if (!window.confirm('Excluir esta simulação do histórico?')) return;
     try {
       await belcredService.removeSimulation(id);
-      await carregarHistorico();
+      await carregarDados(filtroClienteId);
       setMensagem('Simulação excluída.');
     } catch (error) {
       setMensagem(`Não foi possível excluir: ${error.message}`);
     }
   }
 
+  function reabrirSimulacao(item) {
+    setValor(Number(item.project_value || 0));
+    setClienteId(item.client_id || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   return (
     <FinanceLayout
       title="Simulador BelCred"
-      subtitle="Calcule e salve as parcelas do financiamento para apresentar ao cliente."
+      subtitle="Calcule, vincule ao cliente e salve as parcelas do financiamento."
       theme="empresa"
     >
       {mensagem && <p className="finance-notice">{mensagem}</p>}
@@ -136,6 +181,19 @@ function BelCredSimuladorPage() {
       <section className="belcred-hero">
         <div className="belcred-logo">
           <img src="/belcred-logo.svg" alt="BelCred" />
+        </div>
+
+        <div className="belcred-value">
+          <label htmlFor="cliente-belcred">Cliente do CRM</label>
+          <select id="cliente-belcred" value={clienteId} onChange={(event) => setClienteId(event.target.value)}>
+            <option value="">Simulação sem cliente vinculado</option>
+            {clientes.map((cliente) => (
+              <option key={cliente.id} value={cliente.id}>
+                {cliente.name} · {cliente.phone}
+              </option>
+            ))}
+          </select>
+          <small>Ao selecionar um cliente, a simulação também entra no histórico comercial.</small>
         </div>
 
         <div className="belcred-value">
@@ -202,6 +260,10 @@ function BelCredSimuladorPage() {
             <h2>Histórico de simulações</h2>
             <p>Últimas 30 simulações salvas no Supabase.</p>
           </div>
+          <select className="finance-filter" value={filtroClienteId} onChange={aplicarFiltroCliente}>
+            <option value="">Todos os clientes</option>
+            {clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.name}</option>)}
+          </select>
         </div>
         {carregando ? (
           <div className="finance-empty">Carregando histórico...</div>
@@ -212,17 +274,20 @@ function BelCredSimuladorPage() {
               <div className="finance-list-item" key={item.id}>
                 <div>
                   <strong>{moeda.format(item.project_value)}</strong>
-                  <span>{formatarData(item.created_at)}{melhorPlano ? ` • ${melhorPlano.parcelas}x de ${moeda.format(melhorPlano.parcela)}` : ''}</span>
+                  <span>
+                    {item.clients?.name || 'Sem cliente vinculado'} · {formatarData(item.created_at)}
+                    {melhorPlano ? ` · ${melhorPlano.parcelas}x de ${moeda.format(melhorPlano.parcela)}` : ''}
+                  </span>
                 </div>
                 <div className="finance-actions">
-                  <button type="button" className="finance-secondary-button" onClick={() => setValor(Number(item.project_value || 0))}>Reabrir</button>
+                  <button type="button" className="finance-secondary-button" onClick={() => reabrirSimulacao(item)}>Reabrir</button>
                   <button type="button" className="finance-delete" onClick={() => excluirSimulacao(item.id)}><Trash2 size={15} /> Excluir</button>
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="finance-empty">Nenhuma simulação salva.</div>
+          <div className="finance-empty">Nenhuma simulação salva para este filtro.</div>
         )}
       </section>
 
