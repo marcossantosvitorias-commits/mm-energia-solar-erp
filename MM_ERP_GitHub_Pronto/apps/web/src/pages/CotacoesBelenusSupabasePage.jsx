@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { belenusPricingService } from '../services/belenusPricingService.js';
+import { cardFeeService } from '../services/cardFeeService.js';
 import ProposalGenerator from './ProposalGenerator.jsx';
 import './CotacoesBelenusPage.css';
 
@@ -35,6 +36,8 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   const [cotacoes, setCotacoes] = useState([]);
   const [cotacaoId, setCotacaoId] = useState('');
   const [form, setForm] = useState(FORM_PADRAO);
+  const [cardFees, setCardFees] = useState([]);
+  const [installments, setInstallments] = useState(12);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
@@ -46,14 +49,19 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
     let ativo = true;
     async function carregar() {
       try {
-        const [quotes, settings] = await Promise.all([
+        const [quotes, settings, fees] = await Promise.all([
           belenusPricingService.listQuotes(),
           belenusPricingService.getSettings(),
+          cardFeeService.list('My Gateway'),
         ]);
         if (!ativo) return;
         setCotacoes(quotes);
         setCotacaoId(settings?.cotacaoId || quotes[0]?.id || '');
         setForm({ ...FORM_PADRAO, ...(settings?.form || {}) });
+        setCardFees(fees);
+        if (!fees.some((item) => item.installments === 12)) {
+          setInstallments(fees[0]?.installments || 1);
+        }
       } catch (error) {
         if (ativo) setMensagem(`Não foi possível carregar a calculadora: ${error.message}`);
       } finally {
@@ -65,6 +73,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   }, []);
 
   const cotacao = cotacoes.find((item) => item.id === cotacaoId) || cotacoes[0];
+  const selectedFee = cardFees.find((item) => item.installments === Number(installments));
 
   const resultado = useMemo(() => {
     if (!cotacao) return null;
@@ -78,6 +87,8 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
     const comissao = precoVenda * porcentagem(form.comissao);
     const lucro = precoVenda - custoTotal - imposto - comissao;
     const precoComDesconto = precoVenda * (1 - porcentagem(form.desconto));
+    const cardRate = porcentagem(selectedFee?.fee_percent || 0);
+    const precoCartao = cardRate < 1 ? precoVenda / (1 - cardRate) : 0;
     return {
       rateioEngenharia,
       adicionais,
@@ -88,8 +99,12 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
       lucro,
       precoComDesconto,
       markup: custoTotal > 0 ? precoVenda / custoTotal : 0,
+      cardRate,
+      precoCartao,
+      valorParcela: precoCartao / Math.max(1, Number(installments)),
+      custoTaxaCartao: precoCartao - precoVenda,
     };
-  }, [cotacao, form]);
+  }, [cotacao, form, selectedFee, installments]);
 
   const atualizar = (event) => {
     const { name, value } = event.target;
@@ -117,8 +132,9 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
       `Módulos: ${cotacao.modulo}`,
       `${cotacao.inversores}x ${cotacao.inversor}`,
       '',
-      `Preço de venda: ${moeda.format(resultado.precoVenda)}`,
-      `Preço com desconto: ${moeda.format(resultado.precoComDesconto)}`,
+      `Preço à vista: ${moeda.format(resultado.precoVenda)}`,
+      `Cartão em ${installments}x sem juros: ${moeda.format(resultado.precoCartao)}`,
+      `${installments} parcelas de ${moeda.format(resultado.valorParcela)}`,
     ].join('\n');
     await navigator.clipboard.writeText(texto);
     setCopiado(true);
@@ -128,10 +144,10 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   return (
     <FinanceLayout
       title={pricingMode ? 'Preço dos kits' : 'Cotações Belenus'}
-      subtitle="Cotações e parâmetros comerciais centralizados no Supabase."
+      subtitle="Cotações, margem e parcelamento centralizados no Supabase."
     >
       {mensagem && <p className="finance-notice">{mensagem}</p>}
-      {carregando && <div className="finance-empty">Carregando cotações...</div>}
+      {carregando && <div className="finance-empty">Carregando cotações e taxas...</div>}
       {!carregando && !cotacao && <div className="finance-empty">Nenhuma cotação Belenus cadastrada.</div>}
 
       {!carregando && cotacao && resultado && <>
@@ -167,6 +183,16 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
           </article>
         </section>
 
+        <section className="finance-panel">
+          <div className="finance-panel-header"><div><h2>Pagamento no cartão</h2><p>A taxa é incorporada ao preço para preservar o valor líquido da venda.</p></div><Link className="finance-secondary-button" to="/app/taxas-cartao">Editar taxas</Link></div>
+          <div className="finance-form">
+            <label className="finance-field"><span>Parcelamento My Gateway</span><select value={installments} onChange={(event) => setInstallments(Number(event.target.value))}>{cardFees.map((item) => <option key={item.installments} value={item.installments}>{item.installments === 1 ? 'Crédito à vista' : `${item.installments}x`} · {Number(item.fee_percent).toFixed(2).replace('.', ',')}%</option>)}</select></label>
+            <div className="finance-field"><span>Preço no cartão</span><strong className="dashboard-big-number">{moeda.format(resultado.precoCartao)}</strong></div>
+            <div className="finance-field"><span>Parcela para o cliente</span><strong className="dashboard-big-number">{installments}x de {moeda.format(resultado.valorParcela)}</strong></div>
+            <div className="finance-field"><span>Custo financeiro incorporado</span><strong>{moeda.format(resultado.custoTaxaCartao)}</strong></div>
+          </div>
+        </section>
+
         <section className="belenus-summary">
           <article><span>Cotação + frete</span><strong>{moeda.format(cotacao.total)}</strong></article>
           <article><span>Custos adicionais</span><strong>{moeda.format(resultado.adicionais)}</strong></article>
@@ -175,8 +201,8 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
         </section>
 
         <section className="belenus-final-price">
-          <div><span>Preço recomendado ao cliente</span><strong>{moeda.format(resultado.precoVenda)}</strong><small>Markup {resultado.markup.toFixed(2)}x · Imposto {moeda.format(resultado.imposto)}</small></div>
-          <div className="belenus-final-actions"><div><span>Com desconto máximo</span><strong>{moeda.format(resultado.precoComDesconto)}</strong></div><button type="button" onClick={copiarResumo}>{copiado ? <Check size={17} /> : <Copy size={17} />}{copiado ? 'Copiado' : 'Copiar proposta'}</button><Link to="/app/belcred">Simular financiamento</Link></div>
+          <div><span>Preço recomendado à vista</span><strong>{moeda.format(resultado.precoVenda)}</strong><small>Markup {resultado.markup.toFixed(2)}x · Imposto {moeda.format(resultado.imposto)}</small></div>
+          <div className="belenus-final-actions"><div><span>Cartão {installments}x sem juros</span><strong>{moeda.format(resultado.precoCartao)}</strong><small>{installments}x de {moeda.format(resultado.valorParcela)}</small></div><button type="button" onClick={copiarResumo}>{copiado ? <Check size={17} /> : <Copy size={17} />}{copiado ? 'Copiado' : 'Copiar proposta'}</button><Link to="/app/belcred">Simular financiamento</Link></div>
         </section>
 
         <ProposalGenerator key={`${cotacao.id}-${resultado.precoVenda.toFixed(2)}`} quantidadePlacas={cotacao.placas} precoRecomendado={resultado.precoVenda} modulo={cotacao.modulo} inversor={`${cotacao.inversores}x ${cotacao.inversor}`} potenciaSistemaKw={cotacao.potencia} />
