@@ -34,13 +34,60 @@ export async function submitSolarSimulation(input) {
     p_utm_campaign: params.get('utm_campaign'),
   };
 
-  if (!payload.p_name) throw new Error('Informe seu nome.');
-  if (!payload.p_phone) throw new Error('Informe seu WhatsApp.');
+  if (!payload.p_name) throw new Error('Informe o nome do cliente.');
+  if (!payload.p_phone) throw new Error('Informe o WhatsApp do cliente.');
   if (!Number.isFinite(payload.p_monthly_bill) || payload.p_monthly_bill <= 0) {
     throw new Error('Informe um valor válido para a conta de energia.');
   }
 
   const { data, error } = await supabase.rpc('submit_solar_simulation', payload);
-  if (error) throw new Error(error.message || 'Não foi possível calcular sua simulação.');
+  if (error) throw new Error(error.message || 'Não foi possível calcular a simulação.');
+  return data;
+}
+
+export async function listSolarSimulations({ search = '', status = '', limit = 100 } = {}) {
+  const supabase = requireSupabase();
+  let query = supabase
+    .from('solar_simulations')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (status) query = query.eq('status', status);
+  if (search.trim()) {
+    const term = search.trim().replace(/[%(),]/g, '');
+    query = query.or(`name.ilike.%${term}%,phone.ilike.%${term}%,city.ilike.%${term}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message || 'Não foi possível carregar as simulações.');
+  return data || [];
+}
+
+export async function updateSolarSimulationStatus(id, status) {
+  const supabase = requireSupabase();
+  const allowed = ['Novo', 'Contatado', 'Convertido', 'Descartado'];
+  if (!allowed.includes(status)) throw new Error('Status inválido.');
+
+  const { data, error } = await supabase
+    .from('solar_simulations')
+    .update({ status })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw new Error(error.message || 'Não foi possível atualizar o status.');
+  return data;
+}
+
+export async function getSolarSimulation(id) {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('solar_simulations')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw new Error(error.message || 'Simulação não encontrada.');
   return data;
 }
