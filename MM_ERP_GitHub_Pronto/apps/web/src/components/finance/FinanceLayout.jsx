@@ -101,7 +101,13 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
       </button>
       <aside
         className={`finance-sidebar ${menuAberto ? 'open' : ''}`}
-        style={{ overflowY: 'auto', maxHeight: '100dvh', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+        style={{
+          overflowY: 'auto',
+          height: '100dvh',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+          paddingBottom: 'calc(42px + env(safe-area-inset-bottom))',
+        }}
       >
         <div className="finance-brand">
           <div className="finance-logo-box"><img src={logoUrl} alt="MM Energia Solar" /></div>
@@ -129,7 +135,10 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
           <a href="https://mmenergiasolar.com.br"><Globe2 size={17} /> <span>Voltar ao site comercial</span></a>
           <button type="button" onClick={handleLogout}><LogOut size={17} /> <span>Sair do sistema</span></button>
         </nav>
-        <div className="finance-user"><div className="finance-avatar">{initials || 'MM'}</div><div><strong>{displayName}</strong><span>{displayRole}</span></div></div>
+        <div className="finance-user" style={{ flexShrink: 0, marginTop: 18, marginBottom: 24 }}>
+          <div className="finance-avatar">{initials || 'MM'}</div>
+          <div><strong>{displayName}</strong><span>{displayRole}</span></div>
+        </div>
       </aside>
       {menuAberto && <button className="finance-overlay" aria-label="Fechar menu" onClick={() => setMenuAberto(false)} />}
       <main className="finance-main">
