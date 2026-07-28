@@ -99,7 +99,10 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
       <button className="finance-mobile-toggle" onClick={() => setMenuAberto((v) => !v)} aria-label="Abrir menu">
         {menuAberto ? <X size={22} /> : <Menu size={22} />}
       </button>
-      <aside className={`finance-sidebar ${menuAberto ? 'open' : ''}`}>
+      <aside
+        className={`finance-sidebar ${menuAberto ? 'open' : ''}`}
+        style={{ overflowY: 'auto', maxHeight: '100dvh', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+      >
         <div className="finance-brand">
           <div className="finance-logo-box"><img src={logoUrl} alt="MM Energia Solar" /></div>
           <div><strong>MM ERP <small style={{ color: '#f5c400', fontSize: '0.58em', marginLeft: 6 }}>v{APP_VERSION}</small></strong><span>MM Energia Solar</span></div>
