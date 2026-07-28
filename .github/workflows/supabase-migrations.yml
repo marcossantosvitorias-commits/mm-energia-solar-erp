@@ -57,8 +57,8 @@ jobs:
           test -f supabase/migrations/20260728100000_sale_to_service_order.sql
           supabase migration list --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Aplicar migrations pendentes
-        run: supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
+      - name: Aplicar apenas migrations pendentes
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
 
       - name: Validar banco após aplicação
         env:
