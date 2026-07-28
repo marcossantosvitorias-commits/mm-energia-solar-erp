@@ -188,7 +188,7 @@ export default function OrdensServicoPage() {
         </div>
         {loading ? <p>Carregando...</p> : (
           <div className="finance-table-wrap"><table><thead><tr><th>OS</th><th>Cliente</th><th>Agendamento</th><th>Status</th><th>Equipe</th><th></th></tr></thead><tbody>
-            {filtered.map((order) => <tr key={order.id}><td>#{order.orderNumber}</td><td><strong>{order.customerName}</strong><br /><small>{order.city}/{order.state}</small></td><td>{dateTime(order.scheduledAt)}</td><td>{order.status}</td><td>{order.assignedTeam || '-'}</td><td><button type="button" onClick={() => openOrder(order)}>Abrir</button></td></tr>)}
+            {filtered.map((order) => <tr key={order.id}><td>#{order.orderNumber}</td><td><strong>{order.customerName}</strong><br /><small>{order.city}/{order.state}</small></td><td>{dateTime(order.scheduledAt)}</td><td>{order.status}</td><td>{order.assignedTeam || '-'}</td><td><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" onClick={() => window.location.assign(`/app/ordens-servico/${order.id}/preparacao`)}>Preparar instalação</button><button type="button" onClick={() => openOrder(order)}>Abrir OS</button></div></td></tr>)}
           </tbody></table></div>
         )}
       </section>
@@ -197,6 +197,7 @@ export default function OrdensServicoPage() {
         <h2><Wrench size={20} /> OS #{selected.orderNumber} — {selected.customerName}</h2>
         <p>{selected.installationAddress || 'Endereço não informado'} · {selected.city}/{selected.state}</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
+          <button type="button" onClick={() => window.location.assign(`/app/ordens-servico/${selected.id}/preparacao`)}>Preparar instalação</button>
           <select value={selected.status} onChange={(e) => changeStatus(e.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select>
           <strong>Custo dos materiais: {money(items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_cost || 0), 0))}</strong>
         </div>
