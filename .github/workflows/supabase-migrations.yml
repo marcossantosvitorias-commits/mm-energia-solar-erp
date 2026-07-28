@@ -24,13 +24,13 @@ jobs:
         working-directory: MM_ERP_GitHub_Pronto
 
     steps:
-      - name: Baixar repositório
-        uses: actions/checkout@v4
-
-      - name: Instalar Supabase CLI
-        uses: supabase/setup-cli@v1
+      - name: Baixar código da ERP 2.0 Preview
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          version: latest
+          ref: erp-v2-preview
+
+      - name: Instalar Supabase CLI fixado
+        run: npm install --global supabase@2.101.0
 
       - name: Validar segredos
         env:
