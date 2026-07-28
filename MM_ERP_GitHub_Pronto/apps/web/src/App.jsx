@@ -30,6 +30,7 @@ import FluxosKanbanPage from './pages/FluxosKanbanPage.jsx';
 import CalculadoraSolarPublicaPage from './pages/CalculadoraSolarPublicaPage.jsx';
 import CalculadoraSolarErpPage from './pages/CalculadoraSolarErpPage.jsx';
 import PropostasPage from './pages/PropostasPage.jsx';
+import PropostaPdfPage from './pages/PropostaPdfPage.jsx';
 
 const ROLES = {
   ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
@@ -59,6 +60,7 @@ function App() {
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/calculadora-solar" element={privateRoute(<CalculadoraSolarErpPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/propostas" element={privateRoute(<PropostasPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/propostas/:id/pdf" element={privateRoute(<PropostaPdfPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.ALL)} />
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
