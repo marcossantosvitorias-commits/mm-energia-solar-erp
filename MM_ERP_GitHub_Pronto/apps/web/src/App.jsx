@@ -25,8 +25,16 @@ import ContratosPage from './pages/ContratosPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
 import MonitoramentoSolarPage from './pages/MonitoramentoSolarPage.jsx';
 
-const privateRoute = (element) => (
-  <ProtectedRoute>{element}</ProtectedRoute>
+const ROLES = {
+  ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
+  COMMERCIAL: ['admin', 'financeiro', 'comercial'],
+  FINANCIAL: ['admin', 'financeiro'],
+  OPERATIONAL: ['admin', 'engenharia'],
+  ADMIN: ['admin'],
+};
+
+const privateRoute = (element, roles = ROLES.ALL) => (
+  <ProtectedRoute roles={roles}>{element}</ProtectedRoute>
 );
 
 function App() {
@@ -40,19 +48,19 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
 
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
-          <Route path="/app/clientes" element={privateRoute(<ClientesPage />)} />
-          <Route path="/app/agenda" element={privateRoute(<AgendaPage />)} />
-          <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />)} />
-          <Route path="/app" element={privateRoute(<FinanceiroPage />)} />
-          <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />)} />
-          <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />)} />
-          <Route path="/app/tributos" element={privateRoute(<TributosPage />)} />
-          <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />)} />
-          <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />)} />
-          <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />)} />
-          <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />)} />
-          <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />)} />
-          <Route path="/app/contratos" element={privateRoute(<ContratosPage />)} />
+          <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
+          <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
+          <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
+          <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
+          <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
+          <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />, ROLES.ADMIN)} />
+          <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
+          <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />, ROLES.FINANCIAL)} />
+          <Route path="/app/contratos" element={privateRoute(<ContratosPage />, ROLES.COMMERCIAL)} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
