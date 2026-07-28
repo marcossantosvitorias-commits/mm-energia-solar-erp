@@ -6,6 +6,7 @@ import { APP_VERSION } from './version.js';
 import { startErpReminderChecks } from './services/notificationService.js';
 
 let recarregandoPwa = false;
+const baseUrl = import.meta.env.BASE_URL || '/';
 
 function recarregarUmaVez(chave) {
   if (recarregandoPwa || sessionStorage.getItem(chave)) return;
@@ -19,7 +20,7 @@ function recarregarUmaVez(chave) {
 
 async function atualizarVersaoSeNecessario() {
   try {
-    const resposta = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+    const resposta = await fetch(`${baseUrl}version.json?t=${Date.now()}`, { cache: 'no-store' });
     if (!resposta.ok) return;
 
     const publicada = await resposta.json();
@@ -40,7 +41,10 @@ if ('serviceWorker' in navigator) {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register(`/service-worker.js?v=${APP_VERSION}`, { updateViaCache: 'none' })
+      .register(`${baseUrl}service-worker.js?v=${APP_VERSION}`, {
+        updateViaCache: 'none',
+        scope: baseUrl,
+      })
       .then(async (registration) => {
         if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 
