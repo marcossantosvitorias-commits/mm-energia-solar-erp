@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Camera, CheckCircle2, CloudOff, LocateFixed, MapPin, Play, RefreshCw, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Camera, CheckCircle2, ClipboardCheck, CloudOff, LocateFixed, MapPin, Play, RefreshCw, UploadCloud } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getCurrentPosition,
@@ -148,6 +148,13 @@ export default function ExecucaoInstalacaoMobilePage() {
         <label className="camera-button"><Camera size={21} /> Tirar foto<input type="file" accept="image/*" capture="environment" onChange={capturePhoto} /></label>
       </div>
       {preview && <img className="field-preview" src={preview} alt="Última foto capturada" />}
+    </section>
+
+    <section className="field-card">
+      <div className="field-section-title"><div><small>ENTREGA</small><h2>Finalização da instalação</h2></div><ClipboardCheck size={24} /></div>
+      <p>Após concluir o checklist e registrar a foto final, avance para testes elétricos, assinatura, check-out GPS e relatório técnico.</p>
+      <button className="primary" disabled={busy || pending > 0} onClick={() => navigate(`/app/ordens-servico/${id}/finalizacao`)}><ClipboardCheck size={19} /> Abrir finalização</button>
+      {pending > 0 && <small>Sincronize as {pending} pendência(s) antes de finalizar.</small>}
     </section>
 
     <section className="field-sync">
