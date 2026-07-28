@@ -36,6 +36,7 @@ import CalculadoraSolarErpPage from './pages/CalculadoraSolarErpPage.jsx';
 import PropostasPage from './pages/PropostasPage.jsx';
 import PropostaPdfPage from './pages/PropostaPdfPage.jsx';
 import PropostaPublicaPage from './pages/PropostaPublicaPage.jsx';
+import HybridKitsPage from './pages/HybridKitsPage.jsx';
 
 const ROLES = {
   ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
@@ -76,6 +77,7 @@ function App() {
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
+          <Route path="/app/kits-hibridos" element={privateRoute(<HybridKitsPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
