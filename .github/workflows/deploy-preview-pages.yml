@@ -46,8 +46,11 @@ jobs:
       - name: Preparar fallback das rotas da SPA
         run: cp dist/index.html dist/404.html
 
-      - name: Configurar GitHub Pages
+      - name: Habilitar e configurar GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+        with:
+          token: ${{ github.token }}
+          enablement: true
 
       - name: Empacotar artefato da Preview
         run: tar --dereference --hard-dereference --directory dist -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
