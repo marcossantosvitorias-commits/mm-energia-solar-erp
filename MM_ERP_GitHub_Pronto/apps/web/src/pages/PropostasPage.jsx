@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileDown, FileText, History, MessageCircle, Pencil, RefreshCw, Save, Search, Trash2, X } from 'lucide-react';
+import { Copy, ExternalLink, FileDown, FileText, History, MessageCircle, Pencil, RefreshCw, Save, Search, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import {
@@ -9,6 +9,7 @@ import {
   updateProposalStatus,
   updateSalesProposal,
 } from '../services/proposalManagementService.js';
+import { buildPublicProposalUrl } from '../services/publicProposalService.js';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const statuses = ['Gerada', 'Enviada', 'Em negociação', 'Aceita', 'Recusada'];
@@ -79,12 +80,30 @@ export default function PropostasPage() {
     catch (error) { setMessage(error.message); }
   };
 
+  const publicUrl = (proposal) => proposal.public_token ? buildPublicProposalUrl(proposal.public_token) : '';
+
+  const copyPublicLink = async (proposal) => {
+    const url = publicUrl(proposal);
+    if (!url) { setMessage('Aplique a migration de links públicos para gerar o link desta proposta.'); return; }
+    try {
+      await navigator.clipboard.writeText(url);
+      setMessage(`Link público da proposta de ${proposal.client_name} copiado.`);
+    } catch {
+      window.prompt('Copie o link público da proposta:', url);
+    }
+  };
+
   const whatsapp = (proposal) => {
-    const text = `Olá, ${proposal.client_name}! Sua proposta da MM Energia Solar está pronta. Valor: ${money.format(proposal.total_amount || 0)}.`;
+    const url = publicUrl(proposal);
+    const text = [
+      `Olá, ${proposal.client_name}! Sua proposta da MM Energia Solar está pronta.`,
+      `Valor: ${money.format(Number(proposal.total_amount || 0) - Number(proposal.discount_amount || 0))}.`,
+      url ? `Acesse, confira e aceite pelo link: ${url}` : '',
+    ].filter(Boolean).join('\n');
     window.open(`https://wa.me/${digits(proposal.phone).startsWith('55') ? digits(proposal.phone) : `55${digits(proposal.phone)}`}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
   };
 
-  return <FinanceLayout title="Propostas comerciais" subtitle="Gerencie valores, condições, status, versões e PDFs profissionais das propostas.">
+  return <FinanceLayout title="Propostas comerciais" subtitle="Gerencie valores, condições, status, versões, PDFs e links públicos para aceite do cliente.">
     <section className="finance-panel">
       <div className="finance-kpi-grid">
         <Kpi label="Propostas" value={summary.total} />
@@ -100,14 +119,14 @@ export default function PropostasPage() {
       {message && <p className="finance-notice">{message}</p>}
 
       <div className="finance-table-wrap">
-        <table className="finance-table"><thead><tr><th>Cliente</th><th>Sistema</th><th>Valor</th><th>Status</th><th>Criada em</th><th>Ações</th></tr></thead>
+        <table className="finance-table"><thead><tr><th>Cliente</th><th>Sistema</th><th>Valor</th><th>Status</th><th>Acesso público</th><th>Ações</th></tr></thead>
           <tbody>{loading ? <tr><td colSpan="6">Carregando...</td></tr> : filtered.map((proposal) => <tr key={proposal.id}>
             <td><strong>{proposal.client_name}</strong><small>{proposal.phone} · {proposal.city || 'Cidade não informada'}</small></td>
             <td>{proposal.panel_count || 0} módulos · {proposal.system_power_kw || 0} kWp</td>
             <td><strong>{money.format(proposal.total_amount || 0)}</strong></td>
             <td><select value={proposal.status} onChange={(e) => changeStatus(proposal, e.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></td>
-            <td>{new Date(proposal.created_at).toLocaleDateString('pt-BR')}</td>
-            <td><div className="finance-actions compact"><button title="Gerar PDF" onClick={() => navigate(`/app/propostas/${proposal.id}/pdf`)}><FileDown size={17} /></button><button title="Editar" onClick={() => openEditor(proposal)}><Pencil size={17} /></button><button title="WhatsApp" onClick={() => whatsapp(proposal)}><MessageCircle size={17} /></button><button title="Excluir" onClick={() => remove(proposal)}><Trash2 size={17} /></button></div></td>
+            <td><small>{proposal.public_view_count || 0} visualização(ões)</small>{proposal.public_viewed_at && <small>Última: {new Date(proposal.public_viewed_at).toLocaleString('pt-BR')}</small>}</td>
+            <td><div className="finance-actions compact"><button title="Gerar PDF" onClick={() => navigate(`/app/propostas/${proposal.id}/pdf`)}><FileDown size={17} /></button><button title="Copiar link público" onClick={() => copyPublicLink(proposal)}><Copy size={17} /></button>{proposal.public_token && <button title="Abrir link público" onClick={() => window.open(publicUrl(proposal), '_blank', 'noopener,noreferrer')}><ExternalLink size={17} /></button>}<button title="Editar" onClick={() => openEditor(proposal)}><Pencil size={17} /></button><button title="Enviar link pelo WhatsApp" onClick={() => whatsapp(proposal)}><MessageCircle size={17} /></button><button title="Excluir" onClick={() => remove(proposal)}><Trash2 size={17} /></button></div></td>
           </tr>)}</tbody></table>
       </div>
     </section>
@@ -132,7 +151,7 @@ export default function PropostasPage() {
         <Field label="Valor da parcela" name="installment_amount" type="number" editor={editor} setEditor={setEditor} />
         <label className="finance-field finance-field-wide"><span>Observações</span><textarea rows="4" value={editor.notes || ''} onChange={(e) => setEditor({ ...editor, notes: e.target.value })} /></label>
       </div>
-      <div className="finance-actions"><button className="finance-button" disabled={saving} onClick={save}><Save size={18} /> {saving ? 'Salvando...' : 'Salvar nova versão'}</button><button className="finance-button secondary" onClick={() => navigate(`/app/propostas/${editor.id}/pdf`)}><FileDown size={18} /> Visualizar PDF</button></div>
+      <div className="finance-actions"><button className="finance-button" disabled={saving} onClick={save}><Save size={18} /> {saving ? 'Salvando...' : 'Salvar nova versão'}</button><button className="finance-button secondary" onClick={() => navigate(`/app/propostas/${editor.id}/pdf`)}><FileDown size={18} /> Visualizar PDF</button>{editor.public_token && <button className="finance-button secondary" onClick={() => copyPublicLink(editor)}><Copy size={18} /> Copiar link público</button>}</div>
       <div style={{ marginTop: 22 }}><h3><History size={18} /> Histórico de versões</h3>{versions.length ? versions.map((version) => <div key={version.id} style={{ padding: 10, borderBottom: '1px solid #e2e8f0' }}><strong>Versão {version.version_number}</strong> · {new Date(version.created_at).toLocaleString('pt-BR')} · {money.format(version.snapshot?.total_amount || 0)}</div>) : <p>Nenhuma versão registrada.</p>}</div>
     </div></div>}
   </FinanceLayout>;
