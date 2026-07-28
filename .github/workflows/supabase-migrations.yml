@@ -19,6 +19,10 @@ jobs:
   migrate:
     if: ${{ inputs.confirm_production == 'APLICAR' }}
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     defaults:
       run:
         working-directory: MM_ERP_GitHub_Pronto
@@ -33,20 +37,13 @@ jobs:
         run: npm install --global supabase@2.101.0
 
       - name: Validar segredos
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN" || (echo 'Falta o secret SUPABASE_ACCESS_TOKEN' && exit 1)
           test -n "$SUPABASE_PROJECT_REF" || (echo 'Falta o secret SUPABASE_PROJECT_REF' && exit 1)
           test -n "$SUPABASE_DB_PASSWORD" || (echo 'Falta o secret SUPABASE_DB_PASSWORD' && exit 1)
 
       - name: Vincular projeto
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --password "$SUPABASE_DB_PASSWORD"
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Conferir migrations locais
         run: |
@@ -56,9 +53,6 @@ jobs:
           supabase migration list
 
       - name: Aplicar migrations pendentes
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
 
       - name: Validar banco após aplicação
@@ -67,7 +61,7 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client
-          psql "postgresql://postgres.${{ secrets.SUPABASE_PROJECT_REF }}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require" <<'SQL'
+          psql "postgresql://postgres.${SUPABASE_PROJECT_REF}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require" <<'SQL'
           do $$
           begin
             if to_regclass('public.service_orders') is null then
