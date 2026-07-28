@@ -1,0 +1,99 @@
+/* Tipografia compacta e proposta comercial limpa */
+.finance-stat-card strong,
+.pricing-highlight strong,
+.dashboard-big-number,
+.finance-card h2,
+.finance-card h3 {
+  font-size: clamp(1.5rem, 4vw, 2.2rem) !important;
+  line-height: 1.12 !important;
+  overflow-wrap: anywhere;
+}
+
+.pricing-highlight {
+  padding: 18px !important;
+}
+
+.proposal-total-value {
+  font-size: clamp(1.8rem, 6vw, 2.7rem) !important;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.proposal-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.proposal-payment-card {
+  padding: 16px;
+  border: 1px solid #dce5ef;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.proposal-payment-card strong,
+.proposal-payment-card span {
+  display: block;
+}
+
+.proposal-payment-card strong {
+  margin-top: 5px;
+  color: #071d3b;
+  font-size: clamp(1.15rem, 4vw, 1.55rem);
+}
+
+.proposal-card-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.proposal-card-option {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f4f7fb;
+  color: #172033;
+  font-weight: 800;
+  font-size: .9rem;
+}
+
+@media (max-width: 760px) {
+  .finance-stat-card strong,
+  .pricing-highlight strong,
+  .dashboard-big-number,
+  .finance-card h2,
+  .finance-card h3 {
+    font-size: 1.65rem !important;
+  }
+
+  .proposal-payment-grid,
+  .proposal-card-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .proposal-print-area,
+  .proposal-print-area * {
+    visibility: visible !important;
+  }
+
+  .proposal-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 24px;
+    background: #fff;
+  }
+
+  .proposal-no-print {
+    display: none !important;
+  }
+}
