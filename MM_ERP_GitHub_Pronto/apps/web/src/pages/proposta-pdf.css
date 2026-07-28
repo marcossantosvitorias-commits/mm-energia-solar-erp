@@ -1,0 +1,78 @@
+@page { size: A4; margin: 0; }
+
+.proposal-screen { min-height: 100vh; background: #e8edf3; padding: 24px; color: #10233c; font-family: Inter, Arial, sans-serif; }
+.proposal-toolbar { max-width: 210mm; margin: 0 auto 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.proposal-toolbar > div { display: flex; gap: 10px; flex-wrap: wrap; }
+.proposal-toolbar button { border: 1px solid #cbd5e1; background: #fff; color: #17324f; border-radius: 10px; padding: 11px 15px; font-weight: 800; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.proposal-toolbar button.primary { background: #0c5d9e; border-color: #0c5d9e; color: #fff; }
+.proposal-alert { max-width: 210mm; margin: 0 auto 14px; padding: 12px 14px; background: #fff1f2; color: #9f1239; border-radius: 10px; }
+.proposal-loading { min-height: 100vh; display: grid; place-items: center; font: 700 18px Inter, sans-serif; }
+.proposal-document { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; box-shadow: 0 20px 70px rgba(15, 23, 42, .18); overflow: hidden; }
+.proposal-cover { min-height: 255mm; padding: 22mm 18mm 18mm; box-sizing: border-box; color: #fff; background: radial-gradient(circle at 88% 15%, rgba(245,196,0,.24), transparent 25%), linear-gradient(145deg,#061a31 0%,#0c3d69 62%,#0b6f68 100%); display: flex; flex-direction: column; }
+.proposal-brand { display: flex; align-items: center; gap: 14px; }
+.proposal-brand img { width: 68px; height: 68px; object-fit: contain; background: #fff; border-radius: 14px; padding: 6px; }
+.proposal-brand strong,.proposal-brand span { display: block; }
+.proposal-brand strong { font-size: 22px; }
+.proposal-brand span { color: #d6e4ef; margin-top: 3px; }
+.proposal-title { margin: auto 0; max-width: 150mm; }
+.proposal-title > span { color: #f5c400; font-size: 13px; font-weight: 900; letter-spacing: 2.5px; }
+.proposal-title h1 { font-size: 48px; line-height: 1.04; margin: 12px 0 18px; }
+.proposal-title p { font-size: 20px; line-height: 1.55; color: #d8e9f5; max-width: 135mm; }
+.proposal-client-card { display: grid; grid-template-columns: repeat(2,1fr); gap: 1px; background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.2); border-radius: 16px; overflow: hidden; }
+.proposal-client-card > div { background: rgba(4,27,51,.72); padding: 15px 18px; }
+.proposal-client-card span,.proposal-client-card strong { display: block; }
+.proposal-client-card span { color: #b9cfdf; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+.proposal-client-card strong { margin-top: 5px; font-size: 16px; }
+.proposal-section { min-height: 245mm; padding: 22mm 18mm; box-sizing: border-box; page-break-before: always; }
+.proposal-section.soft { background: #f4f8fb; }
+.section-heading { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 28px; }
+.section-heading > span { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: #f5c400; color: #10233c; font-weight: 950; }
+.section-heading h2 { margin: 0; font-size: 30px; color: #0c3155; }
+.section-heading p { margin: 5px 0 0; color: #64748b; }
+.proposal-metrics { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+.proposal-metric { padding: 20px; border: 1px solid #dbe4ec; border-radius: 16px; background: #fff; }
+.proposal-metric span,.proposal-metric strong { display: block; }
+.proposal-metric span { color: #64748b; font-size: 13px; }
+.proposal-metric strong { color: #0c5d9e; font-size: 26px; margin-top: 7px; }
+.equipment-grid { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.equipment-grid > div { padding: 18px; background: #0d3155; color: #fff; border-radius: 16px; }
+.equipment-grid span,.equipment-grid strong { display: block; }
+.equipment-grid span { color: #b7cede; font-size: 12px; text-transform: uppercase; }
+.equipment-grid strong { margin-top: 7px; line-height: 1.4; }
+.included-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.included-grid div { background: #fff; border: 1px solid #dbe5ec; border-radius: 12px; padding: 15px; font-weight: 750; color: #23415e; }
+.proposal-notes { margin-top: 24px; padding: 20px; background: #fff; border-left: 5px solid #f5c400; border-radius: 12px; }
+.proposal-notes p { color: #475569; line-height: 1.6; white-space: pre-wrap; }
+.investment-card { margin: 28px auto 0; max-width: 145mm; padding: 28px; border-radius: 22px; color: #fff; background: linear-gradient(145deg,#092844,#0d5e83); box-shadow: 0 16px 40px rgba(8,51,82,.18); }
+.old-price,.final-price,.payment-line { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
+.old-price { color: #b9cfdf; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,.18); }
+.old-price strong { text-decoration: line-through; }
+.final-price { padding: 22px 0; }
+.final-price span { font-size: 18px; }
+.final-price strong { color: #f5c400; font-size: 38px; }
+.payment-line { border-top: 1px solid rgba(255,255,255,.18); padding-top: 16px; }
+.installment-line { margin-top: 16px; padding: 14px; text-align: center; border-radius: 12px; background: rgba(255,255,255,.1); font-size: 18px; }
+.guarantee-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.guarantee-grid > div { border: 1px solid #dbe4ec; border-radius: 16px; padding: 20px; }
+.guarantee-grid strong { color: #0c5d9e; }
+.guarantee-grid p { color: #64748b; line-height: 1.5; }
+.proposal-footer { min-height: 42mm; background: #071b34; color: #fff; padding: 12mm 18mm; box-sizing: border-box; display: flex; align-items: center; gap: 14px; }
+.proposal-footer img { width: 50px; height: 50px; object-fit: contain; background: #fff; border-radius: 10px; padding: 4px; }
+.proposal-footer strong,.proposal-footer span { display: block; }
+.proposal-footer span { color: #b9cfdf; font-size: 12px; margin-top: 3px; }
+.proposal-code { margin-left: auto; color: #f5c400; font-weight: 900; }
+
+@media (max-width: 900px) {
+  .proposal-screen { padding: 10px; overflow-x: auto; }
+  .proposal-toolbar { min-width: 760px; }
+  .proposal-document { transform-origin: top left; }
+}
+
+@media print {
+  html,body,#root { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  .no-print { display: none !important; }
+  .proposal-screen { padding: 0; background: #fff; }
+  .proposal-document { width: 210mm; margin: 0; box-shadow: none; }
+  .proposal-cover,.proposal-section,.proposal-footer { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
