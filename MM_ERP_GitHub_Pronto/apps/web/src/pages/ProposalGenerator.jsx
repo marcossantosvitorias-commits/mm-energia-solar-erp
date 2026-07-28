@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileDown, MessageCircle, RefreshCw, Search, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
+import { CheckCircle2, FileDown, MessageCircle, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, Wrench } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import { createClientInteraction, listClients } from '../services/clientService.js';
+import { closeProposalAsSale } from '../services/proposalWorkflowService.js';
 
 const BELCRED = [
   { parcelas: 24, taxa: '1,91%', fator: 978.28 / 16383.49 },
@@ -18,10 +20,6 @@ const IRRADIACAO_MEDIA = 5.2;
 const FATOR_DESEMPENHO = 0.8;
 const DIAS_MES = 30;
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-
-const escapeHtml = (value) => String(value ?? '')
-  .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const somenteNumeros = (valor = '') => String(valor).replace(/\D/g, '');
 const numeroComPais = (valor = '') => {
   const numero = somenteNumeros(valor);
@@ -40,6 +38,7 @@ export default function ProposalGenerator({
   valorParcelaCartao = 0,
   taxaCartao = 0,
 }) {
+  const navigate = useNavigate();
   const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadePlacas) || 620;
   const [clientes, setClientes] = useState([]);
   const [clienteId, setClienteId] = useState('');
@@ -54,6 +53,7 @@ export default function ProposalGenerator({
   const [busca, setBusca] = useState('');
   const [mensagem, setMensagem] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [fechandoId, setFechandoId] = useState(null);
   const [planoBelcred, setPlanoBelcred] = useState(96);
 
   const valor = Number(dados.valorProposta || precoRecomendado || 0);
@@ -64,17 +64,24 @@ export default function ProposalGenerator({
 
   const carregarDados = async () => {
     if (!isSupabaseConfigured || !supabase) return;
-    const [clientsResult, proposalsResult] = await Promise.all([
+    const [clientsResult, proposalsResult, ordersResult] = await Promise.all([
       listClients(),
       supabase.from('sales_proposals').select('*').order('created_at', { ascending: false }).limit(100),
+      supabase.from('service_orders').select('id, order_number, proposal_id, status'),
     ]);
     setClientes(clientsResult);
-    if (proposalsResult.error) setMensagem(`Não foi possível carregar o histórico: ${proposalsResult.error.message}`);
-    else setHistorico(proposalsResult.data || []);
+    if (proposalsResult.error) {
+      setMensagem(`Não foi possível carregar o histórico: ${proposalsResult.error.message}`);
+      return;
+    }
+    const orders = ordersResult.data || [];
+    setHistorico((proposalsResult.data || []).map((proposal) => ({
+      ...proposal,
+      serviceOrder: orders.find((order) => order.proposal_id === proposal.id) || null,
+    })));
   };
 
   useEffect(() => { carregarDados(); }, []);
-
   useEffect(() => {
     setDados((atual) => ({
       ...atual,
@@ -88,45 +95,23 @@ export default function ProposalGenerator({
     setClienteId(id);
     const cliente = clientes.find((item) => item.id === id);
     if (!cliente) return;
-    setDados((atual) => ({
-      ...atual,
-      cliente: cliente.name,
-      telefone: cliente.phone,
-      cidade: [cliente.city, cliente.state].filter(Boolean).join('/') || atual.cidade,
-    }));
+    setDados((atual) => ({ ...atual, cliente: cliente.name, telefone: cliente.phone, cidade: [cliente.city, cliente.state].filter(Boolean).join('/') || atual.cidade }));
   };
 
-  const atualizar = (event) => {
-    const { name, value } = event.target;
+  const atualizar = ({ target: { name, value } }) => {
     setDados((atual) => name === 'potenciaPlaca'
       ? { ...atual, potenciaPlaca: value, geracaoMensal: Math.round(calcularGeracaoPorPainel(value) * quantidadePlacas) }
       : { ...atual, [name]: value });
   };
 
-  const validarCliente = () => {
-    if (!dados.cliente.trim()) { window.alert('Selecione ou informe o cliente.'); return false; }
-    if (somenteNumeros(dados.telefone).length < 10) { window.alert('Informe o WhatsApp do cliente com DDD.'); return false; }
-    return true;
-  };
-
   const paymentOptions = {
     cash: { total: valor },
-    card: {
-      installments: Number(parcelasCartao || 1),
-      feePercent: Number(taxaCartao || 0),
-      total: Number(precoCartao || valor),
-      installmentValue: Number(valorParcelaCartao || precoCartao || valor),
-    },
-    belcred: {
-      installments: belcredSelecionado?.parcelas || 96,
-      monthlyRate: belcredSelecionado?.taxa || '',
-      installmentValue: belcredSelecionado?.valor || 0,
-    },
+    card: { installments: Number(parcelasCartao || 1), feePercent: Number(taxaCartao || 0), total: Number(precoCartao || valor), installmentValue: Number(valorParcelaCartao || precoCartao || valor) },
+    belcred: { installments: belcredSelecionado?.parcelas || 96, monthlyRate: belcredSelecionado?.taxa || '', installmentValue: belcredSelecionado?.valor || 0 },
   };
 
   const payload = (status = 'Gerada') => ({
-    client_id: clienteId || null,
-    client_name: dados.cliente.trim(), phone: somenteNumeros(dados.telefone), city: dados.cidade || null,
+    client_id: clienteId || null, client_name: dados.cliente.trim(), phone: somenteNumeros(dados.telefone), city: dados.cidade || null,
     status, total_amount: valor, panel_count: Number(quantidadePlacas || 0), panel_power_w: Number(dados.potenciaPlaca || 0),
     system_power_kw: potenciaSistema, monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada),
     panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Number(dados.validade || 7),
@@ -135,18 +120,13 @@ export default function ProposalGenerator({
   });
 
   const salvarProposta = async (status = 'Gerada') => {
-    if (!validarCliente()) return null;
-    if (!isSupabaseConfigured || !supabase) return null;
-    setSalvando(true);
-    setMensagem('Salvando proposta no Supabase...');
-    const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
-    if (!error && clienteId) {
-      await createClientInteraction(clienteId, {
-        type: 'proposta',
-        description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}. Cartão em ${paymentOptions.card.installments}x de ${moeda.format(paymentOptions.card.installmentValue)}.`,
-        nextActionAt: '',
-      });
+    if (!dados.cliente.trim() || somenteNumeros(dados.telefone).length < 10) {
+      setMensagem('Informe o cliente e o WhatsApp com DDD.');
+      return null;
     }
+    setSalvando(true);
+    const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
+    if (!error && clienteId) await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' });
     setSalvando(false);
     if (error) { setMensagem(`Erro ao salvar proposta: ${error.message}`); return null; }
     setMensagem(status === 'Enviada' ? 'Proposta enviada e registrada no CRM.' : 'Proposta salva e registrada no CRM.');
@@ -154,29 +134,30 @@ export default function ProposalGenerator({
     return data;
   };
 
-  const abrirPdf = (proposta = dados) => {
-    const base = proposta.proposal_data || proposta;
-    const cliente = base.cliente || proposta.client_name || dados.cliente;
-    const telefone = base.telefone || proposta.phone || dados.telefone;
-    const cidade = base.cidade || proposta.city || dados.cidade;
-    const valorPdf = Number(base.valorProposta || proposta.total_amount || valor);
-    const pagamentos = base.paymentOptions || paymentOptions;
-    const janela = window.open('', '_blank');
-    if (!janela) return;
-    const logoUrl = `${window.location.origin}/logo-mm.png`;
-    const data = new Intl.DateTimeFormat('pt-BR').format(new Date());
-    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Proposta - ${escapeHtml(cliente)}</title><style>*{box-sizing:border-box}body{margin:0;background:#e8edf4;font-family:Arial;color:#172033}.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff}.head{padding:38px 48px;background:#08274d;color:#fff}.head img{width:150px}.head h1{font-size:30px}.content{padding:34px 48px}.grid,.payments{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{border:1px solid #dce5ef;border-radius:12px;padding:14px}.card small{display:block;color:#667085}.price{margin:20px 0;padding:20px;border-radius:14px;background:#fff7d6;border:1px solid #efd264;font-size:28px;font-weight:800;color:#08274d}.equipment{margin-top:20px;padding:16px;border-left:5px solid #f7bd16;background:#f7f9fc}.footer{padding:25px 48px;background:#08274d;color:#fff}.actions{position:fixed;right:18px;bottom:18px}.actions button{padding:15px 20px;border:0;border-radius:12px;background:#f7bd16;font-weight:800}@media print{body{background:#fff}.page{margin:0}.actions{display:none}@page{size:A4;margin:0}}</style></head><body><main class="page"><section class="head"><img src="${logoUrl}"><h1>Proposta personalizada para ${escapeHtml(cliente)}</h1><p>Energia solar completa, instalada e homologada.</p></section><section class="content"><div class="grid"><div class="card"><small>Cliente</small><strong>${escapeHtml(cliente)}</strong></div><div class="card"><small>WhatsApp</small><strong>${escapeHtml(telefone)}</strong></div><div class="card"><small>Cidade</small><strong>${escapeHtml(cidade)}</strong></div><div class="card"><small>Sistema</small><strong>${quantidadePlacas} painéis • ${potenciaSistema.toFixed(2).replace('.', ',')} kWp</strong></div><div class="card"><small>Geração estimada</small><strong>${Number(dados.geracaoMensal || geracaoCalculada).toLocaleString('pt-BR')} kWh/mês</strong></div><div class="card"><small>Validade</small><strong>${dados.validade} dias</strong></div></div><div class="price">À vista: ${moeda.format(valorPdf)}</div><h3>Formas de pagamento</h3><div class="payments"><div class="card"><small>Cartão sem juros</small><strong>${pagamentos.card.installments}x de ${moeda.format(pagamentos.card.installmentValue)}</strong><small>Total ${moeda.format(pagamentos.card.total)}</small></div><div class="card"><small>Financiamento BelCred</small><strong>${pagamentos.belcred.installments}x de ${moeda.format(pagamentos.belcred.installmentValue)}</strong><small>Estimativa sujeita à aprovação</small></div><div class="card"><small>À vista</small><strong>${moeda.format(pagamentos.cash.total)}</strong><small>Pagamento conforme negociação</small></div></div><div class="equipment"><h3>Equipamentos e serviços</h3><p><b>Painéis:</b> ${escapeHtml(dados.marcaPlaca)}</p><p><b>Inversor:</b> ${escapeHtml(dados.inversor)}</p><p>${escapeHtml(dados.observacoes)}</p></div></section><footer class="footer">MM Energia Solar • Bauru/SP • Emitida em ${data}</footer></main><div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div></body></html>`);
-    janela.document.close();
-  };
-
-  const gerarESalvar = async () => { const registro = await salvarProposta('Gerada'); if (registro) abrirPdf(registro); };
+  const abrirPdf = () => window.print();
+  const gerarESalvar = async () => { const registro = await salvarProposta('Gerada'); if (registro) abrirPdf(); };
   const enviarWhatsApp = async () => {
     const registro = await salvarProposta('Enviada');
     if (!registro) return;
-    abrirPdf(registro);
     const texto = `Olá, ${dados.cliente.trim()}!\nSegue sua proposta da MM Energia Solar.\nÀ vista: ${moeda.format(valor)}.\nCartão: ${paymentOptions.card.installments}x de ${moeda.format(paymentOptions.card.installmentValue)} sem juros.`;
     window.open(`https://wa.me/${numeroComPais(dados.telefone)}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
   };
+
+  const fecharVenda = async (proposal) => {
+    if (!window.confirm(`Confirmar a venda para ${proposal.client_name} e gerar a Ordem de Serviço?`)) return;
+    setFechandoId(proposal.id);
+    setMensagem('Fechando venda e gerando Ordem de Serviço...');
+    try {
+      const { proposal: updated, serviceOrder } = await closeProposalAsSale(proposal.id);
+      setHistorico((rows) => rows.map((row) => row.id === proposal.id ? { ...row, ...updated, serviceOrder } : row));
+      setMensagem(`Venda fechada. OS nº ${serviceOrder.order_number} criada com sucesso.`);
+    } catch (error) {
+      setMensagem(error?.message || 'Não foi possível fechar a venda.');
+    } finally {
+      setFechandoId(null);
+    }
+  };
+
   const excluir = async (id) => {
     if (!window.confirm('Excluir esta proposta do histórico?')) return;
     await supabase.from('sales_proposals').delete().eq('id', id);
@@ -201,22 +182,27 @@ export default function ProposalGenerator({
       <label className="finance-field"><span>Validade (dias)</span><input type="number" name="validade" value={dados.validade} onChange={atualizar} /></label>
       <label className="finance-field finance-field-wide"><span>Itens e observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar} rows="3" /></label>
     </div>
-
     <div className="pricing-highlight"><span>À vista</span><strong>{moeda.format(valor)}</strong></div>
     <div className="pricing-highlight"><span>Cartão em {paymentOptions.card.installments}x sem juros</span><strong>{paymentOptions.card.installments}x de {moeda.format(paymentOptions.card.installmentValue)} • total {moeda.format(paymentOptions.card.total)}</strong></div>
-    <div className="pricing-highlight"><span>BelCred em {paymentOptions.belcred.installments}x</span><strong>{moeda.format(paymentOptions.belcred.installmentValue)} por mês</strong></div>
     {mensagem && <p className="finance-notice">{mensagem}</p>}
-
     <div style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><Sparkles size={20} /><strong>Proposta pronta</strong></div>
       <div className="finance-actions"><button className="finance-button" type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={20} /> Salvar e gerar PDF</button><button className="finance-button" type="button" disabled={salvando} onClick={enviarWhatsApp}><MessageCircle size={20} /> Enviar pelo WhatsApp</button></div>
       <div style={{ marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Os dados são salvos no Supabase e no histórico do cliente.</div>
     </div>
-
     <div style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}>
-      <div className="finance-panel-header"><div><h2>Histórico de propostas</h2><p>Consulte ou gere novamente o PDF.</p></div><button type="button" onClick={carregarDados}><RefreshCw size={20} /></button></div>
+      <div className="finance-panel-header"><div><h2>Histórico de propostas</h2><p>Feche a venda e gere a OS diretamente daqui.</p></div><button type="button" onClick={carregarDados}><RefreshCw size={20} /></button></div>
       <label className="finance-field"><span>Pesquisar</span><div style={{ display: 'flex', gap: 8 }}><Search size={18} /><input value={busca} onChange={(event) => setBusca(event.target.value)} /></div></label>
-      {filtrado.map((item) => <div className="finance-list-item" key={item.id}><div><strong>{item.client_name}</strong><span>{new Date(item.created_at).toLocaleDateString('pt-BR')} · {moeda.format(item.total_amount)}</span></div><div className="finance-actions"><button type="button" onClick={() => abrirPdf(item)}><FileDown size={16} /> PDF</button><button type="button" className="finance-delete" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button></div></div>)}
+      {filtrado.map((item) => <div className="finance-list-item" key={item.id}>
+        <div><strong>{item.client_name}</strong><span>{new Date(item.created_at).toLocaleDateString('pt-BR')} · {moeda.format(item.total_amount)} · {item.status}</span></div>
+        <div className="finance-actions">
+          <button type="button" onClick={abrirPdf}><FileDown size={16} /> PDF</button>
+          {item.serviceOrder || item.status === 'Venda Fechada'
+            ? <button type="button" onClick={() => navigate('/app/ordens-servico')}><CheckCircle2 size={16} /> {item.serviceOrder ? `Abrir OS #${item.serviceOrder.order_number}` : 'Venda fechada'}</button>
+            : <button type="button" disabled={fechandoId === item.id} onClick={() => fecharVenda(item)}><Wrench size={16} /> {fechandoId === item.id ? 'Gerando OS...' : 'Fechar venda e gerar OS'}</button>}
+          <button type="button" className="finance-delete" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button>
+        </div>
+      </div>)}
       {!filtrado.length && <div className="finance-empty">Nenhuma proposta encontrada.</div>}
     </div>
   </section>;
