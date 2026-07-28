@@ -25,6 +25,7 @@ import BlingIntegracaoPage from './pages/BlingIntegracaoPage.jsx';
 import ContratosPage from './pages/ContratosPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
 import MonitoramentoSolarPage from './pages/MonitoramentoSolarPage.jsx';
+import OrdensServicoPage from './pages/OrdensServicoPage.jsx';
 
 const ROLES = {
   ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
@@ -51,6 +52,7 @@ function App() {
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.ALL)} />
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
