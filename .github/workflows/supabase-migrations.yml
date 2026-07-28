@@ -23,6 +23,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     defaults:
       run:
         working-directory: MM_ERP_GitHub_Pronto
@@ -33,8 +34,11 @@ jobs:
         with:
           ref: erp-v2-preview
 
-      - name: Instalar Supabase CLI fixado
-        run: npm install --global supabase@2.101.0
+      - name: Instalar ferramentas fixadas
+        run: |
+          npm install --global supabase@2.101.0
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
 
       - name: Validar segredos
         run: |
@@ -45,28 +49,41 @@ jobs:
       - name: Vincular projeto
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Normalizar histórico da migration inicial
-        run: |
-          supabase migration repair 20260727000100 --status reverted --password "$SUPABASE_DB_PASSWORD"
-          supabase migration repair 20260727000100 --status applied --password "$SUPABASE_DB_PASSWORD"
-
       - name: Conferir migrations locais
         run: |
           test -f supabase/migrations/20260728080000_service_orders.sql
           test -f supabase/migrations/20260728090000_service_order_storage.sql
           test -f supabase/migrations/20260728100000_sale_to_service_order.sql
-          supabase migration list --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Aplicar apenas migrations pendentes
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - name: Aplicar somente migrations ainda não registradas
+        run: |
+          set -euo pipefail
+          DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
+
+          for file in $(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            base="$(basename "$file" .sql)"
+            version="${base%%_*}"
+
+            if [ "$version" = "20260727000100" ]; then
+              echo "Ignorando migration inicial já existente: $base"
+              continue
+            fi
+
+            applied="$(psql "$DB_URL" -tAc "select 1 from supabase_migrations.schema_migrations where version = '$version' limit 1")"
+            if [ "$applied" = "1" ]; then
+              echo "Já aplicada: $base"
+              continue
+            fi
+
+            echo "Aplicando: $base"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"
+            supabase migration repair "$version" --status applied --password "$SUPABASE_DB_PASSWORD"
+          done
 
       - name: Validar banco após aplicação
-        env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y postgresql-client
-          psql "postgresql://postgres.${SUPABASE_PROJECT_REF}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require" <<'SQL'
+          DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
           do $$
           begin
             if to_regclass('public.service_orders') is null then
