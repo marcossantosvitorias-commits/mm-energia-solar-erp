@@ -6,13 +6,17 @@ function ensureDatabase() {
   }
 }
 
-async function listSimulations() {
+async function listSimulations(clientId = null) {
   ensureDatabase();
-  const { data, error } = await supabase
+  let query = supabase
     .from('belcred_simulations')
-    .select('id, client_id, project_value, simulation, created_at')
+    .select('id, client_id, project_value, simulation, created_at, clients(name, phone)')
     .order('created_at', { ascending: false })
     .limit(30);
+
+  if (clientId) query = query.eq('client_id', clientId);
+
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
@@ -26,7 +30,7 @@ async function saveSimulation({ clientId = null, projectValue, simulation }) {
       project_value: Number(projectValue),
       simulation,
     })
-    .select('id, client_id, project_value, simulation, created_at')
+    .select('id, client_id, project_value, simulation, created_at, clients(name, phone)')
     .single();
   if (error) throw error;
   return data;
