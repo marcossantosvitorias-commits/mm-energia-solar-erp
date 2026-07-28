@@ -27,6 +27,7 @@ import AgendaPage from './pages/AgendaPage.jsx';
 import MonitoramentoSolarPage from './pages/MonitoramentoSolarPage.jsx';
 import OrdensServicoPage from './pages/OrdensServicoPage.jsx';
 import FluxosKanbanPage from './pages/FluxosKanbanPage.jsx';
+import CalculadoraSolarPublicaPage from './pages/CalculadoraSolarPublicaPage.jsx';
 
 const ROLES = {
   ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
@@ -49,6 +50,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/simulacao-solar" element={<CalculadoraSolarPublicaPage />} />
 
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
           <Route path="/app/fluxos" element={privateRoute(<FluxosKanbanPage />)} />
