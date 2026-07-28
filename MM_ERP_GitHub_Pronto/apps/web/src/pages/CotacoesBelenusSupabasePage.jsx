@@ -59,9 +59,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
         setCotacaoId(settings?.cotacaoId || quotes[0]?.id || '');
         setForm({ ...FORM_PADRAO, ...(settings?.form || {}) });
         setCardFees(fees);
-        if (!fees.some((item) => item.installments === 12)) {
-          setInstallments(fees[0]?.installments || 1);
-        }
+        if (!fees.some((item) => item.installments === 12)) setInstallments(fees[0]?.installments || 1);
       } catch (error) {
         if (ativo) setMensagem(`Não foi possível carregar a calculadora: ${error.message}`);
       } finally {
@@ -90,17 +88,9 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
     const cardRate = porcentagem(selectedFee?.fee_percent || 0);
     const precoCartao = cardRate < 1 ? precoVenda / (1 - cardRate) : 0;
     return {
-      rateioEngenharia,
-      adicionais,
-      custoTotal,
-      precoVenda,
-      imposto,
-      comissao,
-      lucro,
-      precoComDesconto,
-      markup: custoTotal > 0 ? precoVenda / custoTotal : 0,
-      cardRate,
-      precoCartao,
+      rateioEngenharia, adicionais, custoTotal, precoVenda, imposto, comissao, lucro,
+      precoComDesconto, markup: custoTotal > 0 ? precoVenda / custoTotal : 0,
+      cardRate, precoCartao,
       valorParcela: precoCartao / Math.max(1, Number(installments)),
       custoTaxaCartao: precoCartao - precoVenda,
     };
@@ -205,7 +195,18 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
           <div className="belenus-final-actions"><div><span>Cartão {installments}x sem juros</span><strong>{moeda.format(resultado.precoCartao)}</strong><small>{installments}x de {moeda.format(resultado.valorParcela)}</small></div><button type="button" onClick={copiarResumo}>{copiado ? <Check size={17} /> : <Copy size={17} />}{copiado ? 'Copiado' : 'Copiar proposta'}</button><Link to="/app/belcred">Simular financiamento</Link></div>
         </section>
 
-        <ProposalGenerator key={`${cotacao.id}-${resultado.precoVenda.toFixed(2)}`} quantidadePlacas={cotacao.placas} precoRecomendado={resultado.precoVenda} modulo={cotacao.modulo} inversor={`${cotacao.inversores}x ${cotacao.inversor}`} potenciaSistemaKw={cotacao.potencia} />
+        <ProposalGenerator
+          key={`${cotacao.id}-${resultado.precoVenda.toFixed(2)}-${installments}`}
+          quantidadePlacas={cotacao.placas}
+          precoRecomendado={resultado.precoVenda}
+          modulo={cotacao.modulo}
+          inversor={`${cotacao.inversores}x ${cotacao.inversor}`}
+          potenciaSistemaKw={cotacao.potencia}
+          precoCartao={resultado.precoCartao}
+          parcelasCartao={installments}
+          valorParcelaCartao={resultado.valorParcela}
+          taxaCartao={Number(selectedFee?.fee_percent || 0)}
+        />
       </>}
     </FinanceLayout>
   );
