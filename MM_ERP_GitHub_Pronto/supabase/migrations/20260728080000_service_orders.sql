@@ -40,7 +40,7 @@ create table if not exists public.service_orders (
 create table if not exists public.service_order_items (
   id uuid primary key default gen_random_uuid(),
   service_order_id uuid not null references public.service_orders(id) on delete cascade,
-  equipment_id uuid references public.equipment(id) on delete set null,
+  equipment_id uuid references public.equipment_catalog(id) on delete set null,
   description text not null,
   category text,
   quantity numeric(12,3) not null default 1 check (quantity > 0),
