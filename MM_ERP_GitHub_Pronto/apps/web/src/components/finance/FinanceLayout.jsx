@@ -5,6 +5,7 @@ import {
   LayoutPanelTop,
   WalletCards,
   Calculator,
+  SunMedium,
   BadgeDollarSign,
   FileSpreadsheet,
   FileSignature,
@@ -37,6 +38,7 @@ const menuSections = [
     items: [
       { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'comercial', 'engenharia'] },
       { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro', 'comercial'] },
