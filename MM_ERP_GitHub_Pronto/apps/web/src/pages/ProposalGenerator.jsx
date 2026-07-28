@@ -34,8 +34,6 @@ export default function ProposalGenerator({
   inversor,
   potenciaSistemaKw,
   precoCartao = 0,
-  parcelasCartao = 12,
-  valorParcelaCartao = 0,
   taxaCartao = 0,
 }) {
   const navigate = useNavigate();
@@ -61,6 +59,11 @@ export default function ProposalGenerator({
   const geracaoCalculada = calcularGeracaoPorPainel(dados.potenciaPlaca) * quantidadePlacas;
   const belcred = useMemo(() => BELCRED.map((opcao) => ({ ...opcao, valor: valor * opcao.fator })), [valor]);
   const belcredSelecionado = belcred.find((item) => item.parcelas === Number(planoBelcred)) || belcred.at(-1);
+  const totalCartao = Number(precoCartao || valor);
+  const opcoesCartao = useMemo(() => Array.from({ length: 10 }, (_, index) => {
+    const parcelas = index + 12;
+    return { parcelas, valorParcela: totalCartao / parcelas };
+  }), [totalCartao]);
 
   const carregarDados = async () => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -78,7 +81,7 @@ export default function ProposalGenerator({
         serviceOrder: orders.find((order) => order.proposal_id === proposal.id) || null,
       })));
     } catch {
-      // O gerador continua funcionando mesmo quando o histórico ainda não está disponível.
+      // O gerador continua funcionando mesmo quando o histórico não está disponível.
     }
   };
 
@@ -107,48 +110,57 @@ export default function ProposalGenerator({
 
   const paymentOptions = {
     cash: { total: valor },
-    card: { installments: Number(parcelasCartao || 1), feePercent: Number(taxaCartao || 0), total: Number(precoCartao || valor), installmentValue: Number(valorParcelaCartao || precoCartao || valor) },
+    card: { feePercent: Number(taxaCartao || 0), total: totalCartao, options: opcoesCartao },
     belcred: { installments: belcredSelecionado?.parcelas || 96, monthlyRate: belcredSelecionado?.taxa || '', installmentValue: belcredSelecionado?.valor || 0 },
   };
 
   const payload = (status = 'Gerada') => ({
-    client_id: clienteId || null, client_name: dados.cliente.trim(), phone: somenteNumeros(dados.telefone), city: dados.cidade || null,
-    status, total_amount: valor, panel_count: Number(quantidadePlacas || 0), panel_power_w: Number(dados.potenciaPlaca || 0),
-    system_power_kw: potenciaSistema, monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada),
-    panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Number(dados.validade || 7),
-    notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null,
+    client_id: clienteId || null,
+    client_name: dados.cliente.trim(),
+    phone: somenteNumeros(dados.telefone),
+    city: dados.cidade || null,
+    status,
+    total_amount: valor,
+    panel_count: Number(quantidadePlacas || 0),
+    panel_power_w: Number(dados.potenciaPlaca || 0),
+    system_power_kw: potenciaSistema,
+    monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada),
+    panel_model: dados.marcaPlaca,
+    inverter_model: dados.inversor,
+    validity_days: Number(dados.validade || 7),
+    notes: dados.observacoes || null,
+    sent_at: status === 'Enviada' ? new Date().toISOString() : null,
     proposal_data: { ...dados, clienteId, quantidadePlacas, potenciaSistema, paymentOptions },
   });
 
-  const validar = () => {
-    if (!dados.cliente.trim()) {
-      setMensagem('Informe o nome do cliente.');
-      return false;
-    }
-    if (somenteNumeros(dados.telefone).length < 10) {
-      setMensagem('Informe o WhatsApp com DDD.');
-      return false;
-    }
-    return true;
+  const validarNome = () => {
+    if (dados.cliente.trim()) return true;
+    setMensagem('Informe o nome do cliente antes de gerar a proposta.');
+    document.querySelector('input[name="cliente"]')?.focus();
+    return false;
+  };
+
+  const validarWhatsApp = () => {
+    if (!validarNome()) return false;
+    if (somenteNumeros(dados.telefone).length >= 10) return true;
+    setMensagem('Informe o WhatsApp do cliente com DDD.');
+    document.querySelector('input[name="telefone"]')?.focus();
+    return false;
   };
 
   const salvarProposta = async (status = 'Gerada') => {
-    if (!validar()) return { saved: false, blocked: true };
     if (!isSupabaseConfigured || !supabase) {
       return { saved: false, warning: 'A proposta será gerada, mas não foi registrada porque o Supabase não está disponível.' };
     }
-
     setSalvando(true);
     try {
       const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
-      if (error) {
-        return { saved: false, warning: `A proposta será gerada, mas não foi registrada no CRM: ${error.message}` };
-      }
+      if (error) return { saved: false, warning: `A proposta será gerada, mas não foi registrada no CRM: ${error.message}` };
       if (clienteId) {
         try {
           await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' });
         } catch {
-          // A proposta já foi salva; falha no histórico do cliente não bloqueia PDF ou WhatsApp.
+          // A falha no histórico do cliente não bloqueia PDF ou WhatsApp.
         }
       }
       await carregarDados();
@@ -162,27 +174,23 @@ export default function ProposalGenerator({
 
   const abrirPdf = () => {
     setMensagem('Abrindo a janela de impressão. Escolha “Salvar como PDF”.');
-    window.setTimeout(() => window.print(), 100);
+    window.setTimeout(() => window.print(), 120);
   };
 
   const gerarESalvar = async () => {
-    if (!validar()) return;
+    if (!validarNome()) return;
     const resultado = await salvarProposta('Gerada');
-    if (resultado.blocked) return;
     setMensagem(resultado.saved ? 'Proposta salva. Abrindo PDF...' : resultado.warning);
     abrirPdf();
   };
 
   const enviarWhatsApp = async () => {
-    if (!validar()) return;
-    const texto = `Olá, ${dados.cliente.trim()}!\nSegue sua proposta da MM Energia Solar.\nÀ vista: ${moeda.format(valor)}.\nCartão: ${paymentOptions.card.installments}x de ${moeda.format(paymentOptions.card.installmentValue)} sem juros.`;
+    if (!validarWhatsApp()) return;
+    const opcoesTexto = opcoesCartao.map((item) => `${item.parcelas}x de ${moeda.format(item.valorParcela)}`).join('\n');
+    const texto = `Olá, ${dados.cliente.trim()}!\nSegue sua proposta da MM Energia Solar.\n\nValor total: ${moeda.format(valor)}\n\nCartão de crédito:\n${opcoesTexto}\n\nBelCred: ${paymentOptions.belcred.installments}x de ${moeda.format(paymentOptions.belcred.installmentValue)}.`;
     const whatsappUrl = `https://wa.me/${numeroComPais(dados.telefone)}?text=${encodeURIComponent(texto)}`;
     const novaJanela = window.open('about:blank', '_blank');
     const resultado = await salvarProposta('Enviada');
-    if (resultado.blocked) {
-      novaJanela?.close();
-      return;
-    }
     setMensagem(resultado.saved ? 'Proposta registrada. Abrindo WhatsApp...' : resultado.warning);
     if (novaJanela) {
       novaJanela.opener = null;
@@ -217,30 +225,47 @@ export default function ProposalGenerator({
   const filtrado = historico.filter((item) => `${item.client_name} ${item.phone}`.toLowerCase().includes(busca.toLowerCase()));
 
   return <section className="finance-panel">
-    <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Selecione o cliente, gere o PDF e registre tudo no CRM.</p></div></div>
-    <div className="finance-form">
-      <label className="finance-field"><span>Cliente do CRM</span><select value={clienteId} onChange={(event) => selecionarCliente(event.target.value)}><option value="">Preencher manualmente</option>{clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.name} · {cliente.phone}</option>)}</select></label>
-      <label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar} /></label>
-      <label className="finance-field"><span>WhatsApp *</span><input name="telefone" value={dados.telefone} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Cidade/UF</span><input name="cidade" value={dados.cidade} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Potência de cada painel (W)</span><input type="number" name="potenciaPlaca" value={dados.potenciaPlaca} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Marca/modelo dos painéis</span><input name="marcaPlaca" value={dados.marcaPlaca} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Inversor</span><input name="inversor" value={dados.inversor} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Geração estimada</span><input type="number" name="geracaoMensal" value={dados.geracaoMensal} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Valor à vista</span><input type="number" step="0.01" name="valorProposta" value={dados.valorProposta} onChange={atualizar} /></label>
-      <label className="finance-field"><span>BelCred para proposta</span><select value={planoBelcred} onChange={(event) => setPlanoBelcred(Number(event.target.value))}>{belcred.map((item) => <option value={item.parcelas} key={item.parcelas}>{item.parcelas}x de {moeda.format(item.valor)}</option>)}</select></label>
-      <label className="finance-field"><span>Validade (dias)</span><input type="number" name="validade" value={dados.validade} onChange={atualizar} /></label>
-      <label className="finance-field finance-field-wide"><span>Itens e observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar} rows="3" /></label>
+    <div className="finance-panel-header proposal-no-print"><div><h2>Gerador de proposta para o cliente</h2><p>Selecione o cliente, gere o PDF e registre tudo no CRM.</p></div></div>
+
+    <div className="proposal-print-area">
+      <div className="finance-form">
+        <label className="finance-field proposal-no-print"><span>Cliente do CRM</span><select value={clienteId} onChange={(event) => selecionarCliente(event.target.value)}><option value="">Preencher manualmente</option>{clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.name} · {cliente.phone}</option>)}</select></label>
+        <label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar} /></label>
+        <label className="finance-field proposal-no-print"><span>WhatsApp *</span><input name="telefone" value={dados.telefone} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Cidade/UF</span><input name="cidade" value={dados.cidade} onChange={atualizar} /></label>
+        <label className="finance-field"><span>Sistema</span><input value={`${quantidadePlacas} painéis · ${potenciaSistema.toFixed(2)} kWp`} readOnly /></label>
+        <label className="finance-field"><span>Geração estimada</span><input value={`${Number(dados.geracaoMensal || geracaoCalculada).toLocaleString('pt-BR')} kWh/mês`} readOnly /></label>
+        <label className="finance-field proposal-no-print"><span>Validade (dias)</span><input type="number" name="validade" value={dados.validade} onChange={atualizar} /></label>
+        <label className="finance-field finance-field-wide"><span>Itens e observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar} rows="3" /></label>
+      </div>
+
+      <div className="pricing-highlight"><span>Valor total da proposta</span><strong className="proposal-total-value">{moeda.format(valor)}</strong></div>
+
+      <div className="proposal-payment-grid">
+        <div className="proposal-payment-card">
+          <span>Financiamento BelCred</span>
+          <strong>{paymentOptions.belcred.installments}x de {moeda.format(paymentOptions.belcred.installmentValue)}</strong>
+          <select className="proposal-no-print" value={planoBelcred} onChange={(event) => setPlanoBelcred(Number(event.target.value))} style={{ width: '100%', marginTop: 10 }}>
+            {belcred.map((item) => <option value={item.parcelas} key={item.parcelas}>{item.parcelas}x de {moeda.format(item.valor)}</option>)}
+          </select>
+        </div>
+        <div className="proposal-payment-card">
+          <span>Cartão de crédito</span>
+          <div className="proposal-card-options">
+            {opcoesCartao.map((item) => <div className="proposal-card-option" key={item.parcelas}>{item.parcelas}x de {moeda.format(item.valorParcela)}</div>)}
+          </div>
+        </div>
+      </div>
     </div>
-    <div className="pricing-highlight"><span>À vista</span><strong>{moeda.format(valor)}</strong></div>
-    <div className="pricing-highlight"><span>Cartão em {paymentOptions.card.installments}x sem juros</span><strong>{paymentOptions.card.installments}x de {moeda.format(paymentOptions.card.installmentValue)} • total {moeda.format(paymentOptions.card.total)}</strong></div>
-    {mensagem && <p className="finance-notice">{mensagem}</p>}
-    <div style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}>
+
+    {mensagem && <p className="finance-notice proposal-no-print" style={{ fontWeight: 800 }}>{mensagem}</p>}
+    <div className="proposal-no-print" style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><Sparkles size={20} /><strong>Proposta pronta</strong></div>
       <div className="finance-actions"><button className="finance-button" type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={20} /> Salvar e gerar PDF</button><button className="finance-button" type="button" disabled={salvando} onClick={enviarWhatsApp}><MessageCircle size={20} /> Enviar pelo WhatsApp</button></div>
-      <div style={{ marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> O PDF e o WhatsApp funcionam mesmo se o histórico do Supabase estiver temporariamente indisponível.</div>
+      <div style={{ marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> O PDF mostra somente a proposta comercial, sem custos individuais dos equipamentos.</div>
     </div>
-    <div style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}>
+
+    <div className="proposal-no-print" style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}>
       <div className="finance-panel-header"><div><h2>Histórico de propostas</h2><p>Feche a venda e gere a OS diretamente daqui.</p></div><button type="button" onClick={carregarDados}><RefreshCw size={20} /></button></div>
       <label className="finance-field"><span>Pesquisar</span><div style={{ display: 'flex', gap: 8 }}><Search size={18} /><input value={busca} onChange={(event) => setBusca(event.target.value)} /></div></label>
       {filtrado.map((item) => <div className="finance-list-item" key={item.id}>
