@@ -45,12 +45,17 @@ jobs:
       - name: Vincular projeto
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
+      - name: Normalizar histórico da migration inicial
+        run: |
+          supabase migration repair 20260727000100 --status reverted --password "$SUPABASE_DB_PASSWORD"
+          supabase migration repair 20260727000100 --status applied --password "$SUPABASE_DB_PASSWORD"
+
       - name: Conferir migrations locais
         run: |
           test -f supabase/migrations/20260728080000_service_orders.sql
           test -f supabase/migrations/20260728090000_service_order_storage.sql
           test -f supabase/migrations/20260728100000_sale_to_service_order.sql
-          supabase migration list
+          supabase migration list --password "$SUPABASE_DB_PASSWORD"
 
       - name: Aplicar migrations pendentes
         run: supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
