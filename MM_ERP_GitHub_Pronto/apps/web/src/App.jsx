@@ -50,10 +50,14 @@ const privateRoute = (element, roles = ROLES.ALL) => (
   <ProtectedRoute roles={roles}>{element}</ProtectedRoute>
 );
 
+const routerBase = import.meta.env.BASE_URL === '/'
+  ? '/'
+  : import.meta.env.BASE_URL.replace(/\/$/, '');
+
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename={routerBase}>
         <ScrollToTop />
 
         <Routes>
@@ -78,16 +82,14 @@ function App() {
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
           <Route path="/app/kits-hibridos" element={privateRoute(<HybridKitsPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
-          <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />, ROLES.ADMIN)} />
+          <Route path="/app/marcos-finance" element={privateRoute(<MarcosFinancePage />, ROLES.FINANCIAL)} />
           <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
+          <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.FINANCIAL)} />
+          <Route path="/app/migracao" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
           <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />, ROLES.FINANCIAL)} />
           <Route path="/app/contratos" element={privateRoute(<ContratosPage />, ROLES.COMMERCIAL)} />
-
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
