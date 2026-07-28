@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { APP_VERSION } from '../../version.js';
 import './finance.css';
 import './erp-compact.css';
+import './engineering-label-fix.css';
 import './auth-layout.css';
 import '../crm/crm.css';
 
