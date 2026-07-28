@@ -36,4 +36,15 @@ drop trigger if exists sales_proposals_updated_at on public.sales_proposals;
 create trigger sales_proposals_updated_at before update on public.sales_proposals
 for each row execute procedure public.set_updated_at();
 
-alter publication supabase_realtime add table public.sales_proposals;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'sales_proposals'
+  ) then
+    alter publication supabase_realtime add table public.sales_proposals;
+  end if;
+end
+$$;
