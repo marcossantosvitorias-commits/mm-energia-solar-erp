@@ -30,7 +30,8 @@ const KITS_HIBRIDOS = [
 const FORM_PADRAO = {
   materialEletrico: 600,
   maoDeObra: 1000,
-  engenharia: 250,
+  engenharia: 1000,
+  instalacoesMes: 4,
   trt: 68,
   combustivel: 100,
   outros: 0,
@@ -51,8 +52,9 @@ export default function HybridKitsPage() {
   };
 
   const resultado = useMemo(() => {
+    const rateioEngenharia = numero(form.engenharia) / Math.max(1, numero(form.instalacoesMes));
     const custosInstalacao =
-      numero(form.materialEletrico) + numero(form.maoDeObra) + numero(form.engenharia) +
+      numero(form.materialEletrico) + numero(form.maoDeObra) + rateioEngenharia +
       numero(form.trt) + numero(form.combustivel) + numero(form.outros);
     const custoTotal = kit.custoEquipamentos + custosInstalacao;
     const divisor = 1 - percentual(form.imposto) - percentual(form.comissao) - percentual(form.margem);
@@ -61,7 +63,7 @@ export default function HybridKitsPage() {
     const comissao = precoVenda * percentual(form.comissao);
     const lucro = precoVenda - custoTotal - imposto - comissao;
     const precoComDesconto = precoVenda * (1 - percentual(form.desconto));
-    return { custosInstalacao, custoTotal, precoVenda, imposto, comissao, lucro, precoComDesconto };
+    return { rateioEngenharia, custosInstalacao, custoTotal, precoVenda, imposto, comissao, lucro, precoComDesconto };
   }, [form, kit]);
 
   const descricaoInversor = `${kit.inversor} + ${kit.quantidadeBaterias}x ${kit.bateria}`;
@@ -108,6 +110,8 @@ export default function HybridKitsPage() {
             <label className="finance-field"><span>Material elétrico</span><input type="number" step="0.01" name="materialEletrico" value={form.materialEletrico} onChange={atualizar} /></label>
             <label className="finance-field"><span>Mão de obra</span><input type="number" step="0.01" name="maoDeObra" value={form.maoDeObra} onChange={atualizar} /></label>
             <label className="finance-field"><span>Engenharia</span><input type="number" step="0.01" name="engenharia" value={form.engenharia} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Instalações previstas no mês</span><input type="number" min="1" step="1" name="instalacoesMes" value={form.instalacoesMes} onChange={atualizar} /></label>
+            <div className="belenus-engineering-share"><span>Engenharia rateada neste projeto</span><strong>{moeda.format(resultado.rateioEngenharia)}</strong></div>
             <label className="finance-field"><span>TRT</span><input type="number" step="0.01" name="trt" value={form.trt} onChange={atualizar} /></label>
             <label className="finance-field"><span>Combustível</span><input type="number" step="0.01" name="combustivel" value={form.combustivel} onChange={atualizar} /></label>
             <label className="finance-field"><span>Outros custos</span><input type="number" step="0.01" name="outros" value={form.outros} onChange={atualizar} /></label>
