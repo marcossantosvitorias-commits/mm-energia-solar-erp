@@ -10,6 +10,17 @@ export async function listSalesProposals() {
   return data || [];
 }
 
+export async function getSalesProposal(id) {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('sales_proposals')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function updateSalesProposal(id, changes) {
   const supabase = requireSupabase();
   const payload = {
@@ -33,6 +44,18 @@ export async function updateSalesProposal(id, changes) {
   if (error) throw new Error(error.message);
   const version = await supabase.rpc('save_sales_proposal_version', { p_proposal_id: id });
   if (version.error) throw new Error(version.error.message);
+  return data;
+}
+
+export async function markProposalAsSent(id) {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('sales_proposals')
+    .update({ status: 'Enviada', sent_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw new Error(error.message);
   return data;
 }
 
