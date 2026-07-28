@@ -27,13 +27,13 @@ alter table public.equipment_catalog enable row level security;
 drop policy if exists "equipment_catalog_operational_read" on public.equipment_catalog;
 create policy "equipment_catalog_operational_read"
 on public.equipment_catalog for select to authenticated
-using (public.user_has_role('admin', 'engenharia'));
+using (public.has_any_role(array['admin', 'engenharia']));
 
 drop policy if exists "equipment_catalog_operational_write" on public.equipment_catalog;
 create policy "equipment_catalog_operational_write"
 on public.equipment_catalog for all to authenticated
-using (public.user_has_role('admin', 'engenharia'))
-with check (public.user_has_role('admin', 'engenharia'));
+using (public.has_any_role(array['admin', 'engenharia']))
+with check (public.has_any_role(array['admin', 'engenharia']));
 
 drop trigger if exists equipment_catalog_updated_at on public.equipment_catalog;
 create trigger equipment_catalog_updated_at
