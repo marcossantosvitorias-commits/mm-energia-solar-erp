@@ -14,7 +14,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import FinanceiroPage from './pages/FinanceiroSupabasePage.jsx';
 import MarcosFinancePage from './pages/MarcosFinancePage.jsx';
 import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
-import EquipamentosPage from './pages/EquipamentosPage.jsx';
+import EquipamentosPage from './pages/EquipamentosSupabasePage.jsx';
 import TributosPage from './pages/TributosPage.jsx';
 import ClientesPage from './pages/ClientesPage.jsx';
 import BelCredSimuladorPage from './pages/BelCredSimuladorPage.jsx';
