@@ -64,3 +64,5 @@ jobs:
       - name: Publicar no GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+# Workflow registrado na branch principal e executado somente para a Preview.
