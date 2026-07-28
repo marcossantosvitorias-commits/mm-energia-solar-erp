@@ -26,6 +26,7 @@ import ContratosPage from './pages/ContratosPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
 import MonitoramentoSolarPage from './pages/MonitoramentoSolarPage.jsx';
 import OrdensServicoPage from './pages/OrdensServicoPage.jsx';
+import PreparacaoInstalacaoPage from './pages/PreparacaoInstalacaoPage.jsx';
 import FluxosKanbanPage from './pages/FluxosKanbanPage.jsx';
 import CalculadoraSolarPublicaPage from './pages/CalculadoraSolarPublicaPage.jsx';
 import CalculadoraSolarErpPage from './pages/CalculadoraSolarErpPage.jsx';
@@ -65,6 +66,7 @@ function App() {
           <Route path="/app/propostas/:id/pdf" element={privateRoute(<PropostaPdfPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.ALL)} />
+          <Route path="/app/ordens-servico/:id/preparacao" element={privateRoute(<PreparacaoInstalacaoPage />, ROLES.ALL)} />
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
