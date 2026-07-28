@@ -67,6 +67,29 @@ export async function updateProposalStatus(id, status) {
   return updateSalesProposal(id, { status, ...(timestamps[status] || {}) });
 }
 
+export async function confirmAcceptedProposalSale(id, notes = '') {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('confirm_accepted_proposal_sale', {
+    p_proposal_id: id,
+    p_notes: notes || null,
+  });
+  if (error) throw new Error(error.message);
+  return {
+    proposal: data?.proposal || null,
+    serviceOrder: data?.service_order || null,
+  };
+}
+
+export async function rejectAcceptedProposalConfirmation(id, notes = '') {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('reject_accepted_proposal_confirmation', {
+    p_proposal_id: id,
+    p_notes: notes || null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function listProposalVersions(proposalId) {
   const supabase = requireSupabase();
   const { data, error } = await supabase
