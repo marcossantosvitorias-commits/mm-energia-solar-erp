@@ -18,7 +18,7 @@ import EquipamentosPage from './pages/EquipamentosSupabasePage.jsx';
 import TributosPage from './pages/TributosPage.jsx';
 import ClientesPage from './pages/ClientesPage.jsx';
 import BelCredSimuladorPage from './pages/BelCredSimuladorPage.jsx';
-import CotacoesBelenusPage from './pages/CotacoesBelenusPage.jsx';
+import CotacoesBelenusPage from './pages/CotacoesBelenusSupabasePage.jsx';
 import MigracaoDadosPage from './pages/MigracaoDadosPage.jsx';
 import BlingIntegracaoPage from './pages/BlingIntegracaoPage.jsx';
 import ContratosPage from './pages/ContratosPage.jsx';
