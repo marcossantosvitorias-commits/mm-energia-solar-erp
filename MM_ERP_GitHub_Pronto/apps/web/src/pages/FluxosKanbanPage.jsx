@@ -9,6 +9,18 @@ const emptyCard = { title: '', description: '', priority: 'normal', dueAt: '' };
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('pt-BR') : '';
 const money = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+const modalStyles = {
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.62)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 },
+  card: { width: 'min(520px, 100%)', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', background: '#fff', borderRadius: 18, padding: 20, boxShadow: '0 24px 70px rgba(15,23,42,.3)' },
+  header: { display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 18 },
+  close: { marginLeft: 'auto', width: 40, height: 40, display: 'grid', placeItems: 'center', border: 0, borderRadius: 10, background: '#eef2f7', color: '#0f172a' },
+  form: { display: 'grid', gridTemplateColumns: '1fr', gap: 14 },
+  label: { display: 'grid', gap: 7, color: '#334155', fontWeight: 800, fontSize: 14 },
+  control: { width: '100%', minHeight: 46, padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', color: '#0f172a', fontSize: 16 },
+  textarea: { width: '100%', minHeight: 110, padding: 12, border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', color: '#0f172a', fontSize: 16, resize: 'vertical' },
+  submit: { width: '100%', minHeight: 48, border: 0, borderRadius: 11, background: '#071d3b', color: '#fff', fontWeight: 900, fontSize: 16 },
+};
+
 export default function FluxosKanbanPage() {
   const [boards, setBoards] = useState([]);
   const [activeBoardId, setActiveBoardId] = useState('');
@@ -123,6 +135,20 @@ export default function FluxosKanbanPage() {
         </div>)}
       </div>
     </section>}
-    {newCardColumn && <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.58)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}><section className="finance-card" style={{ width: 'min(520px, 100%)' }}><div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}><div style={{ flex: 1 }}><h2 style={{ margin: 0 }}>Novo card</h2><p style={{ margin: '4px 0 0' }}>{newCardColumn.name}</p></div><button type="button" onClick={() => setNewCardColumn(null)}><X size={20} /></button></div><form onSubmit={submitCard} className="finance-form-grid"><label>Título<input required value={cardForm.title} onChange={(event) => setCardForm({ ...cardForm, title: event.target.value })} /></label><label>Prioridade<select value={cardForm.priority} onChange={(event) => setCardForm({ ...cardForm, priority: event.target.value })}>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Prazo<input type="datetime-local" value={cardForm.dueAt} onChange={(event) => setCardForm({ ...cardForm, dueAt: event.target.value })} /></label><label style={{ gridColumn: '1 / -1' }}>Descrição<textarea rows="4" value={cardForm.description} onChange={(event) => setCardForm({ ...cardForm, description: event.target.value })} /></label><button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Criar card'}</button></form></section></div>}
+    {newCardColumn && <div style={modalStyles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setNewCardColumn(null); }}>
+      <section style={modalStyles.card} role="dialog" aria-modal="true" aria-labelledby="novo-card-title">
+        <div style={modalStyles.header}>
+          <div><h2 id="novo-card-title" style={{ margin: 0, color: '#0f172a' }}>Novo card</h2><p style={{ margin: '5px 0 0', color: '#64748b' }}>Etapa: {newCardColumn.name}</p></div>
+          <button type="button" style={modalStyles.close} onClick={() => setNewCardColumn(null)} aria-label="Fechar"><X size={21} /></button>
+        </div>
+        <form onSubmit={submitCard} style={modalStyles.form}>
+          <label style={modalStyles.label}>Título<input style={modalStyles.control} required value={cardForm.title} onChange={(event) => setCardForm({ ...cardForm, title: event.target.value })} placeholder="Ex.: Cliente João — proposta solar" /></label>
+          <label style={modalStyles.label}>Prioridade<select style={modalStyles.control} value={cardForm.priority} onChange={(event) => setCardForm({ ...cardForm, priority: event.target.value })}>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label style={modalStyles.label}>Prazo<input style={modalStyles.control} type="datetime-local" value={cardForm.dueAt} onChange={(event) => setCardForm({ ...cardForm, dueAt: event.target.value })} /></label>
+          <label style={modalStyles.label}>Descrição<textarea style={modalStyles.textarea} rows="4" value={cardForm.description} onChange={(event) => setCardForm({ ...cardForm, description: event.target.value })} placeholder="Detalhes, próximo contato ou observações" /></label>
+          <button type="submit" style={modalStyles.submit} disabled={saving}>{saving ? 'Salvando...' : 'Criar card'}</button>
+        </form>
+      </section>
+    </div>}
   </FinanceLayout>;
 }
