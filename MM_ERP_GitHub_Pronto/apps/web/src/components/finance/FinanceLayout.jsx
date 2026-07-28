@@ -15,6 +15,7 @@ import {
   DatabaseBackup,
   PlugZap,
   RadioTower,
+  ClipboardCheck,
   Globe2,
   LogOut,
   Menu,
@@ -51,6 +52,7 @@ const menuSections = [
   {
     title: 'Operacional',
     items: [
+      { to: '/app/ordens-servico', label: 'Ordens de serviço', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'comercial', 'engenharia'] },
       { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower, roles: ['admin', 'engenharia'] },
       { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch, roles: ['admin', 'engenharia'] },
       { to: '/app/bling', label: 'Integração Bling', icon: PlugZap, roles: ['admin', 'financeiro'] },
