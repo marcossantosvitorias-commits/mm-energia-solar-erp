@@ -33,43 +33,50 @@ const menuSections = [
   {
     title: 'Comercial',
     items: [
-      { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound },
-      { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
-      { to: '/app/contratos', label: 'Contratos', icon: FileSignature },
-      { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet },
+      { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro', 'comercial'] },
     ],
   },
   {
     title: 'Financeiro',
     items: [
-      { to: '/app', label: 'Financeiro', icon: WalletCards, end: true },
-      { to: '/app/precos', label: 'Preço dos kits', icon: Calculator },
-      { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign },
-      { to: '/app/tributos', label: 'Tributação', icon: Scale },
+      { to: '/app', label: 'Financeiro', icon: WalletCards, end: true, roles: ['admin', 'financeiro'] },
+      { to: '/app/precos', label: 'Preço dos kits', icon: Calculator, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
     ],
   },
   {
     title: 'Operacional',
     items: [
-      { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower },
-      { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch },
-      { to: '/app/bling', label: 'Integração Bling', icon: PlugZap },
-      { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup },
+      { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower, roles: ['admin', 'engenharia'] },
+      { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch, roles: ['admin', 'engenharia'] },
+      { to: '/app/bling', label: 'Integração Bling', icon: PlugZap, roles: ['admin', 'financeiro'] },
+      { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup, roles: ['admin'] },
     ],
   },
   {
     title: 'Pessoal',
     className: 'erp-nav-section-personal',
     items: [
-      { to: '/app/marcos', label: 'Marcos', icon: UserRound },
+      { to: '/app/marcos', label: 'Marcos', icon: UserRound, roles: ['admin'] },
     ],
   },
 ];
 
+const roleLabels = {
+  admin: 'Administrador',
+  financeiro: 'Financeiro',
+  comercial: 'Comercial',
+  engenharia: 'Engenharia',
+};
+
 function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const pessoal = theme === 'marcos';
   const financeSections = [
@@ -108,7 +115,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
   };
 
   const displayName = pessoal ? 'Marcos Santos' : (user?.name || 'MM Energia Solar');
-  const displayRole = pessoal ? 'Conta pessoal' : (user?.role === 'admin' ? 'Administrador' : 'Usuário');
+  const displayRole = pessoal ? 'Conta pessoal' : (roleLabels[user?.role] || 'Usuário');
   const initials = displayName
     .split(' ')
     .filter(Boolean)
@@ -117,11 +124,20 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
     .join('')
     .toUpperCase();
 
+  const canAccess = (roles) => !roles?.length || hasRole(...roles);
+
   const renderNavItem = ({ to, label, icon: Icon, end }) => (
     <NavLink key={to} to={to} end={end} onClick={() => setMenuAberto(false)}>
       <Icon size={18} /><span>{label}</span>
     </NavLink>
   );
+
+  const visibleSections = menuSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => canAccess(item.roles)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <div className={`finance-shell ${pessoal ? 'theme-marcos' : 'theme-empresa'}`}>
@@ -137,7 +153,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
 
         <nav className="erp-main-nav">
           {renderNavItem(dashboardItem)}
-          {menuSections.map(({ title: sectionTitle, className = '', items }) => (
+          {visibleSections.map(({ title: sectionTitle, className = '', items }) => (
             <div key={sectionTitle} className={`erp-nav-section ${className}`.trim()}>
               <span className="nav-section-label">{sectionTitle}</span>
               {items.map(renderNavItem)}
@@ -145,7 +161,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
           ))}
         </nav>
 
-        {!pessoal && activeSection && (
+        {!pessoal && activeSection && hasRole('admin', 'financeiro') && (
           <nav className="finance-section-nav compact">
             <span className="nav-section-label">Dentro do financeiro</span>
             {financeSections.map(([id, label]) => (
