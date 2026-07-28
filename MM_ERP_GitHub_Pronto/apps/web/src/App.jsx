@@ -29,6 +29,7 @@ import OrdensServicoPage from './pages/OrdensServicoPage.jsx';
 import PreparacaoInstalacaoPage from './pages/PreparacaoInstalacaoPage.jsx';
 import ExecucaoInstalacaoMobilePage from './pages/ExecucaoInstalacaoMobilePage.jsx';
 import FinalizacaoInstalacaoMobilePage from './pages/FinalizacaoInstalacaoMobilePage.jsx';
+import PosVendaPage from './pages/PosVendaPage.jsx';
 import FluxosKanbanPage from './pages/FluxosKanbanPage.jsx';
 import CalculadoraSolarPublicaPage from './pages/CalculadoraSolarPublicaPage.jsx';
 import CalculadoraSolarErpPage from './pages/CalculadoraSolarErpPage.jsx';
@@ -71,6 +72,7 @@ function App() {
           <Route path="/app/ordens-servico/:id/preparacao" element={privateRoute(<PreparacaoInstalacaoPage />, ROLES.ALL)} />
           <Route path="/app/ordens-servico/:id/campo" element={privateRoute(<ExecucaoInstalacaoMobilePage />, ROLES.ALL)} />
           <Route path="/app/ordens-servico/:id/finalizacao" element={privateRoute(<FinalizacaoInstalacaoMobilePage />, ROLES.ALL)} />
+          <Route path="/app/pos-venda" element={privateRoute(<PosVendaPage />, ROLES.ALL)} />
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
