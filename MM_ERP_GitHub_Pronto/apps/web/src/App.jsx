@@ -19,6 +19,7 @@ import TributosPage from './pages/TributosPage.jsx';
 import ClientesPage from './pages/ClientesPage.jsx';
 import BelCredSimuladorPage from './pages/BelCredSimuladorPage.jsx';
 import CotacoesBelenusPage from './pages/CotacoesBelenusSupabasePage.jsx';
+import CardFeesPage from './pages/CardFeesPage.jsx';
 import MigracaoDadosPage from './pages/MigracaoDadosPage.jsx';
 import BlingIntegracaoPage from './pages/BlingIntegracaoPage.jsx';
 import ContratosPage from './pages/ContratosPage.jsx';
@@ -53,6 +54,7 @@ function App() {
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
+          <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
           <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />, ROLES.ADMIN)} />
