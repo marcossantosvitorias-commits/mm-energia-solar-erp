@@ -1,0 +1,93 @@
+name: Aplicar migrations do Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Digite APLICAR para confirmar a execução no banco configurado'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: ${{ inputs.confirm_production == 'APLICAR' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: MM_ERP_GitHub_Pronto
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validar segredos
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || (echo 'Falta o secret SUPABASE_ACCESS_TOKEN' && exit 1)
+          test -n "$SUPABASE_PROJECT_REF" || (echo 'Falta o secret SUPABASE_PROJECT_REF' && exit 1)
+          test -n "$SUPABASE_DB_PASSWORD" || (echo 'Falta o secret SUPABASE_DB_PASSWORD' && exit 1)
+
+      - name: Vincular projeto
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Conferir migrations locais
+        run: |
+          test -f supabase/migrations/20260728080000_service_orders.sql
+          test -f supabase/migrations/20260728090000_service_order_storage.sql
+          test -f supabase/migrations/20260728100000_sale_to_service_order.sql
+          supabase migration list
+
+      - name: Aplicar migrations pendentes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Validar banco após aplicação
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          psql "postgresql://postgres.${{ secrets.SUPABASE_PROJECT_REF }}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require" <<'SQL'
+          do $$
+          begin
+            if to_regclass('public.service_orders') is null then
+              raise exception 'Tabela public.service_orders não encontrada';
+            end if;
+            if to_regclass('public.service_order_items') is null then
+              raise exception 'Tabela public.service_order_items não encontrada';
+            end if;
+            if to_regclass('public.service_order_checklist') is null then
+              raise exception 'Tabela public.service_order_checklist não encontrada';
+            end if;
+            if to_regclass('public.service_order_photos') is null then
+              raise exception 'Tabela public.service_order_photos não encontrada';
+            end if;
+            if to_regclass('public.service_order_signatures') is null then
+              raise exception 'Tabela public.service_order_signatures não encontrada';
+            end if;
+          end $$;
+
+          select id, name, public, file_size_limit
+          from storage.buckets
+          where id = 'service-orders';
+          SQL
