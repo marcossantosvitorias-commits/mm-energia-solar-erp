@@ -26,6 +26,7 @@ import ContratosPage from './pages/ContratosPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
 import MonitoramentoSolarPage from './pages/MonitoramentoSolarPage.jsx';
 import OrdensServicoPage from './pages/OrdensServicoPage.jsx';
+import FluxosKanbanPage from './pages/FluxosKanbanPage.jsx';
 
 const ROLES = {
   ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
@@ -50,6 +51,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
 
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
+          <Route path="/app/fluxos" element={privateRoute(<FluxosKanbanPage />)} />
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.ALL)} />
