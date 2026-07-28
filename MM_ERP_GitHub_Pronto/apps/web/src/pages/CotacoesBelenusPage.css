@@ -248,6 +248,13 @@
   background: #fff;
 }
 
+.finance-panel .dashboard-big-number {
+  margin: 8px 0 0;
+  font-size: clamp(28px, 4.2vw, 44px);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px) {
   .belenus-quotes,
   .belenus-summary {
@@ -266,9 +273,19 @@
     grid-template-columns: 1fr;
   }
 
+  .finance-panel .dashboard-big-number {
+    font-size: 31px;
+    line-height: 1.12;
+  }
+
   .belenus-final-price {
     align-items: stretch;
     flex-direction: column;
+    padding: 21px;
+  }
+
+  .belenus-final-price > div > strong {
+    font-size: 31px;
   }
 
   .belenus-final-actions {
