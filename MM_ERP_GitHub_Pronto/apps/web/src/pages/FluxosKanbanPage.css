@@ -1,0 +1,15 @@
+@media (max-width: 850px) {
+  .kanban-summary-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .kanban-summary-grid .finance-card {
+    min-height: auto;
+    padding: 16px 18px;
+  }
+
+  .kanban-summary-grid .finance-card h2 {
+    margin: 8px 0 0;
+  }
+}
