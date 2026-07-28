@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import StatCard from '../components/finance/StatCard.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import { financeDatabase } from '../services/financeDatabaseService.js';
+import { equipmentService } from '../services/equipmentService.js';
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -10,39 +12,60 @@ const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', {
 }).format(Number(valor || 0));
 
 function ErpDashboardPage() {
+  const { user } = useAuth();
   const [movimentos, setMovimentos] = useState([]);
   const [contasPagar, setContasPagar] = useState([]);
   const [contasReceber, setContasReceber] = useState([]);
+  const [quantidadeEquipamentos, setQuantidadeEquipamentos] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+
+  const podeVerFinanceiro = ['admin', 'financeiro'].includes(user?.role);
+  const podeVerEquipamentos = ['admin', 'engenharia'].includes(user?.role);
 
   useEffect(() => {
     let ativo = true;
 
     async function carregarDashboard() {
       setCarregando(true);
-      try {
-        const [transactions, payables, receivables] = await Promise.all([
-          financeDatabase.listTransactions(),
-          financeDatabase.listPayables(),
-          financeDatabase.listReceivables(),
-        ]);
+      setErro('');
+      const erros = [];
 
-        if (!ativo) return;
-        setMovimentos(transactions);
-        setContasPagar(payables);
-        setContasReceber(receivables);
-        setErro('');
-      } catch (error) {
-        if (ativo) setErro(`Não foi possível carregar o Dashboard: ${error.message}`);
-      } finally {
-        if (ativo) setCarregando(false);
+      if (podeVerFinanceiro) {
+        try {
+          const [transactions, payables, receivables] = await Promise.all([
+            financeDatabase.listTransactions(),
+            financeDatabase.listPayables(),
+            financeDatabase.listReceivables(),
+          ]);
+          if (ativo) {
+            setMovimentos(transactions);
+            setContasPagar(payables);
+            setContasReceber(receivables);
+          }
+        } catch (error) {
+          erros.push(`Financeiro: ${error.message}`);
+        }
+      }
+
+      if (podeVerEquipamentos) {
+        try {
+          const equipamentos = await equipmentService.list();
+          if (ativo) setQuantidadeEquipamentos(equipamentos.length);
+        } catch (error) {
+          erros.push(`Equipamentos: ${error.message}`);
+        }
+      }
+
+      if (ativo) {
+        setErro(erros.length ? `Não foi possível carregar parte do Dashboard. ${erros.join(' | ')}` : '');
+        setCarregando(false);
       }
     }
 
     carregarDashboard();
     return () => { ativo = false; };
-  }, []);
+  }, [podeVerFinanceiro, podeVerEquipamentos]);
 
   const dados = useMemo(() => {
     const entradas = movimentos
@@ -77,17 +100,17 @@ function ErpDashboardPage() {
   }, [movimentos, contasPagar, contasReceber]);
 
   const atalhos = [
-    ['/app', 'Abrir financeiro', 'Lançar entradas, despesas e vencimentos.'],
-    ['/app/precos', 'Calcular preço de kit', 'Formar preço para 4, 6, 8 placas ou outra quantidade.'],
-    ['/app/equipamentos', 'Cadastrar equipamentos', 'Salvar placas, inversores e custos de referência.'],
-    ['/app/tributos', 'Simular tributação', 'Comparar modelo atual com IBS, CBS e split payment.'],
-  ];
+    podeVerFinanceiro && ['/app', 'Abrir financeiro', 'Lançar entradas, despesas e vencimentos.'],
+    ['admin', 'financeiro', 'comercial'].includes(user?.role) && ['/app/precos', 'Calcular preço de kit', 'Formar preço para 4, 6, 8 placas ou outra quantidade.'],
+    podeVerEquipamentos && ['/app/equipamentos', 'Cadastrar equipamentos', 'Salvar placas, inversores e custos de referência.'],
+    podeVerFinanceiro && ['/app/tributos', 'Simular tributação', 'Comparar modelo atual com IBS, CBS e split payment.'],
+  ].filter(Boolean);
 
   return <FinanceLayout title="Dashboard do MM ERP" subtitle="Visão rápida da empresa com dados centralizados no Supabase.">
     {erro && <p className="finance-notice">{erro}</p>}
-    {carregando && <div className="finance-empty">Carregando indicadores do banco...</div>}
+    {carregando && <div className="finance-empty">Carregando indicadores autorizados...</div>}
 
-    {!carregando && dados.vencendoHoje.length > 0 && (
+    {!carregando && podeVerFinanceiro && dados.vencendoHoje.length > 0 && (
       <section className="finance-panel tax-warning">
         <h2>Boletos vencendo hoje</h2>
         <p>
@@ -98,7 +121,7 @@ function ErpDashboardPage() {
       </section>
     )}
 
-    {!carregando && <section className="finance-grid">
+    {!carregando && podeVerFinanceiro && <section className="finance-grid">
       <StatCard label="Saldo atual" value={formatarMoeda(dados.saldo)} helper="Entradas menos saídas" tone="primary" />
       <StatCard label="A receber" value={formatarMoeda(dados.aReceber)} helper="Receitas pendentes" tone="positive" />
       <StatCard label="A pagar" value={formatarMoeda(dados.aPagar)} helper="Despesas pendentes" tone="negative" />
@@ -110,10 +133,14 @@ function ErpDashboardPage() {
     </section>
 
     <section className="finance-two-columns">
-      <article className="finance-panel"><h2>Estrutura da versão 1.0</h2>
-        {['Financeiro empresarial e pessoal', 'Formação de preço dos kits', 'Cadastro de equipamentos', 'Simulador tributário e split payment'].map((item) => <div className="finance-list-item" key={item}><div><strong>{item}</strong><span>Módulo disponível</span></div><span className="finance-badge paga">Ativo</span></div>)}
+      <article className="finance-panel"><h2>Módulos disponíveis para seu perfil</h2>
+        {atalhos.map(([, title]) => <div className="finance-list-item" key={title}><div><strong>{title}</strong><span>Acesso autorizado</span></div><span className="finance-badge paga">Ativo</span></div>)}
       </article>
-      <article className="finance-panel"><h2>Fonte dos indicadores</h2><div className="dashboard-big-number">Supabase</div><p className="dashboard-note">Saldo, contas a pagar, contas a receber e vencimentos agora são calculados diretamente pelos registros centrais do ERP, sem depender dos dados salvos neste navegador.</p><Link className="finance-button inline-button" to="/app">Gerenciar financeiro</Link></article>
+      {podeVerEquipamentos ? (
+        <article className="finance-panel"><h2>Catálogo central</h2><div className="dashboard-big-number">{quantidadeEquipamentos ?? '—'}</div><p className="dashboard-note">equipamentos cadastrados no Supabase, disponíveis no celular e no computador.</p><Link className="finance-button inline-button" to="/app/equipamentos">Gerenciar equipamentos</Link></article>
+      ) : (
+        <article className="finance-panel"><h2>Segurança por perfil</h2><div className="dashboard-big-number">RBAC</div><p className="dashboard-note">O Dashboard consulta somente os módulos permitidos para o seu cargo, sem tentar acessar dados financeiros ou operacionais restritos.</p></article>
+      )}
     </section>
   </FinanceLayout>;
 }
