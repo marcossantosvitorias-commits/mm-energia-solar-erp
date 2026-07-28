@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarClock, GripVertical, LayoutPanelTop, Plus, Search, Trash2, X } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { createWorkflowCard, deleteWorkflowCard, getWorkflowBoard, listWorkflowBoards, moveWorkflowCard } from '../services/workflowService.js';
+import './FluxosKanbanPage.css';
 
 const boardLabels = { sales: 'Vendas', engineering: 'Engenharia', installation: 'Instalações', after_sales: 'Pós-venda' };
 const priorityLabels = { low: 'Baixa', normal: 'Normal', high: 'Alta', urgent: 'Urgente' };
@@ -112,7 +113,7 @@ export default function FluxosKanbanPage() {
         <Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar cliente, cidade ou card" style={{ minWidth: 240 }} />
       </div>
     </section>
-    <section className="finance-grid" style={{ marginBottom: 16 }}>
+    <section className="finance-grid kanban-summary-grid" style={{ marginBottom: 16 }}>
       <article className="finance-card"><span>Cards no quadro</span><h2>{filteredCards.length}</h2></article>
       <article className="finance-card"><span>Valor relacionado</span><h2>{money(totalValue)}</h2></article>
       <article className="finance-card"><span>Urgentes</span><h2>{urgentCount}</h2></article>
