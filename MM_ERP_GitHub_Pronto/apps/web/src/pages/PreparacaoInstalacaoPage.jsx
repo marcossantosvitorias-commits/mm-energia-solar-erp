@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CalendarDays, CheckCircle2, PackageCheck, Save, ShieldCheck, Wrench } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, PackageCheck, Save, ShieldCheck, Smartphone, Wrench } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import {
@@ -112,7 +112,10 @@ export default function PreparacaoInstalacaoPage() {
   if (!order || !form) return <FinanceLayout title="Preparação da instalação" subtitle="Não foi possível abrir a Ordem de Serviço."><section className="finance-card">{message || 'OS não encontrada.'}</section></FinanceLayout>;
 
   return <FinanceLayout title={`Preparação da OS #${order.orderNumber}`} subtitle={`Organize equipe, materiais e condições técnicas para a instalação de ${order.customerName}.`}>
-    <div className="finance-actions" style={{ marginBottom: 16 }}><button className="finance-button secondary" onClick={() => navigate('/app/ordens-servico')}><ArrowLeft size={18} /> Voltar às OS</button></div>
+    <div className="finance-actions" style={{ marginBottom: 16 }}>
+      <button className="finance-button secondary" onClick={() => navigate('/app/ordens-servico')}><ArrowLeft size={18} /> Voltar às OS</button>
+      <button className="finance-button" onClick={() => navigate(`/app/ordens-servico/${id}/campo`)}><Smartphone size={18} /> Abrir modo de campo</button>
+    </div>
     {message && <p className="finance-notice">{message}</p>}
 
     <section className="finance-kpi-grid" style={{ marginBottom: 18 }}>
@@ -165,7 +168,10 @@ export default function PreparacaoInstalacaoPage() {
         <Status ok={Boolean(form.installationAddress)} text="Endereço confirmado" />
         <Status ok={items.length > 0 && progress.reserved === items.length} text="Todos os materiais reservados" />
       </div>
-      <button className="finance-button" disabled={saving || Boolean(order.preparationCompletedAt)} onClick={release}><CheckCircle2 size={19} /> {order.preparationCompletedAt ? 'Instalação já liberada' : 'Liberar instalação'}</button>
+      <div className="finance-actions">
+        <button className="finance-button" disabled={saving || Boolean(order.preparationCompletedAt)} onClick={release}><CheckCircle2 size={19} /> {order.preparationCompletedAt ? 'Instalação já liberada' : 'Liberar instalação'}</button>
+        {order.preparationCompletedAt && <button className="finance-button secondary" onClick={() => navigate(`/app/ordens-servico/${id}/campo`)}><Smartphone size={19} /> Executar no celular</button>}
+      </div>
     </section>
   </FinanceLayout>;
 }
