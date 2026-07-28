@@ -64,21 +64,22 @@ export default function ProposalGenerator({
 
   const carregarDados = async () => {
     if (!isSupabaseConfigured || !supabase) return;
-    const [clientsResult, proposalsResult, ordersResult] = await Promise.all([
-      listClients(),
-      supabase.from('sales_proposals').select('*').order('created_at', { ascending: false }).limit(100),
-      supabase.from('service_orders').select('id, order_number, proposal_id, status'),
-    ]);
-    setClientes(clientsResult);
-    if (proposalsResult.error) {
-      setMensagem(`Não foi possível carregar o histórico: ${proposalsResult.error.message}`);
-      return;
+    try {
+      const [clientsResult, proposalsResult, ordersResult] = await Promise.all([
+        listClients(),
+        supabase.from('sales_proposals').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('service_orders').select('id, order_number, proposal_id, status'),
+      ]);
+      setClientes(clientsResult || []);
+      if (proposalsResult.error) return;
+      const orders = ordersResult.data || [];
+      setHistorico((proposalsResult.data || []).map((proposal) => ({
+        ...proposal,
+        serviceOrder: orders.find((order) => order.proposal_id === proposal.id) || null,
+      })));
+    } catch {
+      // O gerador continua funcionando mesmo quando o histórico ainda não está disponível.
     }
-    const orders = ordersResult.data || [];
-    setHistorico((proposalsResult.data || []).map((proposal) => ({
-      ...proposal,
-      serviceOrder: orders.find((order) => order.proposal_id === proposal.id) || null,
-    })));
   };
 
   useEffect(() => { carregarDados(); }, []);
@@ -119,28 +120,76 @@ export default function ProposalGenerator({
     proposal_data: { ...dados, clienteId, quantidadePlacas, potenciaSistema, paymentOptions },
   });
 
-  const salvarProposta = async (status = 'Gerada') => {
-    if (!dados.cliente.trim() || somenteNumeros(dados.telefone).length < 10) {
-      setMensagem('Informe o cliente e o WhatsApp com DDD.');
-      return null;
+  const validar = () => {
+    if (!dados.cliente.trim()) {
+      setMensagem('Informe o nome do cliente.');
+      return false;
     }
-    setSalvando(true);
-    const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
-    if (!error && clienteId) await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' });
-    setSalvando(false);
-    if (error) { setMensagem(`Erro ao salvar proposta: ${error.message}`); return null; }
-    setMensagem(status === 'Enviada' ? 'Proposta enviada e registrada no CRM.' : 'Proposta salva e registrada no CRM.');
-    await carregarDados();
-    return data;
+    if (somenteNumeros(dados.telefone).length < 10) {
+      setMensagem('Informe o WhatsApp com DDD.');
+      return false;
+    }
+    return true;
   };
 
-  const abrirPdf = () => window.print();
-  const gerarESalvar = async () => { const registro = await salvarProposta('Gerada'); if (registro) abrirPdf(); };
+  const salvarProposta = async (status = 'Gerada') => {
+    if (!validar()) return { saved: false, blocked: true };
+    if (!isSupabaseConfigured || !supabase) {
+      return { saved: false, warning: 'A proposta será gerada, mas não foi registrada porque o Supabase não está disponível.' };
+    }
+
+    setSalvando(true);
+    try {
+      const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
+      if (error) {
+        return { saved: false, warning: `A proposta será gerada, mas não foi registrada no CRM: ${error.message}` };
+      }
+      if (clienteId) {
+        try {
+          await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' });
+        } catch {
+          // A proposta já foi salva; falha no histórico do cliente não bloqueia PDF ou WhatsApp.
+        }
+      }
+      await carregarDados();
+      return { saved: true, data };
+    } catch (error) {
+      return { saved: false, warning: `A proposta será gerada, mas não foi registrada no CRM: ${error?.message || 'erro inesperado'}` };
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const abrirPdf = () => {
+    setMensagem('Abrindo a janela de impressão. Escolha “Salvar como PDF”.');
+    window.setTimeout(() => window.print(), 100);
+  };
+
+  const gerarESalvar = async () => {
+    if (!validar()) return;
+    const resultado = await salvarProposta('Gerada');
+    if (resultado.blocked) return;
+    setMensagem(resultado.saved ? 'Proposta salva. Abrindo PDF...' : resultado.warning);
+    abrirPdf();
+  };
+
   const enviarWhatsApp = async () => {
-    const registro = await salvarProposta('Enviada');
-    if (!registro) return;
+    if (!validar()) return;
     const texto = `Olá, ${dados.cliente.trim()}!\nSegue sua proposta da MM Energia Solar.\nÀ vista: ${moeda.format(valor)}.\nCartão: ${paymentOptions.card.installments}x de ${moeda.format(paymentOptions.card.installmentValue)} sem juros.`;
-    window.open(`https://wa.me/${numeroComPais(dados.telefone)}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
+    const whatsappUrl = `https://wa.me/${numeroComPais(dados.telefone)}?text=${encodeURIComponent(texto)}`;
+    const novaJanela = window.open('about:blank', '_blank');
+    const resultado = await salvarProposta('Enviada');
+    if (resultado.blocked) {
+      novaJanela?.close();
+      return;
+    }
+    setMensagem(resultado.saved ? 'Proposta registrada. Abrindo WhatsApp...' : resultado.warning);
+    if (novaJanela) {
+      novaJanela.opener = null;
+      novaJanela.location.href = whatsappUrl;
+    } else {
+      window.location.href = whatsappUrl;
+    }
   };
 
   const fecharVenda = async (proposal) => {
@@ -160,6 +209,7 @@ export default function ProposalGenerator({
 
   const excluir = async (id) => {
     if (!window.confirm('Excluir esta proposta do histórico?')) return;
+    if (!supabase) return;
     await supabase.from('sales_proposals').delete().eq('id', id);
     carregarDados();
   };
@@ -188,7 +238,7 @@ export default function ProposalGenerator({
     <div style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><Sparkles size={20} /><strong>Proposta pronta</strong></div>
       <div className="finance-actions"><button className="finance-button" type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={20} /> Salvar e gerar PDF</button><button className="finance-button" type="button" disabled={salvando} onClick={enviarWhatsApp}><MessageCircle size={20} /> Enviar pelo WhatsApp</button></div>
-      <div style={{ marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Os dados são salvos no Supabase e no histórico do cliente.</div>
+      <div style={{ marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> O PDF e o WhatsApp funcionam mesmo se o histórico do Supabase estiver temporariamente indisponível.</div>
     </div>
     <div style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}>
       <div className="finance-panel-header"><div><h2>Histórico de propostas</h2><p>Feche a venda e gere a OS diretamente daqui.</p></div><button type="button" onClick={carregarDados}><RefreshCw size={20} /></button></div>
