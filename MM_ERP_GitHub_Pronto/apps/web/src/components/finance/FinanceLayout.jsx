@@ -27,21 +27,43 @@ import './finance.css';
 import './auth-layout.css';
 import '../crm/crm.css';
 
-const mainItems = [
-  { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound },
-  { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
-  { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower },
-  { to: '/app', label: 'Financeiro', icon: WalletCards, end: true },
-  { to: '/app/precos', label: 'Preço dos kits', icon: Calculator },
-  { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign },
-  { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet },
-  { to: '/app/contratos', label: 'Contratos', icon: FileSignature },
-  { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch },
-  { to: '/app/tributos', label: 'Tributação', icon: Scale },
-  { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup },
-  { to: '/app/bling', label: 'Integração Bling', icon: PlugZap },
-  { to: '/app/marcos', label: 'Marcos', icon: UserRound },
+const dashboardItem = { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard };
+
+const menuSections = [
+  {
+    title: 'Comercial',
+    items: [
+      { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound },
+      { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
+      { to: '/app/contratos', label: 'Contratos', icon: FileSignature },
+      { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet },
+    ],
+  },
+  {
+    title: 'Financeiro',
+    items: [
+      { to: '/app', label: 'Financeiro', icon: WalletCards, end: true },
+      { to: '/app/precos', label: 'Preço dos kits', icon: Calculator },
+      { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign },
+      { to: '/app/tributos', label: 'Tributação', icon: Scale },
+    ],
+  },
+  {
+    title: 'Operacional',
+    items: [
+      { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower },
+      { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch },
+      { to: '/app/bling', label: 'Integração Bling', icon: PlugZap },
+      { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup },
+    ],
+  },
+  {
+    title: 'Pessoal',
+    className: 'erp-nav-section-personal',
+    items: [
+      { to: '/app/marcos', label: 'Marcos', icon: UserRound },
+    ],
+  },
 ];
 
 function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
@@ -95,6 +117,12 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
     .join('')
     .toUpperCase();
 
+  const renderNavItem = ({ to, label, icon: Icon, end }) => (
+    <NavLink key={to} to={to} end={end} onClick={() => setMenuAberto(false)}>
+      <Icon size={18} /><span>{label}</span>
+    </NavLink>
+  );
+
   return (
     <div className={`finance-shell ${pessoal ? 'theme-marcos' : 'theme-empresa'}`}>
       <button className="finance-mobile-toggle" onClick={() => setMenuAberto((v) => !v)} aria-label="Abrir menu">
@@ -108,10 +136,12 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
         </div>
 
         <nav className="erp-main-nav">
-          {mainItems.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} onClick={() => setMenuAberto(false)}>
-              <Icon size={18} /><span>{label}</span>
-            </NavLink>
+          {renderNavItem(dashboardItem)}
+          {menuSections.map(({ title: sectionTitle, className = '', items }) => (
+            <div key={sectionTitle} className={`erp-nav-section ${className}`.trim()}>
+              <span className="nav-section-label">{sectionTitle}</span>
+              {items.map(renderNavItem)}
+            </div>
           ))}
         </nav>
 
