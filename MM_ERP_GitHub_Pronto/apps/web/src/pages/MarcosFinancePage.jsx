@@ -23,8 +23,23 @@ const CONTAS_PADRAO = [
   'Terreno 02',
 ];
 
+const PARCELAS_TERRENOS = {
+  '2026-01': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-02': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-03': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-04': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-05': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-06': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-07': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-08': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-09': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-10': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-11': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+};
+
 const mesAtual = () => new Date().toISOString().slice(0, 7);
 const idNovo = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const vencimentoDoMes = (mes) => PARCELAS_TERRENOS[mes] ? `${mes}-20` : '';
 
 function carregar() {
   try {
@@ -34,15 +49,31 @@ function carregar() {
   }
 }
 
-function criarContasDoMes() {
+function criarContasDoMes(mes) {
+  const parcelas = PARCELAS_TERRENOS[mes] || {};
   return CONTAS_PADRAO.map((nome) => ({
     id: idNovo(),
     nome,
-    vencimento: '',
+    vencimento: parcelas[nome] ? vencimentoDoMes(mes) : '',
     dataPagamento: '',
-    valor: '',
+    valor: parcelas[nome] ?? '',
     pago: false,
   }));
+}
+
+function completarParcelasDoMes(contas, mes) {
+  const parcelas = PARCELAS_TERRENOS[mes];
+  if (!parcelas) return contas;
+
+  return contas.map((conta) => {
+    const valorParcela = parcelas[conta.nome];
+    if (!valorParcela) return conta;
+    return {
+      ...conta,
+      vencimento: conta.vencimento || vencimentoDoMes(mes),
+      valor: conta.valor === '' || conta.valor == null ? valorParcela : conta.valor,
+    };
+  });
 }
 
 export default function MarcosFinancePage() {
@@ -50,12 +81,14 @@ export default function MarcosFinancePage() {
   const [dados, setDados] = useState(carregar);
   const [novaConta, setNovaConta] = useState('');
 
-  const contas = dados[mes] || criarContasDoMes();
+  const contas = dados[mes] || criarContasDoMes(mes);
 
   useEffect(() => {
-    if (!dados[mes]) {
-      setDados((atual) => ({ ...atual, [mes]: criarContasDoMes() }));
-    }
+    setDados((atual) => {
+      const existentes = atual[mes] || criarContasDoMes(mes);
+      const completas = completarParcelasDoMes(existentes, mes);
+      return { ...atual, [mes]: completas };
+    });
   }, [mes]);
 
   useEffect(() => {
@@ -65,7 +98,7 @@ export default function MarcosFinancePage() {
   const atualizarConta = (id, campo, valor) => {
     setDados((atual) => ({
       ...atual,
-      [mes]: (atual[mes] || criarContasDoMes()).map((conta) =>
+      [mes]: (atual[mes] || criarContasDoMes(mes)).map((conta) =>
         conta.id === id
           ? {
               ...conta,
@@ -100,7 +133,7 @@ export default function MarcosFinancePage() {
     setDados((atual) => ({
       ...atual,
       [mes]: [
-        ...(atual[mes] || criarContasDoMes()),
+        ...(atual[mes] || criarContasDoMes(mes)),
         { id: idNovo(), nome: novaConta.trim(), vencimento: '', dataPagamento: '', valor: '', pago: false },
       ],
     }));
