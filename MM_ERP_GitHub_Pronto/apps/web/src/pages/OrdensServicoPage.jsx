@@ -158,47 +158,47 @@ export default function OrdensServicoPage() {
 
   return (
     <FinanceLayout title="Ordens de Serviço" subtitle="Acompanhe instalações, materiais, equipe, fotos, assinatura e checklist técnico.">
-      {message && <div className="finance-card" style={{ marginBottom: 16 }}><strong>{message}</strong></div>}
+      {message && <div className="finance-panel" style={{ marginBottom: 16 }}><strong>{message}</strong></div>}
 
       <section className="finance-grid" style={{ marginBottom: 18 }}>
         {[['OS ativas', indicators.ativas], ['Agendadas', indicators.agendadas], ['Em instalação', indicators.instalando], ['Concluídas', indicators.concluidas]].map(([label, value]) => (
-          <article className="finance-card" key={label}><span>{label}</span><h2>{value}</h2></article>
+          <article className="finance-stat-card" key={label}><span>{label}</span><strong>{value}</strong></article>
         ))}
       </section>
 
-      <section className="finance-card" style={{ marginBottom: 18 }}>
-        <h2><Plus size={20} /> Nova Ordem de Serviço</h2>
-        <form onSubmit={submitOrder} className="finance-form-grid">
-          <label>Cliente do CRM<select value={form.clientId} onChange={(e) => handleClient(e.target.value)}><option value="">Selecionar cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
-          <label>Nome do cliente<input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} /></label>
-          <label>Telefone<input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} /></label>
-          <label>Data da instalação<input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} /></label>
-          <label>Endereço<input value={form.installationAddress} onChange={(e) => setForm({ ...form, installationAddress: e.target.value })} /></label>
-          <label>Cidade<input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
-          <label>Equipe<input value={form.assignedTeam} onChange={(e) => setForm({ ...form, assignedTeam: e.target.value })} placeholder="Ex.: Marcos + ajudante" /></label>
-          <label>Observações<input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
-          <button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Criar OS'}</button>
+      <section className="finance-panel" style={{ marginBottom: 18 }}>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}><Plus size={20} /> Nova Ordem de Serviço</h2>
+        <form onSubmit={submitOrder} className="finance-form">
+          <label className="finance-field"><span>Cliente do CRM</span><select value={form.clientId} onChange={(e) => handleClient(e.target.value)}><option value="">Selecionar cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+          <label className="finance-field"><span>Nome do cliente</span><input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} /></label>
+          <label className="finance-field"><span>Telefone</span><input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} /></label>
+          <label className="finance-field"><span>Data da instalação</span><input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} /></label>
+          <label className="finance-field"><span>Endereço</span><input value={form.installationAddress} onChange={(e) => setForm({ ...form, installationAddress: e.target.value })} /></label>
+          <label className="finance-field"><span>Cidade</span><input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
+          <label className="finance-field"><span>Equipe</span><input value={form.assignedTeam} onChange={(e) => setForm({ ...form, assignedTeam: e.target.value })} placeholder="Ex.: Marcos + ajudante" /></label>
+          <label className="finance-field"><span>Observações</span><input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
+          <div className="finance-actions finance-field-wide"><button className="finance-button" type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Criar OS'}</button></div>
         </form>
       </section>
 
-      <section className="finance-card">
+      <section className="finance-panel">
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-          <Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente, cidade, equipe ou número" style={{ flex: 1, minWidth: 220 }} />
-          <select value={status} onChange={(e) => setStatus(e.target.value)}><option value="todos">Todos os status</option>{statuses.map((item) => <option key={item}>{item}</option>)}</select>
+          <Search size={18} /><input className="finance-filter" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente, cidade, equipe ou número" style={{ flex: 1, minWidth: 220 }} />
+          <select className="finance-filter" value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: 'auto', minWidth: 180 }}><option value="todos">Todos os status</option>{statuses.map((item) => <option key={item}>{item}</option>)}</select>
         </div>
         {loading ? <p>Carregando...</p> : (
-          <div className="finance-table-wrap"><table><thead><tr><th>OS</th><th>Cliente</th><th>Agendamento</th><th>Status</th><th>Equipe</th><th></th></tr></thead><tbody>
-            {filtered.map((order) => <tr key={order.id}><td>#{order.orderNumber}</td><td><strong>{order.customerName}</strong><br /><small>{order.city}/{order.state}</small></td><td>{dateTime(order.scheduledAt)}</td><td>{order.status}</td><td>{order.assignedTeam || '-'}</td><td><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" onClick={() => window.location.assign(`/app/ordens-servico/${order.id}/preparacao`)}>Preparar instalação</button><button type="button" onClick={() => openOrder(order)}>Abrir OS</button></div></td></tr>)}
+          <div className="finance-table-wrapper"><table className="finance-table"><thead><tr><th>OS</th><th>Cliente</th><th>Agendamento</th><th>Status</th><th>Equipe</th><th></th></tr></thead><tbody>
+            {filtered.map((order) => <tr key={order.id}><td>#{order.orderNumber}</td><td><strong>{order.customerName}</strong><br /><small>{order.city}/{order.state}</small></td><td>{dateTime(order.scheduledAt)}</td><td>{order.status}</td><td>{order.assignedTeam || '-'}</td><td><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="finance-secondary-button" type="button" onClick={() => window.location.assign(`/app/ordens-servico/${order.id}/preparacao`)}>Preparar instalação</button><button className="finance-button" type="button" onClick={() => openOrder(order)}>Abrir OS</button></div></td></tr>)}
           </tbody></table></div>
         )}
       </section>
 
-      {selected && <section className="finance-card" style={{ marginTop: 18 }}>
+      {selected && <section className="finance-panel" style={{ marginTop: 18 }}>
         <h2><Wrench size={20} /> OS #{selected.orderNumber} — {selected.customerName}</h2>
         <p>{selected.installationAddress || 'Endereço não informado'} · {selected.city}/{selected.state}</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
-          <button type="button" onClick={() => window.location.assign(`/app/ordens-servico/${selected.id}/preparacao`)}>Preparar instalação</button>
-          <select value={selected.status} onChange={(e) => changeStatus(e.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select>
+          <button className="finance-secondary-button" type="button" onClick={() => window.location.assign(`/app/ordens-servico/${selected.id}/preparacao`)}>Preparar instalação</button>
+          <select className="finance-filter" value={selected.status} onChange={(e) => changeStatus(e.target.value)} style={{ width: 'auto' }}>{statuses.map((item) => <option key={item}>{item}</option>)}</select>
           <strong>Custo dos materiais: {money(items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_cost || 0), 0))}</strong>
         </div>
 
@@ -208,15 +208,15 @@ export default function OrdensServicoPage() {
         </div>
 
         <h3><PackagePlus size={18} /> Materiais</h3>
-        <form onSubmit={submitItem} className="finance-form-grid" style={{ marginBottom: 14 }}>
-          <label>Descrição<input required value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} /></label>
-          <label>Categoria<input value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })} /></label>
-          <label>Quantidade<input type="number" min="0.001" step="0.001" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })} /></label>
-          <label>Custo unitário<input type="number" min="0" step="0.01" value={itemForm.unitCost} onChange={(e) => setItemForm({ ...itemForm, unitCost: e.target.value })} /></label>
-          <label><input type="checkbox" checked={itemForm.reserved} onChange={(e) => setItemForm({ ...itemForm, reserved: e.target.checked })} /> Material reservado</label>
-          <button type="submit">Adicionar material</button>
+        <form onSubmit={submitItem} className="finance-form" style={{ marginBottom: 14 }}>
+          <label className="finance-field"><span>Descrição</span><input required value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} /></label>
+          <label className="finance-field"><span>Categoria</span><input value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })} /></label>
+          <label className="finance-field"><span>Quantidade</span><input type="number" min="0.001" step="0.001" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })} /></label>
+          <label className="finance-field"><span>Custo unitário</span><input type="number" min="0" step="0.01" value={itemForm.unitCost} onChange={(e) => setItemForm({ ...itemForm, unitCost: e.target.value })} /></label>
+          <label className="finance-field"><span>Reserva</span><span><input type="checkbox" checked={itemForm.reserved} onChange={(e) => setItemForm({ ...itemForm, reserved: e.target.checked })} /> Material reservado</span></label>
+          <div className="finance-actions"><button className="finance-button" type="submit">Adicionar material</button></div>
         </form>
-        <div className="finance-table-wrap"><table><thead><tr><th>Material</th><th>Categoria</th><th>Qtd.</th><th>Custo</th><th>Reserva</th></tr></thead><tbody>
+        <div className="finance-table-wrapper"><table className="finance-table"><thead><tr><th>Material</th><th>Categoria</th><th>Qtd.</th><th>Custo</th><th>Reserva</th></tr></thead><tbody>
           {items.map((item) => <tr key={item.id}><td>{item.description}</td><td>{item.category || '-'}</td><td>{item.quantity} {item.unit}</td><td>{money(item.unit_cost)}</td><td>{item.reserved ? 'Sim' : 'Não'}</td></tr>)}
         </tbody></table></div>
 
