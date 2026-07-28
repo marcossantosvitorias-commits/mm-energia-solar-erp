@@ -25,10 +25,10 @@ jobs:
 
     steps:
       - name: Baixar código
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
 
@@ -45,12 +45,18 @@ jobs:
         run: cp dist/index.html dist/404.html
 
       - name: Configurar GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+
+      - name: Empacotar artefato da Preview
+        run: tar --dereference --hard-dereference --directory dist -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
 
       - name: Enviar artefato da Preview
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          path: MM_ERP_GitHub_Pronto/apps/web/dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     name: Publicar Preview
@@ -63,6 +69,4 @@ jobs:
     steps:
       - name: Publicar no GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
-
-# Workflow registrado na branch principal e executado somente para a Preview.
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
