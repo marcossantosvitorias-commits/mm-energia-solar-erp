@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ClipboardList, PackagePlus, Plus, Search, Wrench } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import ServiceOrderMediaPanel from '../components/service-orders/ServiceOrderMediaPanel.jsx';
 import { listClients } from '../services/clientService.js';
 import {
   addServiceOrderItem,
@@ -150,8 +151,13 @@ export default function OrdensServicoPage() {
     }
   };
 
+  const handleCompleted = (updated) => {
+    setSelected(updated);
+    setOrders((rows) => rows.map((row) => row.id === updated.id ? updated : row));
+  };
+
   return (
-    <FinanceLayout title="Ordens de Serviço" subtitle="Acompanhe instalações, materiais, equipe e checklist técnico.">
+    <FinanceLayout title="Ordens de Serviço" subtitle="Acompanhe instalações, materiais, equipe, fotos, assinatura e checklist técnico.">
       {message && <div className="finance-card" style={{ marginBottom: 16 }}><strong>{message}</strong></div>}
 
       <section className="finance-grid" style={{ marginBottom: 18 }}>
@@ -212,6 +218,8 @@ export default function OrdensServicoPage() {
         <div className="finance-table-wrap"><table><thead><tr><th>Material</th><th>Categoria</th><th>Qtd.</th><th>Custo</th><th>Reserva</th></tr></thead><tbody>
           {items.map((item) => <tr key={item.id}><td>{item.description}</td><td>{item.category || '-'}</td><td>{item.quantity} {item.unit}</td><td>{money(item.unit_cost)}</td><td>{item.reserved ? 'Sim' : 'Não'}</td></tr>)}
         </tbody></table></div>
+
+        <ServiceOrderMediaPanel order={selected} onCompleted={handleCompleted} onMessage={setMessage} />
       </section>}
     </FinanceLayout>
   );
