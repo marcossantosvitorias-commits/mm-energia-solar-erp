@@ -65,7 +65,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const belcred = useMemo(() => BELCRED.map((opcao) => ({ ...opcao, valor: valor * opcao.fator })), [valor]);
   const belcredSelecionado = belcred.find((item) => item.parcelas === Number(planoBelcred)) || belcred.at(-1);
   const totalCartao = Number(precoCartao || valor * (1 + Number(taxaCartao || 0) / 100));
-  const opcoesCartao = useMemo(() => Array.from({ length: 12 }, (_, index) => ({ parcelas: index + 1, valorParcela: totalCartao / (index + 1) })), [totalCartao]);
+  const opcoesCartao = useMemo(() => Array.from({ length: 10 }, (_, index) => ({ parcelas: index + 12, valorParcela: totalCartao / (index + 12) })), [totalCartao]);
 
   const carregarDados = async () => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -88,7 +88,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   };
 
   const criarArquivoPdf = (origem = dados) => {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' }); const qtd = Number(origem.quantidadePlacas || quantidadePlacas || 0); const potenciaPainel = Number(origem.potenciaPlaca || dados.potenciaPlaca || 0); const potencia = (qtd * potenciaPainel) / 1000; const geracao = Number(origem.geracaoMensal || gerarPorPainel(potenciaPainel) * qtd); const validade = Number(origem.validade || 7); const valorPdf = Number(origem.valorProposta || valor || 0); const belcredPdf = BELCRED.map((opcao) => ({ ...opcao, valor: valorPdf * opcao.fator })); const cartaoPdf = Array.from({ length: 12 }, (_, i) => ({ parcelas: i + 1, valor: totalCartao / (i + 1) }));
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' }); const qtd = Number(origem.quantidadePlacas || quantidadePlacas || 0); const potenciaPainel = Number(origem.potenciaPlaca || dados.potenciaPlaca || 0); const potencia = (qtd * potenciaPainel) / 1000; const geracao = Number(origem.geracaoMensal || gerarPorPainel(potenciaPainel) * qtd); const validade = Number(origem.validade || 7); const valorPdf = Number(origem.valorProposta || valor || 0); const belcredPdf = BELCRED.map((opcao) => ({ ...opcao, valor: valorPdf * opcao.fator })); const cartaoPdf = Array.from({ length: 10 }, (_, i) => ({ parcelas: i + 12, valor: totalCartao / (i + 12) }));
     cabecalho(doc, 'Energia solar pensada para', 'economizar todos os meses.', 'Solução completa com equipamentos de qualidade, instalação especializada, homologação e suporte pós-venda.', 'PROPOSTA COMERCIAL');
     let y = 79; [['CLIENTE', origem.cliente || '-'], ['LOCAL', origem.cidade || '-'], ['CONTATO', origem.telefone || '-']].forEach(([rotulo, conteudo]) => { arredondar(doc, 12, y, 186, 14, [20, 66, 112], [61, 101, 143]); doc.setTextColor(195, 213, 232); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.text(rotulo, 16, y + 5); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text(String(conteudo), 16, y + 11); y += 17; });
     doc.setTextColor(16, 47, 82); doc.setFontSize(12); doc.text('Resumo do sistema', 12, 136);
