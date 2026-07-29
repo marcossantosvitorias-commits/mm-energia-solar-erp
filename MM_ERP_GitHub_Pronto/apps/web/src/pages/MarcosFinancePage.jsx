@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { Check, Plus, Trash2 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
-import StatCard from '../components/finance/StatCard.jsx';
 
 const CHAVE = 'mm-erp-pessoa-fisica-contas-v1';
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -157,96 +156,253 @@ export default function MarcosFinancePage() {
   return (
     <FinanceLayout
       title="Pessoa Física"
-      subtitle="Contas pessoais organizadas por mês, vencimento e pagamento."
+      subtitle="Contas pessoais do mês."
       theme="marcos"
     >
-      <section className="finance-panel" style={{ marginBottom: 16 }}>
-        <label className="finance-field" style={{ maxWidth: 320 }}>
-          <span>Mês das contas</span>
+      <section className="pf-topo">
+        <label className="pf-mes">
+          <span>Mês</span>
           <input type="month" value={mes} onChange={(event) => setMes(event.target.value)} />
         </label>
+
+        <div className="pf-resumo">
+          <div><span>Total</span><strong>{moeda.format(totais.total)}</strong></div>
+          <div><span>Pago</span><strong>{moeda.format(totais.pago)}</strong></div>
+          <div className="pf-restante"><span>Falta</span><strong>{moeda.format(totais.restante)}</strong></div>
+        </div>
       </section>
 
-      <section className="finance-grid" style={{ marginBottom: 18 }}>
-        <StatCard label="Total para pagar no mês" value={moeda.format(totais.total)} helper="Soma de todas as contas" tone="primary" />
-        <StatCard label="Já pago" value={moeda.format(totais.pago)} helper="Contas marcadas como pagas" tone="positive" />
-        <StatCard label="Ainda falta pagar" value={moeda.format(totais.restante)} helper="Valor necessário para quitar o mês" tone="negative" />
-      </section>
-
-      <section className="finance-panel">
-        <div className="finance-panel-header">
-          <div>
-            <h2>Contas do mês</h2>
-            <p>Preencha o vencimento, o valor e marque quando pagar.</p>
-          </div>
+      <section className="pf-painel">
+        <div className="pf-cabecalho">
+          <span>Conta</span>
+          <span>Venc.</span>
+          <span>Valor</span>
+          <span>Pago</span>
         </div>
 
-        <div style={{ display: 'grid', gap: 12 }}>
+        <div className="pf-lista">
           {contas.map((conta) => (
-            <article
-              key={conta.id}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(150px, 1.4fr) repeat(3, minmax(125px, 1fr)) auto auto',
-                gap: 10,
-                alignItems: 'end',
-                padding: 14,
-                border: `1px solid ${conta.pago ? '#a7e5c3' : '#dde4ec'}`,
-                borderRadius: 14,
-                background: conta.pago ? '#f0fff6' : '#fff',
-              }}
-              className="personal-bill-row"
-            >
-              <label className="finance-field">
-                <span>Conta</span>
-                <input value={conta.nome} onChange={(event) => atualizarConta(conta.id, 'nome', event.target.value)} />
-              </label>
-              <label className="finance-field">
-                <span>Vencimento</span>
-                <input type="date" value={conta.vencimento} onChange={(event) => atualizarConta(conta.id, 'vencimento', event.target.value)} />
-              </label>
-              <label className="finance-field">
-                <span>Valor</span>
-                <input type="number" min="0" step="0.01" placeholder="0,00" value={conta.valor} onChange={(event) => atualizarConta(conta.id, 'valor', event.target.value)} />
-              </label>
-              <label className="finance-field">
-                <span>Data do pagamento</span>
-                <input type="date" value={conta.dataPagamento} onChange={(event) => atualizarConta(conta.id, 'dataPagamento', event.target.value)} />
-              </label>
+            <article key={conta.id} className={`pf-linha ${conta.pago ? 'paga' : ''}`}>
+              <input
+                className="pf-nome"
+                aria-label="Nome da conta"
+                value={conta.nome}
+                onChange={(event) => atualizarConta(conta.id, 'nome', event.target.value)}
+              />
+              <input
+                className="pf-data"
+                aria-label={`Vencimento de ${conta.nome}`}
+                type="date"
+                value={conta.vencimento}
+                onChange={(event) => atualizarConta(conta.id, 'vencimento', event.target.value)}
+              />
+              <input
+                className="pf-valor"
+                aria-label={`Valor de ${conta.nome}`}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                value={conta.valor}
+                onChange={(event) => atualizarConta(conta.id, 'valor', event.target.value)}
+              />
               <button
                 type="button"
+                className={`pf-check ${conta.pago ? 'ativo' : ''}`}
                 onClick={() => alternarPago(conta.id)}
-                style={{ minHeight: 46, padding: '0 14px', border: 0, borderRadius: 10, background: conta.pago ? '#15834f' : '#e8eef5', color: conta.pago ? '#fff' : '#172033', fontWeight: 800 }}
+                aria-label={conta.pago ? `Desmarcar ${conta.nome}` : `Marcar ${conta.nome} como paga`}
               >
-                <CheckCircle2 size={18} /> {conta.pago ? 'Pago' : 'Marcar pago'}
+                <Check size={17} />
               </button>
-              <button type="button" className="finance-delete" onClick={() => excluirConta(conta.id)} aria-label={`Excluir ${conta.nome}`}>
-                <Trash2 size={18} />
-              </button>
+
+              {conta.pago && (
+                <div className="pf-pagamento">
+                  <span>Pago em</span>
+                  <input
+                    type="date"
+                    value={conta.dataPagamento}
+                    onChange={(event) => atualizarConta(conta.id, 'dataPagamento', event.target.value)}
+                  />
+                  <button type="button" onClick={() => excluirConta(conta.id)} aria-label={`Excluir ${conta.nome}`}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
             </article>
           ))}
         </div>
 
-        <form onSubmit={adicionarConta} style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+        <form className="pf-adicionar" onSubmit={adicionarConta}>
           <input
             value={novaConta}
             onChange={(event) => setNovaConta(event.target.value)}
-            placeholder="Nome de outra conta"
-            style={{ flex: '1 1 240px', minHeight: 46 }}
+            placeholder="Adicionar outra conta"
           />
-          <button className="finance-button" type="submit"><Plus size={18} /> Adicionar conta</button>
+          <button type="submit"><Plus size={17} /> Adicionar</button>
         </form>
       </section>
 
       <style>{`
-        @media (max-width: 900px) {
-          .personal-bill-row {
-            grid-template-columns: 1fr !important;
+        .pf-topo {
+          display: grid;
+          grid-template-columns: 210px 1fr;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .pf-mes, .pf-resumo, .pf-painel {
+          background: #fff;
+          border: 1px solid #dce3eb;
+          border-radius: 14px;
+        }
+        .pf-mes {
+          padding: 10px 12px;
+        }
+        .pf-mes span {
+          display: block;
+          margin-bottom: 5px;
+          color: #657184;
+          font-size: 12px;
+          font-weight: 800;
+        }
+        .pf-mes input {
+          width: 100%;
+          min-height: 38px;
+          border: 1px solid #d7dee8;
+          border-radius: 9px;
+          padding: 0 9px;
+          font-size: 15px;
+        }
+        .pf-resumo {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          overflow: hidden;
+        }
+        .pf-resumo div {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          min-width: 0;
+          padding: 9px 12px;
+          border-left: 1px solid #e4e9ef;
+        }
+        .pf-resumo div:first-child { border-left: 0; }
+        .pf-resumo span { color: #707b8b; font-size: 11px; font-weight: 800; }
+        .pf-resumo strong { color: #08264d; font-size: clamp(17px, 2.2vw, 24px); line-height: 1.15; }
+        .pf-resumo .pf-restante { background: #fff9df; }
+        .pf-painel { padding: 8px; }
+        .pf-cabecalho, .pf-linha {
+          display: grid;
+          grid-template-columns: minmax(130px, 1.5fr) 145px 115px 44px;
+          gap: 7px;
+          align-items: center;
+        }
+        .pf-cabecalho {
+          padding: 4px 7px 7px;
+          color: #6e7888;
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+        .pf-lista { display: grid; gap: 5px; }
+        .pf-linha {
+          padding: 5px;
+          border: 1px solid #e1e6ed;
+          border-radius: 10px;
+          background: #fff;
+        }
+        .pf-linha.paga { border-color: #a9dfbf; background: #f3fff7; }
+        .pf-linha input {
+          width: 100%;
+          min-width: 0;
+          height: 36px;
+          border: 1px solid #dbe2ea;
+          border-radius: 8px;
+          padding: 0 8px;
+          background: #fff;
+          font-size: 14px;
+        }
+        .pf-nome { font-weight: 800; }
+        .pf-check {
+          display: grid;
+          place-items: center;
+          width: 36px;
+          height: 36px;
+          border: 0;
+          border-radius: 9px;
+          background: #e7edf4;
+          color: #536174;
+        }
+        .pf-check.ativo { background: #16834f; color: #fff; }
+        .pf-pagamento {
+          grid-column: 1 / -1;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 7px;
+          padding-top: 3px;
+          color: #557063;
+          font-size: 12px;
+          font-weight: 800;
+        }
+        .pf-pagamento input { width: 150px; height: 32px; }
+        .pf-pagamento button {
+          display: grid;
+          place-items: center;
+          width: 32px;
+          height: 32px;
+          border: 0;
+          border-radius: 8px;
+          background: #ffe8e8;
+          color: #a52d2d;
+        }
+        .pf-adicionar { display: flex; gap: 7px; margin-top: 8px; }
+        .pf-adicionar input {
+          flex: 1;
+          min-width: 0;
+          height: 38px;
+          border: 1px solid #dbe2ea;
+          border-radius: 9px;
+          padding: 0 10px;
+        }
+        .pf-adicionar button {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          min-height: 38px;
+          padding: 0 13px;
+          border: 0;
+          border-radius: 9px;
+          background: #08264d;
+          color: #fff;
+          font-weight: 900;
+        }
+        @media (max-width: 700px) {
+          .pf-topo { grid-template-columns: 1fr; gap: 7px; margin-bottom: 7px; }
+          .pf-mes { padding: 7px 9px; }
+          .pf-mes span { display: none; }
+          .pf-mes input { min-height: 34px; }
+          .pf-resumo div { padding: 7px 8px; }
+          .pf-resumo strong { font-size: 15px; }
+          .pf-painel { padding: 5px; border-radius: 10px; }
+          .pf-cabecalho { display: none; }
+          .pf-lista { gap: 4px; }
+          .pf-linha {
+            grid-template-columns: minmax(102px, 1.4fr) 92px 82px 34px;
+            gap: 4px;
+            padding: 4px;
+            border-radius: 8px;
           }
-          .personal-bill-row button {
-            width: 100%;
-            justify-content: center;
-          }
+          .pf-linha input { height: 32px; padding: 0 5px; font-size: 12px; }
+          .pf-data { font-size: 10px !important; }
+          .pf-check { width: 32px; height: 32px; border-radius: 7px; }
+          .pf-pagamento { padding: 1px 2px 0; }
+          .pf-pagamento input { width: 128px; height: 30px; }
+          .pf-adicionar { margin-top: 6px; }
+          .pf-adicionar input, .pf-adicionar button { height: 34px; min-height: 34px; font-size: 12px; }
+        }
+        @media (max-width: 390px) {
+          .pf-linha { grid-template-columns: minmax(88px, 1.4fr) 84px 72px 32px; }
+          .pf-resumo strong { font-size: 13px; }
         }
       `}</style>
     </FinanceLayout>
