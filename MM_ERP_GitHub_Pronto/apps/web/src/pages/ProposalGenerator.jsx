@@ -188,16 +188,18 @@ export default function ProposalGenerator({
     if (!validarWhatsApp()) return;
     const opcoesTexto = opcoesCartao.map((item) => `${item.parcelas}x de ${moeda.format(item.valorParcela)}`).join('\n');
     const texto = `Olá, ${dados.cliente.trim()}!\nSegue sua proposta da MM Energia Solar.\n\nValor total: ${moeda.format(valor)}\n\nCartão de crédito:\n${opcoesTexto}\n\nBelCred: ${paymentOptions.belcred.installments}x de ${moeda.format(paymentOptions.belcred.installmentValue)}.`;
-    const whatsappUrl = `https://wa.me/${numeroComPais(dados.telefone)}?text=${encodeURIComponent(texto)}`;
-    const novaJanela = window.open('about:blank', '_blank');
+    const numero = numeroComPais(dados.telefone);
     const resultado = await salvarProposta('Enviada');
-    setMensagem(resultado.saved ? 'Proposta registrada. Abrindo WhatsApp...' : resultado.warning);
-    if (novaJanela) {
-      novaJanela.opener = null;
-      novaJanela.location.href = whatsappUrl;
-    } else {
-      window.location.href = whatsappUrl;
+    setMensagem(resultado.saved ? 'Proposta registrada. Abrindo WhatsApp Business...' : resultado.warning);
+
+    const params = `phone=${encodeURIComponent(numero)}&text=${encodeURIComponent(texto)}`;
+    const ehAndroid = /Android/i.test(navigator.userAgent);
+    if (ehAndroid) {
+      window.location.href = `intent://send?${params}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end`;
+      return;
     }
+
+    window.location.href = `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
   };
 
   const fecharVenda = async (proposal) => {
@@ -261,7 +263,7 @@ export default function ProposalGenerator({
     {mensagem && <p className="finance-notice proposal-no-print" style={{ fontWeight: 800 }}>{mensagem}</p>}
     <div className="proposal-no-print" style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><Sparkles size={20} /><strong>Proposta pronta</strong></div>
-      <div className="finance-actions"><button className="finance-button" type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={20} /> Salvar e gerar PDF</button><button className="finance-button" type="button" disabled={salvando} onClick={enviarWhatsApp}><MessageCircle size={20} /> Enviar pelo WhatsApp</button></div>
+      <div className="finance-actions"><button className="finance-button" type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={20} /> Salvar e gerar PDF</button><button className="finance-button" type="button" disabled={salvando} onClick={enviarWhatsApp}><MessageCircle size={20} /> Enviar pelo WhatsApp Business</button></div>
       <div style={{ marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> O PDF mostra somente a proposta comercial, sem custos individuais dos equipamentos.</div>
     </div>
 
