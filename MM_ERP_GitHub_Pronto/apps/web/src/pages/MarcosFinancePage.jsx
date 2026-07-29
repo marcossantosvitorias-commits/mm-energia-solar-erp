@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const CHAVE = 'mm-erp-pessoa-fisica-contas-v1';
 const CHAVE_FINANCAS = 'mm-erp-pessoa-fisica-financas-v1';
+const ESCOPO = 'personal-marcos';
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const CONTAS_PADRAO = [
@@ -97,11 +99,17 @@ function completarFinancasDoMes(atual, mes) {
   };
 }
 
+function proximoMes(mes) {
+  const [ano, numero] = mes.split('-').map(Number);
+  return new Date(Date.UTC(ano, numero, 1)).toISOString().slice(0, 10);
+}
+
 export default function MarcosFinancePage() {
   const [mes, setMes] = useState(mesAtual());
   const [dados, setDados] = useState(() => carregar(CHAVE));
   const [financas, setFinancas] = useState(() => carregar(CHAVE_FINANCAS));
   const [novaConta, setNovaConta] = useState('');
+  const [aviso, setAviso] = useState('');
 
   const contas = dados[mes] || criarContasDoMes(mes);
   const resumoFinanceiro = financas[mes] || criarFinancasDoMes(mes);
@@ -109,6 +117,64 @@ export default function MarcosFinancePage() {
   useEffect(() => {
     setDados((atual) => ({ ...atual, [mes]: completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes) }));
     setFinancas((atual) => ({ ...atual, [mes]: completarFinancasDoMes(atual[mes], mes) }));
+  }, [mes]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarSupabase() {
+      if (!isSupabaseConfigured || !supabase) return;
+      setAviso('Atualizando dados do banco...');
+      const inicio = `${mes}-01`;
+      const fim = proximoMes(mes);
+      const { data, error } = await supabase
+        .from('financial_transactions')
+        .select('id, external_id, description, category, amount, transaction_date, payment_method, origin')
+        .eq('scope', ESCOPO)
+        .gte('transaction_date', inicio)
+        .lt('transaction_date', fim)
+        .order('transaction_date', { ascending: true });
+
+      if (!ativo) return;
+      if (error) {
+        setAviso(`Não foi possível ler o Supabase: ${error.message}`);
+        return;
+      }
+      if (!data?.length) {
+        setAviso('Nenhum lançamento encontrado no banco para este mês.');
+        return;
+      }
+
+      const importadas = data.map((item) => ({
+        id: item.id || item.external_id || idNovo(),
+        nome: item.description || item.category || 'Despesa',
+        vencimento: String(item.transaction_date || '').slice(0, 10),
+        dataPagamento: String(item.transaction_date || '').slice(0, 10),
+        valor: Number(item.amount || 0),
+        pago: true,
+        importada: true,
+      }));
+      const totalCompras = importadas.reduce((soma, item) => soma + Number(item.valor || 0), 0);
+
+      setDados((atual) => ({ ...atual, [mes]: importadas }));
+      setFinancas((atual) => {
+        const existente = completarFinancasDoMes(atual[mes], mes);
+        const recebimentos = Number(existente.recebimentos || 0);
+        const saldoInicial = Number(existente.saldoInicial || 0);
+        return {
+          ...atual,
+          [mes]: {
+            ...existente,
+            compras: Number(totalCompras.toFixed(2)),
+            saldoFinal: Number((saldoInicial + recebimentos - totalCompras).toFixed(2)),
+          },
+        };
+      });
+      setAviso(`${importadas.length} lançamentos carregados do Supabase — ${moeda.format(totalCompras)} pagos.`);
+    }
+
+    carregarSupabase();
+    return () => { ativo = false; };
   }, [mes]);
 
   useEffect(() => { localStorage.setItem(CHAVE, JSON.stringify(dados)); }, [dados]);
@@ -159,12 +225,7 @@ export default function MarcosFinancePage() {
 
   return (
     <FinanceLayout title="Pessoa Física" subtitle="Contas pessoais organizadas por mês." theme="marcos">
-      {mes !== '2026-06' && (
-        <button type="button" className="pf-importado" onClick={() => setMes('2026-06')}>
-          Ver junho/2026 importado do Nubank
-        </button>
-      )}
-
+      {aviso ? <div className="pf-aviso">{aviso}</div> : null}
       <section className="pf-topo">
         <label className="pf-mes"><span>Mês</span><input type="month" value={mes} onChange={(event) => setMes(event.target.value)} /></label>
         <div className="pf-resumo">
@@ -203,7 +264,7 @@ export default function MarcosFinancePage() {
       </section>
 
       <style>{`
-        .pf-importado{width:100%;margin:0 0 8px;padding:9px 12px;border:0;border-radius:10px;background:#fff2b8;color:#6f5700;font-weight:900}.pf-topo{display:grid;grid-template-columns:210px 1fr;gap:12px;margin-bottom:12px}.pf-mes,.pf-resumo,.pf-painel,.pf-financas{background:#fff;border:1px solid #dce3eb;border-radius:14px}.pf-mes{padding:10px 12px}.pf-mes span{display:block;margin-bottom:5px;color:#657184;font-size:12px;font-weight:800}.pf-mes input{width:100%;min-height:38px;border:1px solid #d7dee8;border-radius:9px;padding:0 9px;font-size:15px}.pf-resumo{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden}.pf-resumo div{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:9px 12px;border-left:1px solid #e4e9ef}.pf-resumo div:first-child{border-left:0}.pf-resumo span{color:#707b8b;font-size:11px;font-weight:800}.pf-resumo strong{color:#08264d;font-size:clamp(17px,2.2vw,24px);line-height:1.15}.pf-resumo .pf-restante{background:#fff9df}.pf-painel{padding:8px}.pf-cabecalho,.pf-linha{display:grid;grid-template-columns:minmax(130px,1.5fr) 145px 115px 44px;gap:7px;align-items:center}.pf-cabecalho{padding:4px 7px 7px;color:#6e7888;font-size:11px;font-weight:900;text-transform:uppercase}.pf-lista{display:grid;gap:5px}.pf-linha{padding:5px;border:1px solid #e1e6ed;border-radius:10px;background:#fff}.pf-linha.paga{border-color:#a9dfbf;background:#f3fff7}.pf-linha input{width:100%;min-width:0;height:36px;border:1px solid #dbe2ea;border-radius:8px;padding:0 8px;background:#fff;font-size:14px}.pf-nome{font-weight:800}.pf-check{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:#e7edf4;color:#536174}.pf-check.ativo{background:#16834f;color:#fff}.pf-pagamento{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:7px;padding-top:3px;color:#557063;font-size:12px;font-weight:800}.pf-pagamento input{width:150px;height:32px}.pf-pagamento button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:8px;background:#ffe8e8;color:#a52d2d}.pf-adicionar{display:flex;gap:7px;margin-top:8px}.pf-adicionar input{flex:1;min-width:0;height:38px;border:1px solid #dbe2ea;border-radius:9px;padding:0 10px}.pf-adicionar button{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border:0;border-radius:9px;background:#08264d;color:#fff;font-weight:900}.pf-financas{margin-top:12px;padding:12px}.pf-financas-titulo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.pf-financas-titulo div{display:flex;flex-direction:column}.pf-financas-titulo span{color:#718096;font-size:12px}.pf-financas-titulo>strong{font-size:20px}.pf-financas-titulo .positivo{color:#16834f}.pf-financas-titulo .negativo{color:#b03232}.pf-financas-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.pf-financas-grid label{display:flex;flex-direction:column;gap:5px}.pf-financas-grid span{color:#657184;font-size:11px;font-weight:800}.pf-financas-grid input{width:100%;height:38px;border:1px solid #dbe2ea;border-radius:8px;padding:0 8px;font-size:14px;font-weight:800;color:#08264d}
+        .pf-aviso{margin:0 0 8px;padding:9px 12px;border-radius:10px;background:#e8f3ff;color:#0b477d;font-weight:800}.pf-topo{display:grid;grid-template-columns:210px 1fr;gap:12px;margin-bottom:12px}.pf-mes,.pf-resumo,.pf-painel,.pf-financas{background:#fff;border:1px solid #dce3eb;border-radius:14px}.pf-mes{padding:10px 12px}.pf-mes span{display:block;margin-bottom:5px;color:#657184;font-size:12px;font-weight:800}.pf-mes input{width:100%;min-height:38px;border:1px solid #d7dee8;border-radius:9px;padding:0 9px;font-size:15px}.pf-resumo{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden}.pf-resumo div{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:9px 12px;border-left:1px solid #e4e9ef}.pf-resumo div:first-child{border-left:0}.pf-resumo span{color:#707b8b;font-size:11px;font-weight:800}.pf-resumo strong{color:#08264d;font-size:clamp(17px,2.2vw,24px);line-height:1.15}.pf-resumo .pf-restante{background:#fff9df}.pf-painel{padding:8px}.pf-cabecalho,.pf-linha{display:grid;grid-template-columns:minmax(130px,1.5fr) 145px 115px 44px;gap:7px;align-items:center}.pf-cabecalho{padding:4px 7px 7px;color:#6e7888;font-size:11px;font-weight:900;text-transform:uppercase}.pf-lista{display:grid;gap:5px}.pf-linha{padding:5px;border:1px solid #e1e6ed;border-radius:10px;background:#fff}.pf-linha.paga{border-color:#a9dfbf;background:#f3fff7}.pf-linha input{width:100%;min-width:0;height:36px;border:1px solid #dbe2ea;border-radius:8px;padding:0 8px;background:#fff;font-size:14px}.pf-nome{font-weight:800}.pf-check{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:#e7edf4;color:#536174}.pf-check.ativo{background:#16834f;color:#fff}.pf-pagamento{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:7px;padding-top:3px;color:#557063;font-size:12px;font-weight:800}.pf-pagamento input{width:150px;height:32px}.pf-pagamento button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:8px;background:#ffe8e8;color:#a52d2d}.pf-adicionar{display:flex;gap:7px;margin-top:8px}.pf-adicionar input{flex:1;min-width:0;height:38px;border:1px solid #dbe2ea;border-radius:9px;padding:0 10px}.pf-adicionar button{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border:0;border-radius:9px;background:#08264d;color:#fff;font-weight:900}.pf-financas{margin-top:12px;padding:12px}.pf-financas-titulo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.pf-financas-titulo div{display:flex;flex-direction:column}.pf-financas-titulo span{color:#718096;font-size:12px}.pf-financas-titulo>strong{font-size:20px}.pf-financas-titulo .positivo{color:#16834f}.pf-financas-titulo .negativo{color:#b03232}.pf-financas-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.pf-financas-grid label{display:flex;flex-direction:column;gap:5px}.pf-financas-grid span{color:#657184;font-size:11px;font-weight:800}.pf-financas-grid input{width:100%;height:38px;border:1px solid #dbe2ea;border-radius:8px;padding:0 8px;font-size:14px;font-weight:800;color:#08264d}
         @media(max-width:700px){.pf-topo{grid-template-columns:1fr;gap:7px;margin-bottom:7px}.pf-mes{padding:7px 9px}.pf-mes span{display:none}.pf-mes input{min-height:34px}.pf-resumo div{padding:7px 8px}.pf-resumo strong{font-size:15px}.pf-painel{padding:5px;border-radius:10px}.pf-cabecalho{display:none}.pf-lista{gap:4px}.pf-linha{grid-template-columns:minmax(102px,1.4fr) 92px 82px 34px;gap:4px;padding:4px;border-radius:8px}.pf-linha input{height:32px;padding:0 5px;font-size:12px}.pf-data{font-size:10px!important}.pf-check{width:32px;height:32px;border-radius:7px}.pf-pagamento{padding:1px 2px 0}.pf-pagamento input{width:128px;height:30px}.pf-adicionar{margin-top:6px}.pf-adicionar input,.pf-adicionar button{height:34px;min-height:34px;font-size:12px}.pf-financas{padding:9px;margin-top:8px}.pf-financas-titulo{margin-bottom:7px}.pf-financas-titulo>strong{font-size:16px}.pf-financas-grid{grid-template-columns:repeat(2,1fr);gap:6px}.pf-financas-grid input{height:34px;font-size:13px}}
         @media(max-width:390px){.pf-linha{grid-template-columns:minmax(88px,1.4fr) 84px 72px 32px}.pf-resumo strong{font-size:13px}}
       `}</style>
