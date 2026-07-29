@@ -37,7 +37,7 @@ const menuSections = [
       { to: '/app/kits-hibridos', label: 'Kits híbridos + bateria', icon: BatteryCharging, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
-      { to: '/app/marcos', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },
+      { to: '/app/marcos-finance', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },
     ],
   },
   {
