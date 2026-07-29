@@ -1,9 +1,13 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 function ensureDatabase() {
-  if (!isSupabaseConfigured) {
-    throw new Error('O banco central ainda não está configurado. Informe as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY na Hostinger.');
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('O banco central ainda não está configurado. Informe VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no ambiente de publicação.');
   }
+}
+
+function scopeOf(item) {
+  return item.scope || item.escopo || 'company';
 }
 
 function transactionPayload(item) {
@@ -17,6 +21,7 @@ function transactionPayload(item) {
     payment_method: item.paymentMethod || item.formaPagamento || null,
     origin: item.source || item.origem || 'Cadastro manual',
     notes: item.notes || item.observacoes || null,
+    scope: scopeOf(item),
   };
 }
 
@@ -32,6 +37,7 @@ function payablePayload(item) {
     status: item.status || 'pendente',
     origin: item.source || item.origem || 'Cadastro manual',
     notes: item.notes || item.observacoes || null,
+    scope: scopeOf(item),
   };
 }
 
@@ -48,12 +54,15 @@ function receivablePayload(item) {
     payment_method: item.paymentMethod || item.formaPagamento || null,
     origin: item.source || item.origem || 'Cadastro manual',
     notes: item.notes || item.observacoes || null,
+    scope: scopeOf(item),
   };
 }
 
-async function listAll(table, orderColumn, ascending = false) {
+async function listAll(table, orderColumn, ascending = false, scope = 'company') {
   ensureDatabase();
-  const { data, error } = await supabase.from(table).select('*').order(orderColumn, { ascending });
+  let query = supabase.from(table).select('*').order(orderColumn, { ascending });
+  if (scope) query = query.eq('scope', scope);
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
@@ -102,17 +111,17 @@ async function remove(table, id) {
 }
 
 export const financeDatabase = {
-  listTransactions: () => listAll('financial_transactions', 'transaction_date'),
+  listTransactions: (scope = 'company') => listAll('financial_transactions', 'transaction_date', false, scope),
   saveTransaction: (item) => upsertByExternalId('financial_transactions', item, transactionPayload),
   importTransactions: (items) => importMany('financial_transactions', items, transactionPayload),
   deleteTransaction: (id) => remove('financial_transactions', id),
 
-  listPayables: () => listAll('accounts_payable', 'due_date', true),
+  listPayables: (scope = 'company') => listAll('accounts_payable', 'due_date', true, scope),
   savePayable: (item) => upsertByExternalId('accounts_payable', item, payablePayload),
   importPayables: (items) => importMany('accounts_payable', items, payablePayload),
   deletePayable: (id) => remove('accounts_payable', id),
 
-  listReceivables: () => listAll('accounts_receivable', 'due_date', true),
+  listReceivables: (scope = 'company') => listAll('accounts_receivable', 'due_date', true, scope),
   saveReceivable: (item) => upsertByExternalId('accounts_receivable', item, receivablePayload),
   importReceivables: (items) => importMany('accounts_receivable', items, receivablePayload),
   deleteReceivable: (id) => remove('accounts_receivable', id),
