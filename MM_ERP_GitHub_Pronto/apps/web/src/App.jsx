@@ -85,6 +85,7 @@ function App() {
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
           <Route path="/app/marcos-finance" element={privateRoute(<MarcosFinancePage />, ROLES.FINANCIAL)} />
+          <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />, ROLES.FINANCIAL)} />
           <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.FINANCIAL)} />
           <Route path="/app/migracao" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
