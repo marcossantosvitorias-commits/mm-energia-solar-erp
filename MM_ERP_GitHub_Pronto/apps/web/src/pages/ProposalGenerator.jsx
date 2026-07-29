@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, FileDown, MessageCircle, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, Wrench } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 import { useNavigate } from 'react-router-dom';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import { createClientInteraction, listClients } from '../services/clientService.js';
@@ -21,11 +22,8 @@ const FATOR_DESEMPENHO = 0.8;
 const DIAS_MES = 30;
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const somenteNumeros = (valor = '') => String(valor).replace(/\D/g, '');
-const numeroComPais = (valor = '') => {
-  const numero = somenteNumeros(valor);
-  return numero.startsWith('55') ? numero : `55${numero}`;
-};
 const calcularGeracaoPorPainel = (potenciaW) => (Number(potenciaW || 0) * IRRADIACAO_MEDIA * FATOR_DESEMPENHO * DIAS_MES) / 1000;
+const nomeArquivoSeguro = (nome) => String(nome || 'cliente').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 
 export default function ProposalGenerator({
   quantidadePlacas,
@@ -60,10 +58,7 @@ export default function ProposalGenerator({
   const belcred = useMemo(() => BELCRED.map((opcao) => ({ ...opcao, valor: valor * opcao.fator })), [valor]);
   const belcredSelecionado = belcred.find((item) => item.parcelas === Number(planoBelcred)) || belcred.at(-1);
   const totalCartao = Number(precoCartao || valor);
-  const opcoesCartao = useMemo(() => Array.from({ length: 10 }, (_, index) => {
-    const parcelas = index + 12;
-    return { parcelas, valorParcela: totalCartao / parcelas };
-  }), [totalCartao]);
+  const opcoesCartao = useMemo(() => Array.from({ length: 10 }, (_, index) => ({ parcelas: index + 12, valorParcela: totalCartao / (index + 12) })), [totalCartao]);
 
   const carregarDados = async () => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -140,66 +135,162 @@ export default function ProposalGenerator({
     return false;
   };
 
-  const validarWhatsApp = () => {
-    if (!validarNome()) return false;
-    if (somenteNumeros(dados.telefone).length >= 10) return true;
-    setMensagem('Informe o WhatsApp do cliente com DDD.');
-    document.querySelector('input[name="telefone"]')?.focus();
-    return false;
-  };
-
   const salvarProposta = async (status = 'Gerada') => {
-    if (!isSupabaseConfigured || !supabase) {
-      return { saved: false, warning: 'A proposta será gerada, mas não foi registrada porque o Supabase não está disponível.' };
-    }
+    if (!isSupabaseConfigured || !supabase) return { saved: false, warning: 'A proposta foi gerada, mas não foi registrada porque o Supabase não está disponível.' };
     setSalvando(true);
     try {
       const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
-      if (error) return { saved: false, warning: `A proposta será gerada, mas não foi registrada no CRM: ${error.message}` };
+      if (error) return { saved: false, warning: `A proposta foi gerada, mas não foi registrada no CRM: ${error.message}` };
       if (clienteId) {
         try {
           await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' });
         } catch {
-          // A falha no histórico do cliente não bloqueia PDF ou WhatsApp.
+          // A falha no histórico do cliente não bloqueia o PDF.
         }
       }
       await carregarDados();
       return { saved: true, data };
     } catch (error) {
-      return { saved: false, warning: `A proposta será gerada, mas não foi registrada no CRM: ${error?.message || 'erro inesperado'}` };
+      return { saved: false, warning: `A proposta foi gerada, mas não foi registrada no CRM: ${error?.message || 'erro inesperado'}` };
     } finally {
       setSalvando(false);
     }
   };
 
-  const abrirPdf = () => {
-    setMensagem('Abrindo a janela de impressão. Escolha “Salvar como PDF”.');
-    window.setTimeout(() => window.print(), 120);
+  const criarArquivoPdf = () => {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const margem = 18;
+    const largura = 174;
+    let y = 18;
+
+    doc.setFillColor(8, 38, 77);
+    doc.roundedRect(margem, y, largura, 27, 4, 4, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(19);
+    doc.text('MM ENERGIA SOLAR', margem + 8, y + 11);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Proposta comercial de sistema fotovoltaico', margem + 8, y + 19);
+    y += 38;
+
+    doc.setTextColor(25, 35, 55);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text(`Proposta para ${dados.cliente.trim()}`, margem, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10.5);
+    doc.text(`Cidade: ${dados.cidade || '-'}`, margem, y);
+    doc.text(`Validade: ${Number(dados.validade || 7)} dias`, margem + 105, y);
+    y += 12;
+
+    doc.setDrawColor(210, 220, 232);
+    doc.setFillColor(246, 249, 253);
+    doc.roundedRect(margem, y, largura, 48, 3, 3, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Sistema proposto', margem + 7, y + 10);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10.5);
+    doc.text(`${quantidadePlacas} painéis de ${Number(dados.potenciaPlaca || 0)} W`, margem + 7, y + 20);
+    doc.text(`Potência instalada: ${potenciaSistema.toFixed(2)} kWp`, margem + 7, y + 28);
+    doc.text(`Geração estimada: ${Number(dados.geracaoMensal || geracaoCalculada).toLocaleString('pt-BR')} kWh/mês`, margem + 7, y + 36);
+    doc.text(`Módulos: ${dados.marcaPlaca}`, margem + 90, y + 20);
+    doc.text(`Inversor: ${dados.inversor}`, margem + 90, y + 28);
+    y += 59;
+
+    doc.setFillColor(232, 246, 238);
+    doc.roundedRect(margem, y, largura, 25, 3, 3, 'F');
+    doc.setTextColor(18, 104, 61);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('VALOR TOTAL DA PROPOSTA', margem + 7, y + 9);
+    doc.setFontSize(20);
+    doc.text(moeda.format(valor), margem + 7, y + 20);
+    y += 37;
+
+    doc.setTextColor(25, 35, 55);
+    doc.setFontSize(12);
+    doc.text('Condições de pagamento', margem, y);
+    y += 9;
+    doc.setFontSize(10.5);
+    doc.text(`BelCred: ${paymentOptions.belcred.installments}x de ${moeda.format(paymentOptions.belcred.installmentValue)} (${paymentOptions.belcred.monthlyRate} a.m.)`, margem, y);
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cartão de crédito:', margem, y);
+    doc.setFont('helvetica', 'normal');
+    y += 7;
+
+    opcoesCartao.forEach((opcao, index) => {
+      const coluna = index % 2;
+      const linha = Math.floor(index / 2);
+      doc.text(`${opcao.parcelas}x de ${moeda.format(opcao.valorParcela)}`, margem + (coluna * 88), y + (linha * 7));
+    });
+    y += 42;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Incluso na proposta', margem, y);
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    const observacoes = doc.splitTextToSize(dados.observacoes || '', largura);
+    doc.text(observacoes, margem, y);
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(95, 105, 120);
+    doc.text('MM Energia Solar · Energia limpa, economia e segurança para seu investimento.', margem, 286);
+
+    const blob = doc.output('blob');
+    const nome = `proposta-mm-energia-${nomeArquivoSeguro(dados.cliente)}.pdf`;
+    return new File([blob], nome, { type: 'application/pdf' });
+  };
+
+  const baixarPdf = (arquivo) => {
+    const url = URL.createObjectURL(arquivo);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = arquivo.name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const gerarESalvar = async () => {
     if (!validarNome()) return;
+    const arquivo = criarArquivoPdf();
+    baixarPdf(arquivo);
     const resultado = await salvarProposta('Gerada');
-    setMensagem(resultado.saved ? 'Proposta salva. Abrindo PDF...' : resultado.warning);
-    abrirPdf();
+    setMensagem(resultado.saved ? 'Proposta salva e PDF gerado.' : resultado.warning);
   };
 
   const enviarWhatsApp = async () => {
-    if (!validarWhatsApp()) return;
-    const opcoesTexto = opcoesCartao.map((item) => `${item.parcelas}x de ${moeda.format(item.valorParcela)}`).join('\n');
-    const texto = `Olá, ${dados.cliente.trim()}!\nSegue sua proposta da MM Energia Solar.\n\nValor total: ${moeda.format(valor)}\n\nCartão de crédito:\n${opcoesTexto}\n\nBelCred: ${paymentOptions.belcred.installments}x de ${moeda.format(paymentOptions.belcred.installmentValue)}.`;
-    const numero = numeroComPais(dados.telefone);
-    const resultado = await salvarProposta('Enviada');
-    setMensagem(resultado.saved ? 'Proposta registrada. Abrindo WhatsApp Business...' : resultado.warning);
+    if (!validarNome()) return;
+    const arquivo = criarArquivoPdf();
+    const compartilhamento = {
+      files: [arquivo],
+      title: `Proposta MM Energia Solar - ${dados.cliente.trim()}`,
+      text: `Olá, ${dados.cliente.trim()}! Segue em anexo sua proposta da MM Energia Solar.`,
+    };
 
-    const params = `phone=${encodeURIComponent(numero)}&text=${encodeURIComponent(texto)}`;
-    const ehAndroid = /Android/i.test(navigator.userAgent);
-    if (ehAndroid) {
-      window.location.href = `intent://send?${params}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end`;
-      return;
+    try {
+      if (!navigator.share || !navigator.canShare?.({ files: [arquivo] })) {
+        baixarPdf(arquivo);
+        setMensagem('O PDF foi baixado. No WhatsApp Business, toque no clipe e anexe o arquivo baixado.');
+        return;
+      }
+
+      await navigator.share(compartilhamento);
+      const resultado = await salvarProposta('Enviada');
+      setMensagem(resultado.saved ? 'PDF compartilhado e proposta registrada como enviada.' : resultado.warning);
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        setMensagem('Compartilhamento cancelado. Nenhuma proposta foi marcada como enviada.');
+        return;
+      }
+      baixarPdf(arquivo);
+      setMensagem('Não foi possível abrir o compartilhamento. O PDF foi baixado para você anexar no WhatsApp Business.');
     }
-
-    window.location.href = `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
   };
 
   const fecharVenda = async (proposal) => {
@@ -253,9 +344,7 @@ export default function ProposalGenerator({
         </div>
         <div className="proposal-payment-card">
           <span>Cartão de crédito</span>
-          <div className="proposal-card-options">
-            {opcoesCartao.map((item) => <div className="proposal-card-option" key={item.parcelas}>{item.parcelas}x de {moeda.format(item.valorParcela)}</div>)}
-          </div>
+          <div className="proposal-card-options">{opcoesCartao.map((item) => <div className="proposal-card-option" key={item.parcelas}>{item.parcelas}x de {moeda.format(item.valorParcela)}</div>)}</div>
         </div>
       </div>
     </div>
@@ -263,7 +352,7 @@ export default function ProposalGenerator({
     {mensagem && <p className="finance-notice proposal-no-print" style={{ fontWeight: 800 }}>{mensagem}</p>}
     <div className="proposal-no-print" style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><Sparkles size={20} /><strong>Proposta pronta</strong></div>
-      <div className="finance-actions"><button className="finance-button" type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={20} /> Salvar e gerar PDF</button><button className="finance-button" type="button" disabled={salvando} onClick={enviarWhatsApp}><MessageCircle size={20} /> Enviar pelo WhatsApp Business</button></div>
+      <div className="finance-actions"><button className="finance-button" type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={20} /> Salvar e gerar PDF</button><button className="finance-button" type="button" disabled={salvando} onClick={enviarWhatsApp}><MessageCircle size={20} /> Compartilhar PDF no WhatsApp Business</button></div>
       <div style={{ marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> O PDF mostra somente a proposta comercial, sem custos individuais dos equipamentos.</div>
     </div>
 
@@ -273,7 +362,12 @@ export default function ProposalGenerator({
       {filtrado.map((item) => <div className="finance-list-item" key={item.id}>
         <div><strong>{item.client_name}</strong><span>{new Date(item.created_at).toLocaleDateString('pt-BR')} · {moeda.format(item.total_amount)} · {item.status}</span></div>
         <div className="finance-actions">
-          <button type="button" onClick={abrirPdf}><FileDown size={16} /> PDF</button>
+          <button type="button" onClick={() => {
+            const original = dados;
+            const proposta = item.proposal_data || {};
+            setDados((atual) => ({ ...atual, ...proposta }));
+            window.setTimeout(() => { const arquivo = criarArquivoPdf(); baixarPdf(arquivo); setDados(original); }, 0);
+          }}><FileDown size={16} /> PDF</button>
           {item.serviceOrder || item.status === 'Venda Fechada'
             ? <button type="button" onClick={() => navigate('/app/ordens-servico')}><CheckCircle2 size={16} /> {item.serviceOrder ? `Abrir OS #${item.serviceOrder.order_number}` : 'Venda fechada'}</button>
             : <button type="button" disabled={fechandoId === item.id} onClick={() => fecharVenda(item)}><Wrench size={16} /> {fechandoId === item.id ? 'Gerando OS...' : 'Fechar venda e gerar OS'}</button>}
