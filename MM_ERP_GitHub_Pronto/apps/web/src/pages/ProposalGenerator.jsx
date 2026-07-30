@@ -98,11 +98,36 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const selecionarCliente = (id) => { setClienteId(id); const cliente = clientes.find((item) => item.id === id); if (cliente) setDados((atual) => ({ ...atual, cliente: cliente.name, telefone: cliente.phone, cidade: [cliente.city, cliente.state].filter(Boolean).join('/') || atual.cidade })); };
   const atualizar = ({ target: { name, value } }) => setDados((atual) => name === 'potenciaPlaca' ? { ...atual, potenciaPlaca: value, geracaoMensal: Math.round(gerarPorPainel(value) * quantidadePlacas) } : { ...atual, [name]: value });
   const paymentOptions = { cash: { total: valor }, card: { feePercent: Number(taxaCartao || 0), total: totalCartao, options: opcoesCartao }, belcred: { installments: belcredSelecionado?.parcelas || 96, monthlyRate: belcredSelecionado?.taxa || '', installmentValue: belcredSelecionado?.valor || 0 } };
-  const payload = (status = 'Gerada') => ({ client_id: clienteId || null, client_name: dados.cliente.trim(), phone: somenteNumeros(dados.telefone), city: dados.cidade || null, status, total_amount: valor, panel_count: Number(quantidadePlacas || 0), panel_power_w: Number(dados.potenciaPlaca || 0), system_power_kw: potenciaSistema, monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada), panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Number(dados.validade || 7), notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null, proposal_data: { ...dados, clienteId, quantidadePlacas, potenciaSistema, paymentOptions } });
+  const payload = (status = 'Gerada') => ({
+    client_id: clienteId || null,
+    client_name: dados.cliente.trim(),
+    phone: null,
+    city: dados.cidade || null,
+    status,
+    total_amount: Number(valor.toFixed(2)),
+    panel_count: Math.round(Number(quantidadePlacas || 0)),
+    panel_power_w: Math.round(Number(dados.potenciaPlaca || 0)),
+    system_power_kw: Number(potenciaSistema.toFixed(2)),
+    monthly_generation_kwh: Math.round(Number(dados.geracaoMensal || geracaoCalculada)),
+    panel_model: dados.marcaPlaca,
+    inverter_model: dados.inversor,
+    validity_days: Math.round(Number(dados.validade || 7)),
+    notes: dados.observacoes || null,
+    sent_at: status === 'Enviada' ? new Date().toISOString() : null,
+    proposal_data: { ...dados, telefone: dados.telefone, clienteId, quantidadePlacas, potenciaSistema, paymentOptions },
+  });
   const validarNome = () => { if (dados.cliente.trim()) return true; setMensagem('Informe o nome do cliente antes de gerar a proposta.'); return false; };
   const salvarProposta = async (status = 'Gerada') => {
     if (!isSupabaseConfigured || !supabase) return { saved: false, warning: 'PDF gerado. O Supabase não está disponível para registrar a proposta.' };
-    setSalvando(true); try { const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single(); if (error) return { saved: false, warning: `PDF gerado, mas não registrado no CRM: ${error.message}` }; if (clienteId) { try { await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' }); } catch {} } await carregarDados(); return { saved: true, data }; } finally { setSalvando(false); }
+    try {
+      const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
+      if (error) return { saved: false, warning: `PDF gerado, mas não registrado no CRM: ${error.message}` };
+      if (clienteId) { try { await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' }); } catch {} }
+      await carregarDados();
+      return { saved: true, data };
+    } catch (error) {
+      return { saved: false, warning: `PDF gerado, mas não registrado no CRM: ${error?.message || 'erro inesperado'}` };
+    }
   };
 
   const criarArquivoPdf = async (origem = dados) => {
@@ -136,26 +161,36 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   };
 
   const baixarPdf = (arquivo) => { const url = URL.createObjectURL(arquivo); const link = document.createElement('a'); link.href = url; link.download = arquivo.name; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); };
-  const gerarESalvar = async () => { if (!validarNome()) return; setSalvando(true); try { const arquivo = await criarArquivoPdf(); baixarPdf(arquivo); const resultado = await salvarProposta('Gerada'); setMensagem(resultado.saved ? 'Proposta salva e PDF gerado.' : resultado.warning); } finally { setSalvando(false); } };
+  const gerarESalvar = async () => { if (!validarNome()) return; setSalvando(true); try { const arquivo = await criarArquivoPdf(); baixarPdf(arquivo); const resultado = await salvarProposta('Gerada'); setMensagem(resultado.saved ? 'Proposta salva no histórico e PDF gerado.' : resultado.warning); } finally { setSalvando(false); } };
   const enviarWhatsApp = async () => {
     if (!validarNome()) return;
     let telefone = somenteNumeros(dados.telefone);
     if (!telefone) { setMensagem('Informe o WhatsApp do cliente para abrir a conversa correta.'); return; }
+    if (telefone.startsWith('0')) telefone = telefone.replace(/^0+/, '');
     if (telefone.length <= 11) telefone = `55${telefone}`;
     setSalvando(true);
     try {
       const arquivo = await criarArquivoPdf();
       baixarPdf(arquivo);
-      const texto = encodeURIComponent(`Olá, ${dados.cliente.trim()}! Segue sua proposta da MM Energia Solar. O PDF foi preparado para envio.`);
-      window.open(`https://wa.me/${telefone}?text=${texto}`, '_blank', 'noopener,noreferrer');
       const resultado = await salvarProposta('Enviada');
-      setMensagem(resultado.saved ? 'PDF baixado e conversa do cliente aberta no WhatsApp. Anexe o arquivo baixado.' : resultado.warning);
-    } catch { setMensagem('Não foi possível preparar o PDF e abrir o contato.'); } finally { setSalvando(false); }
+      if (!resultado.saved) { setMensagem(resultado.warning); return; }
+      const texto = encodeURIComponent(`Olá, ${dados.cliente.trim()}! Segue sua proposta da MM Energia Solar. O PDF foi baixado no aparelho para você anexar nesta conversa.`);
+      const parametros = `phone=${telefone}&text=${texto}`;
+      const android = /Android/i.test(navigator.userAgent);
+      if (android) {
+        window.location.href = `intent://send?${parametros}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end`;
+      } else {
+        window.location.href = `whatsapp://send?${parametros}`;
+      }
+      setMensagem('Proposta salva no histórico. Abrindo o WhatsApp Business no contato do cliente.');
+    } catch (error) {
+      setMensagem(`Não foi possível preparar a proposta: ${error?.message || 'erro inesperado'}`);
+    } finally { setSalvando(false); }
   };
   const baixarHistorico = async (item) => baixarPdf(await criarArquivoPdf(item.proposal_data || dados));
   const fecharVenda = async (proposal) => { if (!window.confirm(`Confirmar a venda para ${proposal.client_name} e gerar a Ordem de Serviço?`)) return; setFechandoId(proposal.id); try { const { proposal: updated, serviceOrder } = await closeProposalAsSale(proposal.id); setHistorico((rows) => rows.map((row) => row.id === proposal.id ? { ...row, ...updated, serviceOrder } : row)); setMensagem(`Venda fechada. OS nº ${serviceOrder.order_number} criada com sucesso.`); } catch (error) { setMensagem(error?.message || 'Não foi possível fechar a venda.'); } finally { setFechandoId(null); } };
   const excluir = async (id) => { if (!window.confirm('Excluir esta proposta do histórico?') || !supabase) return; await supabase.from('sales_proposals').delete().eq('id', id); carregarDados(); };
-  const filtrado = historico.filter((item) => `${item.client_name} ${item.phone}`.toLowerCase().includes(busca.toLowerCase()));
+  const filtrado = historico.filter((item) => `${item.client_name} ${item.phone || item.proposal_data?.telefone || ''}`.toLowerCase().includes(busca.toLowerCase()));
   const actionButton = { minHeight: 46, padding: '8px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.2, flex: '0 1 230px' };
 
   return <section className="finance-panel">
@@ -167,7 +202,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     <div className="proposal-payment-grid"><div className="proposal-payment-card"><span>Financiamento BelCred</span><strong>{paymentOptions.belcred.installments}x de {moeda.format(paymentOptions.belcred.installmentValue)}</strong><div className="proposal-card-options">{belcred.map((item) => <button type="button" className="proposal-card-option" key={item.parcelas} onClick={() => setPlanoBelcred(item.parcelas)} style={{ border: item.parcelas === planoBelcred ? '2px solid #1f6fb2' : undefined }}>{item.parcelas}x de {moeda.format(item.valor)}</button>)}</div></div><div className="proposal-payment-card"><span>Cartão de crédito</span><div className="proposal-card-options">{opcoesCartao.map((item) => <div className="proposal-card-option" key={item.parcelas}>{item.parcelas}x de {moeda.format(item.valorParcela)}</div>)}</div></div></div>
     <div className="proposal-payment-grid" style={{ marginTop: 14 }}><div className="proposal-payment-card"><span>Garantia da placa</span><strong>15 anos</strong></div><div className="proposal-payment-card"><span>Garantia do microinversor</span><strong>15 anos</strong></div><div className="proposal-payment-card"><span>Garantia da instalação</span><strong>1 ano</strong></div></div></div>
     {mensagem && <p className="finance-notice proposal-no-print" style={{ fontWeight: 800 }}>{mensagem}</p>}
-    <div className="proposal-no-print" style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><Sparkles size={20} /><strong>Proposta pronta</strong></div><div className="finance-actions" style={{ gap: 10, flexWrap: 'wrap' }}><button className="finance-button" style={actionButton} type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={18} /> {salvando ? 'Gerando...' : 'Gerar PDF'}</button><button className="finance-button" style={actionButton} type="button" disabled={salvando} onClick={enviarWhatsApp}><WhatsAppBusinessIcon size={20} /> Enviar no WhatsApp</button></div><div style={{ marginTop: 10, color: '#667085', fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><ShieldCheck size={15} /> O PDF é baixado e a conversa do número salvo é aberta diretamente.</div></div>
+    <div className="proposal-no-print" style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><Sparkles size={20} /><strong>Proposta pronta</strong></div><div className="finance-actions" style={{ gap: 10, flexWrap: 'wrap' }}><button className="finance-button" style={actionButton} type="button" disabled={salvando} onClick={gerarESalvar}><FileDown size={18} /> {salvando ? 'Gerando...' : 'Gerar PDF'}</button><button className="finance-button" style={actionButton} type="button" disabled={salvando} onClick={enviarWhatsApp}><WhatsAppBusinessIcon size={20} /> Enviar no WhatsApp</button></div><div style={{ marginTop: 10, color: '#667085', fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><ShieldCheck size={15} /> A proposta é salva antes de abrir o WhatsApp Business no número do cliente.</div></div>
     <div className="proposal-no-print" style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}><div className="finance-panel-header"><div><h2>Histórico de propostas</h2><p>Feche a venda e gere a OS diretamente daqui.</p></div><button type="button" onClick={carregarDados}><RefreshCw size={20} /></button></div><label className="finance-field"><span>Pesquisar</span><div style={{ display: 'flex', gap: 8 }}><Search size={18} /><input value={busca} onChange={(event) => setBusca(event.target.value)} /></div></label>{filtrado.map((item) => <div className="finance-list-item" key={item.id}><div><strong>{item.client_name}</strong><span>{new Date(item.created_at).toLocaleDateString('pt-BR')} · {moeda.format(item.total_amount)} · {item.status}</span></div><div className="finance-actions"><button type="button" onClick={() => baixarHistorico(item)}><FileDown size={16} /> PDF</button>{item.serviceOrder || item.status === 'Venda Fechada' ? <button type="button" onClick={() => navigate('/app/ordens-servico')}><CheckCircle2 size={16} /> {item.serviceOrder ? `Abrir OS #${item.serviceOrder.order_number}` : 'Venda fechada'}</button> : <button type="button" disabled={fechandoId === item.id} onClick={() => fecharVenda(item)}><Wrench size={16} /> {fechandoId === item.id ? 'Gerando OS...' : 'Fechar venda e gerar OS'}</button>}<button type="button" className="finance-delete" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button></div></div>)}{!filtrado.length && <div className="finance-empty">Nenhuma proposta encontrada.</div>}</div>
   </section>;
 }
