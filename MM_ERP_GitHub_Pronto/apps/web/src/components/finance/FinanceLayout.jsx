@@ -22,6 +22,7 @@ const menuSections = [
     items: [
       { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'comercial', 'engenharia'] },
       { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/propostas', label: 'Propostas comerciais', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
