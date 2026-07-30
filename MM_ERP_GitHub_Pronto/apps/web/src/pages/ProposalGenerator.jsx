@@ -70,27 +70,6 @@ function adicionarImagemContida(doc, imagem, x, y, larguraMaxima, alturaMaxima) 
   } catch { doc.addImage(imagem, 'JPEG', x, y, larguraMaxima, 0, undefined, 'NONE'); }
 }
 
-async function recortarCantoEsquerdo(imagem, percentual = 0.07) {
-  try {
-    const origem = await new Promise((resolve, reject) => {
-      const foto = new Image();
-      foto.onload = () => resolve(foto);
-      foto.onerror = reject;
-      foto.src = imagem;
-    });
-    const corte = Math.max(1, Math.round(origem.naturalWidth * percentual));
-    const largura = origem.naturalWidth - corte;
-    if (!largura || !origem.naturalHeight) return imagem;
-    const canvas = document.createElement('canvas');
-    canvas.width = largura;
-    canvas.height = origem.naturalHeight;
-    const contexto = canvas.getContext('2d');
-    if (!contexto) return imagem;
-    contexto.drawImage(origem, corte, 0, largura, origem.naturalHeight, 0, 0, largura, origem.naturalHeight);
-    return canvas.toDataURL('image/jpeg', 0.98);
-  } catch { return imagem; }
-}
-
 export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw, precoCartao = 0, taxaCartao = 0 }) {
   const navigate = useNavigate();
   const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadePlacas) || 620;
@@ -129,7 +108,6 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const criarArquivoPdf = async (origem = dados) => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const logo = await carregarImagem(`${import.meta.env.BASE_URL}logo-mm.png`);
-    const microinversorImagem = await recortarCantoEsquerdo(MICROINVERSOR_IMAGE);
     const qtd = Number(origem.quantidadePlacas || quantidadePlacas || 0); const potenciaPainel = Number(origem.potenciaPlaca || dados.potenciaPlaca || 0); const potencia = (qtd * potenciaPainel) / 1000; const geracao = Number(origem.geracaoMensal || gerarPorPainel(potenciaPainel) * qtd); const validade = Number(origem.validade || 7); const valorPdf = Number(origem.valorProposta || valor || 0); const belcredPdf = BELCRED.map((opcao) => ({ ...opcao, valor: valorPdf * opcao.fator })); const cartaoPdf = Array.from({ length: 10 }, (_, i) => ({ parcelas: i + 12, valor: totalCartao / (i + 12) }));
     cabecalho(doc, 'Energia solar pensada para', 'economizar todos os meses.', 'Empresa especializada há mais de cinco anos no mercado solar, com projeto, instalação, homologação e suporte pós-venda.', 'PROPOSTA COMERCIAL', logo);
     let y = 79; [['CLIENTE', origem.cliente || '-'], ['LOCAL', origem.cidade || '-'], ['CONTATO', origem.telefone || '-']].forEach(([rotulo, conteudo]) => { arredondar(doc, 12, y, 186, 14, [20, 66, 112], [61, 101, 143]); doc.setTextColor(195, 213, 232); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.text(rotulo, 16, y + 5); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text(String(conteudo), 16, y + 11); y += 17; });
@@ -147,7 +125,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
 
     doc.addPage(); cabecalho(doc, 'Equipamentos escolhidos para', 'desempenho e segurança.', 'Fotos reais dos principais componentes previstos para o sistema fotovoltaico desta proposta.', 'EQUIPAMENTOS', logo);
     arredondar(doc,12,84,90,105,[255,255,255]); adicionarImagemContida(doc, PAINEL_IMAGE, 20, 91, 74, 50); doc.setTextColor(16,47,82); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Painel fotovoltaico 620 Wp',16,149); doc.setFontSize(7.8); doc.text(doc.splitTextToSize(origem.marcaPlaca || 'Painel fotovoltaico Tier 1',80),16,157); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text(`• Potência: ${potenciaPainel} W`,16,171); doc.text(`• Quantidade: ${qtd} unidades`,16,177); doc.text('• Garantia: 15 anos',16,183);
-    arredondar(doc,108,84,90,105,[255,255,255]); adicionarImagemContida(doc, microinversorImagem, 116, 91, 74, 50); doc.setTextColor(16,47,82); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Microinversor 2,25 kW',112,149); doc.setFontSize(7.8); doc.text(doc.splitTextToSize(origem.inversor || 'Microinversor 2,25 kW',80),112,157); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text('• Monitoramento individual',112,171); doc.text('• Configuração inclusa',112,177); doc.text('• Garantia: 15 anos',112,183);
+    arredondar(doc,108,84,90,105,[255,255,255]); adicionarImagemContida(doc, MICROINVERSOR_IMAGE, 116, 91, 74, 50); doc.setTextColor(16,47,82); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Microinversor 2,25 kW',112,149); doc.setFontSize(7.8); doc.text(doc.splitTextToSize(origem.inversor || 'Microinversor 2,25 kW',80),112,157); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text('• Monitoramento individual',112,171); doc.text('• Configuração inclusa',112,177); doc.text('• Garantia: 15 anos',112,183);
     doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Garantias',12,204); [['PAINÉIS', '15 anos'], ['MICROINVERSOR', '15 anos'], ['INSTALAÇÃO', '1 ano']].forEach(([a,b],i)=>{ const x=12+i*63; arredondar(doc,x,211,59,30,i===1?[234,244,255]:[248,249,252],i===1?[34,112,181]:[220,226,235]); doc.setTextColor(95,109,128); doc.setFontSize(6.5); doc.text(a,x+4,219); doc.setTextColor(16,47,82); doc.setFontSize(10); doc.text(b,x+4,230); });
     arredondar(doc,12,249,186,14,[255,251,230],[235,203,74]); doc.setTextColor(80,69,24); doc.setFontSize(6.8); doc.text(doc.splitTextToSize('A MM Energia Solar atua há mais de cinco anos no mercado solar. As garantias dos equipamentos seguem as condições dos fabricantes; a instalação possui garantia de 1 ano.',176),17,255); rodape(doc, validade);
 
