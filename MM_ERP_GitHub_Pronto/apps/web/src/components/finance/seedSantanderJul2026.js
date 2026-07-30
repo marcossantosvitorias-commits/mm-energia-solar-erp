@@ -108,6 +108,14 @@ export const contasPagarSantander2026 = [
     valor: 330.67,
   },
   {
+    id: 'energia-2026-08-28-uc-46046103583',
+    vencimento: '2026-08-28',
+    descricao: 'Fatura de energia - Referência julho/2026 - UC 460.461.035-83',
+    fornecedor: 'CONTA DE ENERGIA - R. R. MILTON, 01-123',
+    categoria: 'Energia elétrica',
+    valor: 26.95,
+  },
+  {
     id: 'dda-2026-08-30-1nort',
     vencimento: '2026-08-30',
     descricao: 'Boleto DDA',
