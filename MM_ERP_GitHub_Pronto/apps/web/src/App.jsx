@@ -37,6 +37,7 @@ import PropostasPage from './pages/PropostasPage.jsx';
 import PropostaPdfPage from './pages/PropostaPdfPage.jsx';
 import PropostaPublicaPage from './pages/PropostaPublicaPage.jsx';
 import HybridKitsPage from './pages/HybridKitsPage.jsx';
+import ProspeccaoSolarPage from './pages/ProspeccaoSolarPage.jsx';
 
 const ROLES = {
   ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
@@ -69,6 +70,7 @@ function App() {
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
           <Route path="/app/fluxos" element={privateRoute(<FluxosKanbanPage />)} />
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/prospeccao-solar" element={privateRoute(<ProspeccaoSolarPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/calculadora-solar" element={privateRoute(<CalculadoraSolarErpPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/propostas" element={privateRoute(<PropostasPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/propostas/:id/pdf" element={privateRoute(<PropostaPdfPage />, ROLES.COMMERCIAL)} />
