@@ -1,35 +1,37 @@
 .belenus-quotes {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 22px;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
 .belenus-quotes button {
-  padding: 18px;
+  min-height: 0;
+  padding: 13px 14px;
   border: 1px solid #e1e6ee;
-  border-radius: 15px;
+  border-radius: 13px;
   background: #fff;
   text-align: left;
-  box-shadow: 0 8px 24px rgba(20, 35, 55, 0.05);
+  box-shadow: 0 5px 16px rgba(20, 35, 55, 0.045);
   cursor: pointer;
 }
 
 .belenus-quotes button.active {
   border-color: #f5c400;
   background: #fff9dc;
-  box-shadow: 0 0 0 2px rgba(245, 196, 0, 0.22);
+  box-shadow: 0 0 0 2px rgba(245, 196, 0, 0.2);
 }
 
 .belenus-quote-top {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: 8px;
 }
 
 .belenus-quote-top span {
   color: #071d3b;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 900;
 }
 
@@ -41,19 +43,18 @@
 
 .belenus-quotes small {
   color: #7c8798;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .belenus-quotes strong {
-  margin: 16px 0 4px;
+  margin: 10px 0 2px;
   color: #172033;
-  font-size: 22px;
+  font-size: 20px;
+  line-height: 1.1;
 }
 
 .belenus-quotes b {
-  margin-top: 13px;
-  color: #947500;
-  font-size: 10px;
+  display: none;
 }
 
 .belenus-subtitle {
@@ -137,16 +138,14 @@
   font-size: 16px;
 }
 
-.belenus-rates {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-
+.belenus-rates,
 .belenus-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+}
+
+.belenus-summary {
   margin-bottom: 22px;
 }
 
@@ -248,27 +247,59 @@
   background: #fff;
 }
 
+.finance-panel .dashboard-big-number {
+  margin: 8px 0 0;
+  font-size: clamp(28px, 4.2vw, 44px);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px) {
   .belenus-quotes,
-  .belenus-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+  .belenus-summary,
   .belenus-rates {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 700px) {
-  .belenus-quotes,
+  .belenus-quotes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .belenus-quotes button {
+    padding: 11px 12px;
+    border-radius: 12px;
+  }
+
+  .belenus-quote-top span {
+    font-size: 15px;
+  }
+
+  .belenus-quotes strong {
+    margin-top: 8px;
+    font-size: 18px;
+  }
+
   .belenus-summary,
   .belenus-rates {
     grid-template-columns: 1fr;
   }
 
+  .finance-panel .dashboard-big-number {
+    font-size: 31px;
+    line-height: 1.12;
+  }
+
   .belenus-final-price {
     align-items: stretch;
     flex-direction: column;
+    padding: 21px;
+  }
+
+  .belenus-final-price > div > strong {
+    font-size: 31px;
   }
 
   .belenus-final-actions {

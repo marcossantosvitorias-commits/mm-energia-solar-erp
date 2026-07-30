@@ -1,132 +1,273 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Check, Plus, Trash2 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
-import StatCard from '../components/finance/StatCard.jsx';
-import FinanceTable from '../components/finance/FinanceTable.jsx';
-import { dataHoje, formatarMoeda, formatarData, exportarCSV } from '../components/finance/storage.js';
-import { financeDatabase } from '../services/financeDatabaseService.js';
+import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
+const CHAVE = 'mm-erp-pessoa-fisica-contas-v1';
+const CHAVE_FINANCAS = 'mm-erp-pessoa-fisica-financas-v1';
 const ESCOPO = 'personal-marcos';
-const FORM_INICIAL = {
-  descricao: '', tipo: 'saida', categoria: 'Supermercado', valor: '', data: dataHoje(), formaPagamento: 'PIX',
+const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const CONTAS_PADRAO = [
+  'Energia', 'COHAB', 'Claro TV', 'IPTU Bauru', 'IPTU Cascavel', 'Consórcio',
+  'Cartão Nubank', 'Cartão Nubank Manu', 'Neon', 'Maira', 'Álbum', 'Shopee',
+  'Terreno 01', 'Terreno 02',
+];
+
+const PARCELAS_TERRENOS = {
+  '2026-01': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-02': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-03': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-04': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-05': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
+  '2026-06': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-07': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-08': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-09': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-10': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-11': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
 };
 
-function mapear(row) {
+const CONTAS_CONFIRMADAS = {
+  '2026-06': {
+    Energia: { vencimento: '2026-06-18', dataPagamento: '2026-06-18', valor: 184.14, pago: true },
+    'Claro TV': { vencimento: '2026-06-22', dataPagamento: '2026-06-22', valor: 235.20, pago: true },
+    'Cartão Nubank': { vencimento: '2026-06-11', dataPagamento: '2026-06-11', valor: 327.17, pago: true },
+    Maira: { vencimento: '2026-06-11', dataPagamento: '2026-06-11', valor: 550, pago: true },
+    'Terreno 01': { vencimento: '2026-06-20', dataPagamento: '2026-06-22', valor: 210.39, pago: true },
+    'Terreno 02': { vencimento: '2026-06-20', dataPagamento: '2026-06-22', valor: 331.07, pago: true },
+  },
+};
+
+const FINANCAS_CONFIRMADAS = {
+  '2026-06': { recebimentos: 8163.91, compras: 8021.97, saldoInicial: 24.20, saldoFinal: 166.14 },
+};
+
+const mesAtual = () => new Date().toISOString().slice(0, 7);
+const idNovo = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const vencimentoDoMes = (mes) => PARCELAS_TERRENOS[mes] ? `${mes}-20` : '';
+const vazio = (valor) => valor === '' || valor == null;
+
+function carregar(chave) {
+  try { return JSON.parse(localStorage.getItem(chave) || '{}'); } catch { return {}; }
+}
+
+function criarConta(nome, mes) {
+  const parcela = PARCELAS_TERRENOS[mes]?.[nome];
+  const confirmada = CONTAS_CONFIRMADAS[mes]?.[nome];
   return {
-    id: row.id,
-    descricao: row.description,
-    tipo: row.transaction_type,
-    categoria: row.category,
-    valor: Number(row.amount || 0),
-    data: row.transaction_date,
-    formaPagamento: row.payment_method,
+    id: idNovo(), nome,
+    vencimento: confirmada?.vencimento || (parcela ? vencimentoDoMes(mes) : ''),
+    dataPagamento: confirmada?.dataPagamento || '',
+    valor: confirmada?.valor ?? parcela ?? '',
+    pago: confirmada?.pago ?? false,
   };
 }
 
-function MarcosFinancePage() {
-  const [movimentacoes, setMovimentacoes] = useState([]);
-  const [form, setForm] = useState(FORM_INICIAL);
-  const [erro, setErro] = useState('');
-  const [carregando, setCarregando] = useState(true);
+function criarContasDoMes(mes) {
+  return CONTAS_PADRAO.map((nome) => criarConta(nome, mes));
+}
 
-  async function carregar() {
-    try {
-      setErro('');
-      setCarregando(true);
-      const dados = await financeDatabase.listTransactions(ESCOPO);
-      setMovimentacoes(dados.map(mapear));
-    } catch (error) {
-      setErro(error.message);
-    } finally {
-      setCarregando(false);
+function completarContasDoMes(contas, mes) {
+  const porNome = new Map(contas.map((conta) => [conta.nome, conta]));
+  const todas = CONTAS_PADRAO.map((nome) => porNome.get(nome) || criarConta(nome, mes));
+  const extras = contas.filter((conta) => !CONTAS_PADRAO.includes(conta.nome));
+  return [...todas, ...extras].map((conta) => {
+    const parcela = PARCELAS_TERRENOS[mes]?.[conta.nome];
+    const confirmada = CONTAS_CONFIRMADAS[mes]?.[conta.nome];
+    return {
+      ...conta,
+      vencimento: vazio(conta.vencimento) ? (confirmada?.vencimento || (parcela ? vencimentoDoMes(mes) : '')) : conta.vencimento,
+      dataPagamento: vazio(conta.dataPagamento) ? (confirmada?.dataPagamento || '') : conta.dataPagamento,
+      valor: vazio(conta.valor) ? (confirmada?.valor ?? parcela ?? '') : conta.valor,
+      pago: conta.pago || Boolean(confirmada?.pago),
+    };
+  });
+}
+
+function criarFinancasDoMes(mes) {
+  return FINANCAS_CONFIRMADAS[mes] || { recebimentos: '', compras: '', saldoInicial: '', saldoFinal: '' };
+}
+
+function completarFinancasDoMes(atual, mes) {
+  const confirmada = criarFinancasDoMes(mes);
+  return {
+    recebimentos: vazio(atual?.recebimentos) ? confirmada.recebimentos : atual.recebimentos,
+    compras: vazio(atual?.compras) ? confirmada.compras : atual.compras,
+    saldoInicial: vazio(atual?.saldoInicial) ? confirmada.saldoInicial : atual.saldoInicial,
+    saldoFinal: vazio(atual?.saldoFinal) ? confirmada.saldoFinal : atual.saldoFinal,
+  };
+}
+
+function proximoMes(mes) {
+  const [ano, numero] = mes.split('-').map(Number);
+  return new Date(Date.UTC(ano, numero, 1)).toISOString().slice(0, 10);
+}
+
+export default function MarcosFinancePage() {
+  const [mes, setMes] = useState(mesAtual());
+  const [dados, setDados] = useState(() => carregar(CHAVE));
+  const [financas, setFinancas] = useState(() => carregar(CHAVE_FINANCAS));
+  const [novaConta, setNovaConta] = useState('');
+  const [aviso, setAviso] = useState('');
+
+  const contas = dados[mes] || criarContasDoMes(mes);
+  const resumoFinanceiro = financas[mes] || criarFinancasDoMes(mes);
+
+  useEffect(() => {
+    setDados((atual) => ({ ...atual, [mes]: completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes) }));
+    setFinancas((atual) => ({ ...atual, [mes]: completarFinancasDoMes(atual[mes], mes) }));
+  }, [mes]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarSupabase() {
+      if (!isSupabaseConfigured || !supabase) return;
+      setAviso('Atualizando dados do banco...');
+      const inicio = `${mes}-01`;
+      const fim = proximoMes(mes);
+      const { data, error } = await supabase
+        .from('financial_transactions')
+        .select('id, external_id, description, category, amount, transaction_date, payment_method, origin')
+        .eq('scope', ESCOPO)
+        .gte('transaction_date', inicio)
+        .lt('transaction_date', fim)
+        .order('transaction_date', { ascending: true });
+
+      if (!ativo) return;
+      if (error) {
+        setAviso(`Não foi possível ler o Supabase: ${error.message}`);
+        return;
+      }
+      if (!data?.length) {
+        setAviso('Nenhum lançamento encontrado no banco para este mês.');
+        return;
+      }
+
+      const importadas = data.map((item) => ({
+        id: item.id || item.external_id || idNovo(),
+        nome: item.description || item.category || 'Despesa',
+        vencimento: String(item.transaction_date || '').slice(0, 10),
+        dataPagamento: String(item.transaction_date || '').slice(0, 10),
+        valor: Number(item.amount || 0),
+        pago: true,
+        importada: true,
+      }));
+      const totalCompras = importadas.reduce((soma, item) => soma + Number(item.valor || 0), 0);
+
+      setDados((atual) => ({ ...atual, [mes]: importadas }));
+      setFinancas((atual) => {
+        const existente = completarFinancasDoMes(atual[mes], mes);
+        const recebimentos = Number(existente.recebimentos || 0);
+        const saldoInicial = Number(existente.saldoInicial || 0);
+        return {
+          ...atual,
+          [mes]: {
+            ...existente,
+            compras: Number(totalCompras.toFixed(2)),
+            saldoFinal: Number((saldoInicial + recebimentos - totalCompras).toFixed(2)),
+          },
+        };
+      });
+      setAviso(`${importadas.length} lançamentos carregados do Supabase — ${moeda.format(totalCompras)} pagos.`);
     }
-  }
 
-  useEffect(() => { carregar(); }, []);
+    carregarSupabase();
+    return () => { ativo = false; };
+  }, [mes]);
+
+  useEffect(() => { localStorage.setItem(CHAVE, JSON.stringify(dados)); }, [dados]);
+  useEffect(() => { localStorage.setItem(CHAVE_FINANCAS, JSON.stringify(financas)); }, [financas]);
+
+  const atualizarConta = (id, campo, valor) => setDados((atual) => ({
+    ...atual,
+    [mes]: (atual[mes] || criarContasDoMes(mes)).map((conta) => conta.id === id
+      ? { ...conta, [campo]: valor, ...(campo === 'dataPagamento' ? { pago: Boolean(valor) } : {}) }
+      : conta),
+  }));
+
+  const atualizarFinancas = (campo, valor) => setFinancas((atual) => ({
+    ...atual, [mes]: { ...completarFinancasDoMes(atual[mes], mes), [campo]: valor },
+  }));
+
+  const alternarPago = (id) => setDados((atual) => ({
+    ...atual,
+    [mes]: (atual[mes] || []).map((conta) => conta.id === id ? {
+      ...conta,
+      pago: !conta.pago,
+      dataPagamento: !conta.pago && !conta.dataPagamento ? new Date().toISOString().slice(0, 10) : conta.dataPagamento,
+    } : conta),
+  }));
+
+  const adicionarConta = (event) => {
+    event.preventDefault();
+    if (!novaConta.trim()) return;
+    setDados((atual) => ({
+      ...atual,
+      [mes]: [...(atual[mes] || criarContasDoMes(mes)), { id: idNovo(), nome: novaConta.trim(), vencimento: '', dataPagamento: '', valor: '', pago: false }],
+    }));
+    setNovaConta('');
+  };
+
+  const excluirConta = (id) => {
+    if (!window.confirm('Excluir esta conta deste mês?')) return;
+    setDados((atual) => ({ ...atual, [mes]: (atual[mes] || []).filter((conta) => conta.id !== id) }));
+  };
 
   const totais = useMemo(() => {
-    const entradas = movimentacoes.filter((item) => item.tipo === 'entrada').reduce((total, item) => total + Number(item.valor), 0);
-    const saidas = movimentacoes.filter((item) => item.tipo === 'saida').reduce((total, item) => total + Number(item.valor), 0);
-    return { entradas, saidas, saldo: entradas - saidas };
-  }, [movimentacoes]);
+    const total = contas.reduce((soma, conta) => soma + Number(conta.valor || 0), 0);
+    const pago = contas.filter((conta) => conta.pago).reduce((soma, conta) => soma + Number(conta.valor || 0), 0);
+    return { total, pago, restante: total - pago };
+  }, [contas]);
 
-  function atualizar(event) {
-    const { name, value } = event.target;
-    setForm((atual) => ({ ...atual, [name]: value }));
-  }
-
-  async function salvar(event) {
-    event.preventDefault();
-    if (!form.descricao.trim() || Number(form.valor) <= 0) {
-      alert('Preencha a descrição e informe um valor válido.');
-      return;
-    }
-    try {
-      await financeDatabase.saveTransaction({
-        ...form,
-        externalId: `marcos-${crypto.randomUUID()}`,
-        valor: Number(form.valor),
-        escopo: ESCOPO,
-        origem: 'Financeiro pessoal',
-      });
-      setForm(FORM_INICIAL);
-      await carregar();
-    } catch (error) {
-      setErro(error.message);
-    }
-  }
-
-  async function excluir(id) {
-    if (!window.confirm('Deseja excluir este lançamento pessoal?')) return;
-    try {
-      await financeDatabase.deleteTransaction(id);
-      await carregar();
-    } catch (error) {
-      setErro(error.message);
-    }
-  }
-
-  const colunas = [
-    { key: 'data', label: 'Data', render: (item) => formatarData(item.data) },
-    { key: 'descricao', label: 'Descrição', render: (item) => item.descricao },
-    { key: 'categoria', label: 'Categoria', render: (item) => item.categoria },
-    { key: 'tipo', label: 'Tipo', render: (item) => <span className={`finance-badge ${item.tipo}`}>{item.tipo === 'entrada' ? 'Entrada' : 'Despesa'}</span> },
-    { key: 'pagamento', label: 'Pagamento', render: (item) => item.formaPagamento },
-    { key: 'valor', label: 'Valor', render: (item) => formatarMoeda(item.valor) },
-    { key: 'acoes', label: 'Ações', render: (item) => <button className="finance-delete" onClick={() => excluir(item.id)}>Excluir</button> },
-  ];
+  const saldoMovimento = Number(resumoFinanceiro.recebimentos || 0) - Number(resumoFinanceiro.compras || 0);
 
   return (
-    <FinanceLayout title="Financeiro do Marcos" subtitle="Controle pessoal separado da empresa e salvo no Supabase." theme="marcos">
-      {erro ? <p className="crm-message">{erro}</p> : null}
-      <section className="finance-grid">
-        <StatCard label="Saldo pessoal" value={formatarMoeda(totais.saldo)} helper="Entradas menos despesas" tone="primary" />
-        <StatCard label="Entradas" value={formatarMoeda(totais.entradas)} helper="Valores recebidos" tone="positive" />
-        <StatCard label="Despesas" value={formatarMoeda(totais.saidas)} helper="Valores gastos" tone="negative" />
-        <StatCard label="Lançamentos" value={carregando ? '...' : movimentacoes.length} helper="Registros pessoais" tone="warning" />
-      </section>
-
-      <section className="finance-panel">
-        <h2>Novo lançamento pessoal</h2>
-        <form className="finance-form" onSubmit={salvar}>
-          <label className="finance-field finance-field-wide"><span>Descrição</span><input name="descricao" value={form.descricao} onChange={atualizar} placeholder="Ex.: Supermercado, combustível ou salário" /></label>
-          <label className="finance-field"><span>Tipo</span><select name="tipo" value={form.tipo} onChange={atualizar}><option value="entrada">Entrada</option><option value="saida">Despesa</option></select></label>
-          <label className="finance-field"><span>Categoria</span><select name="categoria" value={form.categoria} onChange={atualizar}>{['Supermercado','Moradia','Combustível','Veículo','Saúde','Lazer','Restaurante','Cartão de crédito','Empréstimo','Salário','Retirada da empresa','Outros'].map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label className="finance-field"><span>Valor</span><input type="number" min="0" step="0.01" name="valor" value={form.valor} onChange={atualizar} placeholder="0,00" /></label>
-          <label className="finance-field"><span>Data</span><input type="date" name="data" value={form.data} onChange={atualizar} /></label>
-          <label className="finance-field"><span>Forma de pagamento</span><select name="formaPagamento" value={form.formaPagamento} onChange={atualizar}>{['PIX','Dinheiro','Cartão de crédito','Cartão de débito','Transferência','Boleto'].map((item) => <option key={item}>{item}</option>)}</select></label>
-          <div className="finance-actions finance-field-wide"><button className="finance-button" type="submit">Salvar no Supabase</button></div>
-        </form>
-      </section>
-
-      <section className="finance-panel">
-        <div className="finance-panel-header">
-          <h2>Movimentações pessoais</h2>
-          <button className="finance-secondary-button" onClick={() => exportarCSV('financeiro-marcos.csv', movimentacoes.map((item) => ({ Data: formatarData(item.data), Descrição: item.descricao, Categoria: item.categoria, Tipo: item.tipo, Pagamento: item.formaPagamento, Valor: item.valor })))}>Exportar CSV</button>
+    <FinanceLayout title="Pessoa Física" subtitle="Contas pessoais organizadas por mês." theme="marcos">
+      {aviso ? <div className="pf-aviso">{aviso}</div> : null}
+      <section className="pf-topo">
+        <label className="pf-mes"><span>Mês</span><input type="month" value={mes} onChange={(event) => setMes(event.target.value)} /></label>
+        <div className="pf-resumo">
+          <div><span>Total</span><strong>{moeda.format(totais.total)}</strong></div>
+          <div><span>Pago</span><strong>{moeda.format(totais.pago)}</strong></div>
+          <div className="pf-restante"><span>Falta</span><strong>{moeda.format(totais.restante)}</strong></div>
         </div>
-        <FinanceTable columns={colunas} rows={movimentacoes} emptyText={carregando ? 'Carregando movimentações...' : 'Nenhuma movimentação pessoal cadastrada.'} />
       </section>
+
+      <section className="pf-painel">
+        <div className="pf-cabecalho"><span>Conta</span><span>Venc.</span><span>Valor</span><span>Pago</span></div>
+        <div className="pf-lista">
+          {contas.map((conta) => (
+            <article key={conta.id} className={`pf-linha ${conta.pago ? 'paga' : ''}`}>
+              <input className="pf-nome" value={conta.nome} onChange={(event) => atualizarConta(conta.id, 'nome', event.target.value)} />
+              <input className="pf-data" type="date" value={conta.vencimento} onChange={(event) => atualizarConta(conta.id, 'vencimento', event.target.value)} />
+              <input className="pf-valor" type="number" min="0" step="0.01" placeholder="0,00" value={conta.valor} onChange={(event) => atualizarConta(conta.id, 'valor', event.target.value)} />
+              <button type="button" className={`pf-check ${conta.pago ? 'ativo' : ''}`} onClick={() => alternarPago(conta.id)}><Check size={17} /></button>
+              {conta.pago && (
+                <div className="pf-pagamento"><span>Pago em</span><input type="date" value={conta.dataPagamento} onChange={(event) => atualizarConta(conta.id, 'dataPagamento', event.target.value)} /><button type="button" onClick={() => excluirConta(conta.id)}><Trash2 size={16} /></button></div>
+              )}
+            </article>
+          ))}
+        </div>
+        <form className="pf-adicionar" onSubmit={adicionarConta}><input value={novaConta} onChange={(event) => setNovaConta(event.target.value)} placeholder="Adicionar outra conta" /><button type="submit"><Plus size={17} /> Adicionar</button></form>
+      </section>
+
+      <section className="pf-financas">
+        <div className="pf-financas-titulo"><div><strong>Finanças do mês</strong><span>Compras, recebimentos e saldo.</span></div><strong className={saldoMovimento >= 0 ? 'positivo' : 'negativo'}>{moeda.format(saldoMovimento)}</strong></div>
+        <div className="pf-financas-grid">
+          <label><span>Recebimentos no mês</span><input type="number" step="0.01" value={resumoFinanceiro.recebimentos} onChange={(event) => atualizarFinancas('recebimentos', event.target.value)} /></label>
+          <label><span>Compras realizadas</span><input type="number" step="0.01" value={resumoFinanceiro.compras} onChange={(event) => atualizarFinancas('compras', event.target.value)} /></label>
+          <label><span>Saldo inicial</span><input type="number" step="0.01" value={resumoFinanceiro.saldoInicial} onChange={(event) => atualizarFinancas('saldoInicial', event.target.value)} /></label>
+          <label><span>Saldo final</span><input type="number" step="0.01" value={resumoFinanceiro.saldoFinal} onChange={(event) => atualizarFinancas('saldoFinal', event.target.value)} /></label>
+        </div>
+      </section>
+
+      <style>{`
+        .pf-aviso{margin:0 0 8px;padding:9px 12px;border-radius:10px;background:#e8f3ff;color:#0b477d;font-weight:800}.pf-topo{display:grid;grid-template-columns:210px 1fr;gap:12px;margin-bottom:12px}.pf-mes,.pf-resumo,.pf-painel,.pf-financas{background:#fff;border:1px solid #dce3eb;border-radius:14px}.pf-mes{padding:10px 12px}.pf-mes span{display:block;margin-bottom:5px;color:#657184;font-size:12px;font-weight:800}.pf-mes input{width:100%;min-height:38px;border:1px solid #d7dee8;border-radius:9px;padding:0 9px;font-size:15px}.pf-resumo{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden}.pf-resumo div{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:9px 12px;border-left:1px solid #e4e9ef}.pf-resumo div:first-child{border-left:0}.pf-resumo span{color:#707b8b;font-size:11px;font-weight:800}.pf-resumo strong{color:#08264d;font-size:clamp(17px,2.2vw,24px);line-height:1.15}.pf-resumo .pf-restante{background:#fff9df}.pf-painel{padding:8px}.pf-cabecalho,.pf-linha{display:grid;grid-template-columns:minmax(130px,1.5fr) 145px 115px 44px;gap:7px;align-items:center}.pf-cabecalho{padding:4px 7px 7px;color:#6e7888;font-size:11px;font-weight:900;text-transform:uppercase}.pf-lista{display:grid;gap:5px}.pf-linha{padding:5px;border:1px solid #e1e6ed;border-radius:10px;background:#fff}.pf-linha.paga{border-color:#a9dfbf;background:#f3fff7}.pf-linha input{width:100%;min-width:0;height:36px;border:1px solid #dbe2ea;border-radius:8px;padding:0 8px;background:#fff;font-size:14px}.pf-nome{font-weight:800}.pf-check{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:#e7edf4;color:#536174}.pf-check.ativo{background:#16834f;color:#fff}.pf-pagamento{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:7px;padding-top:3px;color:#557063;font-size:12px;font-weight:800}.pf-pagamento input{width:150px;height:32px}.pf-pagamento button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:8px;background:#ffe8e8;color:#a52d2d}.pf-adicionar{display:flex;gap:7px;margin-top:8px}.pf-adicionar input{flex:1;min-width:0;height:38px;border:1px solid #dbe2ea;border-radius:9px;padding:0 10px}.pf-adicionar button{display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 13px;border:0;border-radius:9px;background:#08264d;color:#fff;font-weight:900}.pf-financas{margin-top:12px;padding:12px}.pf-financas-titulo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.pf-financas-titulo div{display:flex;flex-direction:column}.pf-financas-titulo span{color:#718096;font-size:12px}.pf-financas-titulo>strong{font-size:20px}.pf-financas-titulo .positivo{color:#16834f}.pf-financas-titulo .negativo{color:#b03232}.pf-financas-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.pf-financas-grid label{display:flex;flex-direction:column;gap:5px}.pf-financas-grid span{color:#657184;font-size:11px;font-weight:800}.pf-financas-grid input{width:100%;height:38px;border:1px solid #dbe2ea;border-radius:8px;padding:0 8px;font-size:14px;font-weight:800;color:#08264d}
+        @media(max-width:700px){.pf-topo{grid-template-columns:1fr;gap:7px;margin-bottom:7px}.pf-mes{padding:7px 9px}.pf-mes span{display:none}.pf-mes input{min-height:34px}.pf-resumo div{padding:7px 8px}.pf-resumo strong{font-size:15px}.pf-painel{padding:5px;border-radius:10px}.pf-cabecalho{display:none}.pf-lista{gap:4px}.pf-linha{grid-template-columns:minmax(102px,1.4fr) 92px 82px 34px;gap:4px;padding:4px;border-radius:8px}.pf-linha input{height:32px;padding:0 5px;font-size:12px}.pf-data{font-size:10px!important}.pf-check{width:32px;height:32px;border-radius:7px}.pf-pagamento{padding:1px 2px 0}.pf-pagamento input{width:128px;height:30px}.pf-adicionar{margin-top:6px}.pf-adicionar input,.pf-adicionar button{height:34px;min-height:34px;font-size:12px}.pf-financas{padding:9px;margin-top:8px}.pf-financas-titulo{margin-bottom:7px}.pf-financas-titulo>strong{font-size:16px}.pf-financas-grid{grid-template-columns:repeat(2,1fr);gap:6px}.pf-financas-grid input{height:34px;font-size:13px}}
+        @media(max-width:390px){.pf-linha{grid-template-columns:minmax(88px,1.4fr) 84px 72px 32px}.pf-resumo strong{font-size:13px}}
+      `}</style>
     </FinanceLayout>
   );
 }
-
-export default MarcosFinancePage;

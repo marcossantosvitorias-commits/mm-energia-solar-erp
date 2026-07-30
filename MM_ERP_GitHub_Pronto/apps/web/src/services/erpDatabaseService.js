@@ -55,7 +55,7 @@ export const blingDatabase = {
       phone: x.telefone || null, email: x.email || null,
       address: { endereco: x.endereco, numero: x.numero, bairro: x.bairro, cep: x.cep, cidade: x.cidade, estado: x.estado },
       contact_type: x.tipoContato || null, status: x.situacao || null, raw_data: x,
-    }))),
+    })));
   },
   products: (items) => productsDatabase.saveMany(items),
   async stock(items) {

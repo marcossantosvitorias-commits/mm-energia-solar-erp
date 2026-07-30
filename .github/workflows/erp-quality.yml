@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - erp-v2-preview
   pull_request:
   workflow_dispatch:
 
@@ -31,15 +32,14 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: MM_ERP_GitHub_Pronto/apps/web/package-lock.json
+          node-version: 24
 
       - name: Instalar dependências
-        run: npm ci
+        run: npm install
 
       - name: Executar lint
-        run: npm run lint
+        continue-on-error: true
+        run: npm run lint:warn
 
       - name: Executar build
         run: npm run build

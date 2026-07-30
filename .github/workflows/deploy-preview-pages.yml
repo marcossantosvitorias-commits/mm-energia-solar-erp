@@ -24,10 +24,11 @@ jobs:
         working-directory: MM_ERP_GitHub_Pronto/apps/web
 
     steps:
-      - name: Baixar código da ERP 2.0 Preview
+      - name: Baixar código atualizado da ERP 2.0
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: erp-v2-preview
+          fetch-depth: 1
 
       - name: Configurar Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020

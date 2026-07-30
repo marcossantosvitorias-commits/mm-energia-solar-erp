@@ -1,0 +1,9 @@
+/* Padroniza o nome comercial do custo mensal de engenharia. */
+.finance-field:has(input[name="mensalidadeTreviso"]) > span {
+  font-size: 0;
+}
+
+.finance-field:has(input[name="mensalidadeTreviso"]) > span::after {
+  content: "Engenharia";
+  font-size: 14px;
+}

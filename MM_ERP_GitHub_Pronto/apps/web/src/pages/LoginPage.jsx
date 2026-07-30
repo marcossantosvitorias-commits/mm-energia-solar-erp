@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { LockKeyhole, Mail, SunMedium } from 'lucide-react';
+import { Eye, EyeOff, LockKeyhole, Mail, SunMedium } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function LoginPage() {
@@ -9,6 +9,7 @@ export default function LoginPage() {
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -95,13 +96,22 @@ export default function LoginPage() {
                   <LockKeyhole size={18} className="text-slate-500" />
                   <input
                     className="w-full bg-transparent px-3 py-3.5 outline-none placeholder:text-slate-600"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Digite sua senha"
                     autoComplete="current-password"
                     required
                   />
+                  <button
+                    type="button"
+                    className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-800 hover:text-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
               </label>
 
