@@ -33,7 +33,7 @@ function MonitoramentoSolarPage() {
   const [providerFilter, setProviderFilter] = useState('all');
   const [plants, setPlants] = useState([]);
   const [importing, setImporting] = useState(false);
-  const [message, setMessage] = useState('Importe o relatório CSV do SOLARMAN para atualizar todas as usinas sem pagar OpenAPI.');
+  const [message, setMessage] = useState('Importe o relatório Excel do SOLARMAN para atualizar todas as usinas sem pagar OpenAPI.');
 
   const loadPlants = async () => {
     try {
@@ -57,8 +57,9 @@ function MonitoramentoSolarPage() {
     if (!file) return;
 
     const lowerName = file.name.toLowerCase();
-    if (!lowerName.endsWith('.csv') && !lowerName.endsWith('.txt')) {
-      setMessage('Selecione o relatório exportado em CSV. Arquivos Excel devem ser salvos como CSV antes da importação.');
+    const supported = ['.xlsx', '.xls', '.csv', '.txt'].some((extension) => lowerName.endsWith(extension));
+    if (!supported) {
+      setMessage('Selecione um relatório SOLARMAN em Excel (.xlsx/.xls) ou CSV.');
       return;
     }
 
@@ -104,7 +105,7 @@ function MonitoramentoSolarPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".csv,.txt,text/csv,text/plain"
+        accept=".xlsx,.xls,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/plain"
         className="monitor-file-input"
         onChange={handleImport}
       />
@@ -122,7 +123,7 @@ function MonitoramentoSolarPage() {
           disabled={importing}
         >
           <Upload size={18} />
-          {importing ? 'Importando...' : 'Selecionar relatório CSV'}
+          {importing ? 'Importando...' : 'Selecionar relatório Excel'}
         </button>
       </section>
 
@@ -130,7 +131,7 @@ function MonitoramentoSolarPage() {
         <FileSpreadsheet size={26} />
         <div>
           <strong>Como atualizar as usinas</strong>
-          <span>No SOLARMAN Business, exporte a lista ou relatório das usinas em formato CSV. Depois selecione o arquivo aqui. As usinas existentes serão atualizadas e as novas serão adicionadas.</span>
+          <span>No SOLARMAN Business, exporte a Lista de Plantas em Excel (.xlsx). Depois selecione o arquivo aqui. As usinas existentes serão atualizadas e as novas serão adicionadas.</span>
         </div>
       </section>
 
@@ -154,8 +155,8 @@ function MonitoramentoSolarPage() {
           <div className="monitor-empty">
             <FileSpreadsheet size={38} />
             <strong>Nenhuma usina importada</strong>
-            <span>Selecione o relatório CSV exportado do SOLARMAN Business.</span>
-            <button type="button" onClick={() => fileInputRef.current?.click()}><Upload size={17} /> Importar relatório</button>
+            <span>Selecione a Lista de Plantas em Excel exportada do SOLARMAN Business.</span>
+            <button type="button" onClick={() => fileInputRef.current?.click()}><Upload size={17} /> Importar relatório Excel</button>
           </div>
         ) : null}
 
