@@ -34,7 +34,7 @@ const menuSections = [
     title: 'Financeiro',
     items: [
       { to: '/app', label: 'Financeiro', icon: WalletCards, end: true, roles: ['admin', 'financeiro'] },
-      { to: '/app/precos', label: 'Kits on-grid', icon: Calculator, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/precos', label: 'Preços dos kits', icon: Calculator, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/kits-hibridos', label: 'Kits híbridos + bateria', icon: BatteryCharging, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },

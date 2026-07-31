@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CalendarClock, GripVertical, LayoutPanelTop, Plus, Search, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, CalendarClock, GripVertical, LayoutPanelTop, Plus, Search, Trash2, X } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { createWorkflowCard, deleteWorkflowCard, getWorkflowBoard, listWorkflowBoards, moveWorkflowCard } from '../services/workflowService.js';
 import './FluxosKanbanPage.css';
@@ -119,22 +119,23 @@ export default function FluxosKanbanPage() {
       <article className="finance-card"><span>Urgentes</span><h2>{urgentCount}</h2></article>
       <article className="finance-card"><span>Atrasados</span><h2>{overdueCount}</h2></article>
     </section>
-    {loading ? <section className="finance-card"><p>Carregando quadro...</p></section> : <section style={{ overflowX: 'auto', paddingBottom: 12 }}>
-      <div style={{ display: 'flex', gap: 14, minWidth: 'max-content', alignItems: 'flex-start' }}>
-        {boardData.columns.map((column) => <div key={column.id} onDragOver={(event) => event.preventDefault()} onDrop={() => moveCard(column.id)} style={{ width: 310, background: '#f1f5f9', borderRadius: 16, padding: 12, borderTop: `5px solid ${column.color}` }}>
-          <div className="kanban-column-header"><strong style={{ flex: 1 }}>{column.name}</strong><span className="kanban-column-count">{cardsByColumn[column.id]?.length || 0}</span><button className="kanban-add-button" type="button" onClick={() => setNewCardColumn(column)}><Plus size={17} /> Novo</button></div>
-          <div style={{ display: 'grid', gap: 10, minHeight: 90 }}>
+    {loading ? <section className="finance-card"><p>Carregando quadro...</p></section> : <section className="kanban-flow" aria-label="Etapas do fluxo">
+      {boardData.columns.map((column, index) => <div className="kanban-stage-wrapper" key={column.id}>
+        <article className="kanban-stage" onDragOver={(event) => event.preventDefault()} onDrop={() => moveCard(column.id)} style={{ '--stage-color': column.color }}>
+          <div className="kanban-stage-header"><strong>{column.name}</strong><span className="kanban-column-count">{cardsByColumn[column.id]?.length || 0}</span><button className="kanban-add-button" type="button" onClick={() => setNewCardColumn(column)}><Plus size={17} /> Novo</button></div>
+          <div className="kanban-stage-cards">
             {(cardsByColumn[column.id] || []).map((card) => {
               const overdue = card.due_at && new Date(card.due_at) < new Date();
-              return <article key={card.id} draggable onDragStart={() => setDraggedCardId(card.id)} onDragEnd={() => setDraggedCardId(null)} style={{ background: '#fff', borderRadius: 13, padding: 13, boxShadow: '0 2px 8px rgba(15,23,42,.08)', cursor: 'grab', opacity: draggedCardId === card.id ? .55 : 1 }}>
+              return <article className="kanban-card" key={card.id} draggable onDragStart={() => setDraggedCardId(card.id)} onDragEnd={() => setDraggedCardId(null)} style={{ opacity: draggedCardId === card.id ? .55 : 1 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}><GripVertical size={17} style={{ marginTop: 2 }} /><div style={{ flex: 1 }}><strong>{card.title}</strong>{card.description && <p style={{ margin: '5px 0 0', fontSize: 13 }}>{card.description}</p>}</div><button type="button" onClick={() => removeCard(card)}><Trash2 size={15} /></button></div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}><span style={{ fontSize: 11, borderRadius: 999, padding: '4px 8px', background: card.priority === 'urgent' ? '#fee2e2' : '#e2e8f0' }}>{priorityLabels[card.priority]}</span>{card.clients?.city && <span style={{ fontSize: 11, borderRadius: 999, padding: '4px 8px', background: '#e0f2fe' }}>{card.clients.city}/{card.clients.state}</span>}{card.sales_proposals?.total_amount && <span style={{ fontSize: 11, borderRadius: 999, padding: '4px 8px', background: '#dcfce7' }}>{money(card.sales_proposals.total_amount)}</span>}</div>
                 {card.due_at && <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 9, fontSize: 12, color: overdue ? '#b91c1c' : '#475569' }}>{overdue ? <AlertTriangle size={14} /> : <CalendarClock size={14} />} {formatDate(card.due_at)}</div>}
               </article>;
             })}
           </div>
-        </div>)}
-      </div>
+        </article>
+        {index < boardData.columns.length - 1 && <div className="kanban-flow-connector" aria-hidden="true"><ArrowDown size={21} /></div>}
+      </div>)}
     </section>}
     {newCardColumn && <div style={modalStyles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setNewCardColumn(null); }}>
       <section style={modalStyles.card} role="dialog" aria-modal="true" aria-labelledby="novo-card-title">

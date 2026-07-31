@@ -121,11 +121,14 @@
 }
 
 .belenus-engineering-share {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 10px;
   grid-column: 1 / -1;
-  padding: 13px;
+  width: fit-content;
+  min-height: 38px;
+  padding: 7px 10px;
   border: 1px solid #ead274;
   border-radius: 10px;
   color: #685400;
@@ -145,12 +148,106 @@
   gap: 14px;
 }
 
+.kits-pricing-page {
+  display: grid;
+  gap: 12px;
+}
+
+.kits-pricing-page .belenus-quotes,
+.kits-pricing-page .belenus-summary {
+  margin-bottom: 0;
+}
+
+.kits-pricing-page .finance-panel {
+  padding: 16px;
+}
+
+.kits-pricing-page .finance-field {
+  gap: 5px;
+}
+
+.kits-pricing-page .finance-field > span {
+  font-size: 11px;
+}
+
+.kits-pricing-page .finance-field > input,
+.kits-pricing-page .finance-field > select {
+  min-height: 38px;
+  height: 38px;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+
+.kits-pricing-page .belenus-form,
+.kits-pricing-page .belenus-payment-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.belenus-disclosure-panel {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.belenus-disclosure {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 54px;
+  padding: 11px 16px;
+  border: 0;
+  background: #fff;
+  color: #071d3b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.belenus-disclosure span,
+.belenus-disclosure strong,
+.belenus-disclosure small {
+  display: block;
+}
+
+.belenus-disclosure strong {
+  font-size: 15px;
+}
+
+.belenus-disclosure small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.belenus-disclosure-content {
+  padding: 0 16px 16px;
+  border-top: 1px solid #e7edf4;
+}
+
+.belenus-disclosure-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.belenus-tax-note {
+  margin: 10px 0 0;
+  color: #4b5563;
+  font-size: 12px;
+}
+
 .belenus-summary {
   margin-bottom: 22px;
 }
 
 .belenus-summary article {
-  padding: 20px;
+  padding: 14px;
   border: 1px solid #e1e6ee;
   border-radius: 15px;
   background: #fff;
@@ -168,13 +265,17 @@
 }
 
 .belenus-summary strong {
-  margin-top: 13px;
+  margin-top: 7px;
   color: #071d3b;
   font-size: 23px;
 }
 
 .belenus-summary .profit strong {
   color: #14834f;
+}
+
+.belenus-summary .tax strong {
+  color: #9a6700;
 }
 
 .belenus-final-price {
@@ -260,6 +361,11 @@
   .belenus-rates {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .kits-pricing-page .belenus-form,
+  .kits-pricing-page .belenus-payment-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -285,6 +391,16 @@
   .belenus-summary,
   .belenus-rates {
     grid-template-columns: 1fr;
+  }
+
+  .kits-pricing-page .belenus-form,
+  .kits-pricing-page .belenus-payment-form {
+    grid-template-columns: 1fr;
+  }
+
+  .belenus-disclosure-actions {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .finance-panel .dashboard-big-number {
