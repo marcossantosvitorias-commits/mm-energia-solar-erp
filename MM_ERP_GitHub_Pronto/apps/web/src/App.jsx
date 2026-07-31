@@ -60,7 +60,6 @@ function App() {
     <AuthProvider>
       <Router basename={routerBase}>
         <ScrollToTop />
-
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
@@ -83,6 +82,7 @@ function App() {
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
+          <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/kits-hibridos" element={privateRoute(<HybridKitsPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
@@ -91,6 +91,7 @@ function App() {
           <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.FINANCIAL)} />
           <Route path="/app/migracao" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
+          <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
           <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />, ROLES.FINANCIAL)} />
           <Route path="/app/contratos" element={privateRoute(<ContratosPage />, ROLES.COMMERCIAL)} />
           <Route path="*" element={<Navigate to="/login" replace />} />
