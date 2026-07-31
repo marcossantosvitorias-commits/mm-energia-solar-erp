@@ -63,6 +63,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -83,7 +84,7 @@
     "vite": "^7.3.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.35.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-import": "^2.32.0",
     "eslint-import-resolver-alias": "^1.1.2"
   },
