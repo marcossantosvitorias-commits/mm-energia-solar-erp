@@ -1,0 +1,45 @@
+name: Validar ERP 2.0
+
+on:
+  push:
+    branches:
+      - erp-v2-preview
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erp-v2-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint e build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: MM_ERP_GitHub_Pronto/apps/web
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: MM_ERP_GitHub_Pronto/apps/web/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Validar código
+        run: npm run lint
+
+      - name: Gerar build
+        run: npm run build -- --base=/mm-energia-solar-erp/
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
