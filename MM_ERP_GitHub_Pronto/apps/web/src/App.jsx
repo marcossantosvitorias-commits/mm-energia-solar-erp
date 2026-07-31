@@ -36,7 +36,6 @@ import CalculadoraSolarErpPage from './pages/CalculadoraSolarErpPage.jsx';
 import PropostasPage from './pages/PropostasPage.jsx';
 import PropostaPdfPage from './pages/PropostaPdfPage.jsx';
 import PropostaPublicaPage from './pages/PropostaPublicaPage.jsx';
-import HybridKitsPage from './pages/HybridKitsPage.jsx';
 import ProspeccaoSolarPage from './pages/ProspeccaoSolarPage.jsx';
 
 const ROLES = {
@@ -83,7 +82,7 @@ function App() {
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
           <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/kits-hibridos" element={privateRoute(<HybridKitsPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/kits-hibridos" element={privateRoute(<Navigate to="/app/precos?tipo=hibrido" replace />, ROLES.COMMERCIAL)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
           <Route path="/app/marcos-finance" element={privateRoute(<MarcosFinancePage />, ROLES.FINANCIAL)} />

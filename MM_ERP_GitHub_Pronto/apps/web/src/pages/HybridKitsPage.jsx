@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { BatteryCharging, Calculator, Zap } from 'lucide-react';
-import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import ProposalGenerator from './ProposalGenerator.jsx';
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -41,7 +40,7 @@ const FORM_PADRAO = {
   desconto: 3,
 };
 
-export default function HybridKitsPage() {
+export function HybridKitsContent() {
   const [kitId, setKitId] = useState(KITS_HIBRIDOS[0].id);
   const [form, setForm] = useState(FORM_PADRAO);
   const kit = KITS_HIBRIDOS.find((item) => item.id === kitId) || KITS_HIBRIDOS[0];
@@ -69,11 +68,7 @@ export default function HybridKitsPage() {
   const descricaoInversor = `${kit.inversor} + ${kit.quantidadeBaterias}x ${kit.bateria}`;
 
   return (
-    <FinanceLayout
-      title="Kits híbridos com bateria"
-      subtitle="Precificação e proposta separadas dos sistemas on-grid."
-      theme="empresa"
-    >
+    <div className="hybrid-kits-content">
       <section className="finance-panel">
         <div className="finance-panel-header">
           <div>
@@ -151,6 +146,8 @@ export default function HybridKitsPage() {
         inversor={descricaoInversor}
         potenciaSistemaKw={kit.potenciaSistema}
       />
-    </FinanceLayout>
+    </div>
   );
 }
+
+export default HybridKitsContent;

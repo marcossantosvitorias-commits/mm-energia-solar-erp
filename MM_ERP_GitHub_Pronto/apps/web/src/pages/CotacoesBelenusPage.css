@@ -153,6 +153,54 @@
   gap: 12px;
 }
 
+.kit-category-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.kit-category-tabs button {
+  min-height: 64px;
+  padding: 11px 14px;
+  border: 1px solid #dfe6ee;
+  border-radius: 12px;
+  background: #fff;
+  color: #071d3b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kit-category-tabs button.active {
+  border-color: #f5c400;
+  background: #fff9dc;
+  box-shadow: 0 0 0 2px rgba(245, 196, 0, 0.18);
+}
+
+.kit-category-tabs strong,
+.kit-category-tabs small {
+  display: block;
+}
+
+.kit-category-tabs strong {
+  font-size: 15px;
+}
+
+.kit-category-tabs small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.hybrid-kits-content {
+  display: grid;
+  gap: 12px;
+}
+
+.hybrid-kits-content .finance-panel,
+.hybrid-kits-content .belenus-summary {
+  margin-bottom: 0;
+}
+
 .kits-pricing-page .belenus-quotes,
 .kits-pricing-page .belenus-summary {
   margin-bottom: 0;
@@ -369,6 +417,10 @@
 }
 
 @media (max-width: 700px) {
+  .kit-category-tabs {
+    grid-template-columns: 1fr;
+  }
+
   .belenus-quotes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;

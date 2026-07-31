@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, LayoutPanelTop, WalletCards, Calculator, SunMedium, BatteryCharging,
+  LayoutDashboard, LayoutPanelTop, WalletCards, Calculator, SunMedium,
   BadgeDollarSign, FileSpreadsheet, FileSignature, FileText, PackageSearch, Scale,
   UserRound, UsersRound, CalendarDays, DatabaseBackup, PlugZap, RadioTower,
   ClipboardCheck, Globe2, LogOut, Menu, Download, X,
@@ -35,7 +35,6 @@ const menuSections = [
     items: [
       { to: '/app', label: 'Financeiro', icon: WalletCards, end: true, roles: ['admin', 'financeiro'] },
       { to: '/app/precos', label: 'Preços dos kits', icon: Calculator, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/kits-hibridos', label: 'Kits híbridos + bateria', icon: BatteryCharging, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
       { to: '/app/marcos-finance', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },

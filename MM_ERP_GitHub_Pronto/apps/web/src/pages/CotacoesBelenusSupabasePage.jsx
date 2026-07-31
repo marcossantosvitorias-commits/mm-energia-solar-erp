@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, ChevronUp, Copy, Save } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { belenusPricingService } from '../services/belenusPricingService.js';
 import { cardFeeService } from '../services/cardFeeService.js';
 import ProposalGenerator from './ProposalGenerator.jsx';
+import { HybridKitsContent } from './HybridKitsPage.jsx';
 import './CotacoesBelenusPage.css';
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -29,6 +30,7 @@ const FORM_PADRAO = {
 
 export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cotacoes, setCotacoes] = useState([]);
   const [cotacaoId, setCotacaoId] = useState('');
   const [form, setForm] = useState(FORM_PADRAO);
@@ -39,6 +41,8 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   const [mensagem, setMensagem] = useState('');
   const [copiado, setCopiado] = useState(false);
   const [custosAbertos, setCustosAbertos] = useState(false);
+  const tipoKit = searchParams.get('tipo') === 'hibrido' ? 'hibrido' : 'on-grid';
+  const exibindoHibridos = pricingMode && tipoKit === 'hibrido';
 
   const podeSalvar = ['admin', 'financeiro'].includes(user?.role);
 
@@ -154,12 +158,26 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
     ['desconto', 'Desconto máximo (%)', '0.01'],
   ];
 
+  const selecionarTipoKit = (tipo) => {
+    setSearchParams(tipo === 'hibrido' ? { tipo: 'hibrido' } : {});
+  };
+
   return (
     <FinanceLayout
       title={pricingMode ? 'Preços dos kits' : 'Cotações Belenus'}
-      subtitle="Cotações, margem e parcelamento centralizados no Supabase."
+      subtitle={pricingMode ? 'Escolha entre kits on-grid e híbridos com bateria.' : 'Cotações, margem e parcelamento centralizados no Supabase.'}
     >
       <div className="kits-pricing-page">
+        {pricingMode && <section className="kit-category-tabs" aria-label="Tipo de kit">
+          <button type="button" className={tipoKit === 'on-grid' ? 'active' : ''} onClick={() => selecionarTipoKit('on-grid')} aria-pressed={tipoKit === 'on-grid'}>
+            <strong>Kits on-grid</strong><small>Sistemas conectados à rede</small>
+          </button>
+          <button type="button" className={tipoKit === 'hibrido' ? 'active' : ''} onClick={() => selecionarTipoKit('hibrido')} aria-pressed={tipoKit === 'hibrido'}>
+            <strong>Híbridos + bateria</strong><small>Energia solar com armazenamento</small>
+          </button>
+        </section>}
+
+        {exibindoHibridos ? <HybridKitsContent /> : <>
         {mensagem && <p className="finance-notice">{mensagem}</p>}
         {carregando && <div className="finance-empty">Carregando cotações e taxas...</div>}
         {!carregando && !cotacao && <div className="finance-empty">Nenhuma cotação Belenus cadastrada.</div>}
@@ -235,6 +253,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
           valorParcelaCartao={resultado.valorParcela}
           taxaCartao={numero(selectedFee?.fee_percent)}
         />
+        </>}
         </>}
       </div>
     </FinanceLayout>
