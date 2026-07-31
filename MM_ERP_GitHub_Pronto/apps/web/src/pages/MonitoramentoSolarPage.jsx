@@ -26,32 +26,61 @@ const PROVIDERS = [
   { id: 'tsun', name: 'TSUN Smart', api: 'Próxima integração', tone: 'cyan' },
 ];
 
-const DEMO_PLANTS = [
-  { id: 'demo-1', client: 'Adilson - casa', provider: 'solarman', power: 0, today: 28.53, capacity: 12.32, online: false, alert: false, updatedAt: '18:22' },
-  { id: 'demo-2', client: 'Adilson - Clebinho', provider: 'solarman', power: 0, today: 39.77, capacity: 8.96, online: false, alert: false, updatedAt: '18:17' },
-  { id: 'demo-3', client: 'Adriano e Fabiana', provider: 'growatt', power: 16, today: 19.70, capacity: 4.88, online: true, alert: false, updatedAt: '17:57' },
-  { id: 'demo-4', client: 'Ana Paula', provider: 'fronius', power: 28, today: 26.30, capacity: 7.20, online: true, alert: false, updatedAt: '17:52' },
-];
-
 function MonitoramentoSolarPage() {
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
-  const [plants, setPlants] = useState(DEMO_PLANTS);
+  const [plants, setPlants] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [configured, setConfigured] = useState(false);
-  const [message, setMessage] = useState('Modo demonstração: aguardando credenciais oficiais da SOLARMAN.');
+  const [message, setMessage] = useState('Verificando a conexão com a SOLARMAN...');
+
+  const syncNow = async () => {
+    setSyncing(true);
+    setMessage('Buscando todas as usinas e organizações da conta SOLARMAN...');
+    try {
+      const solarmanPlants = await syncSolarmanPlants();
+      const otherProviders = plants.filter((plant) => plant.provider !== 'solarman');
+      setPlants([...solarmanPlants, ...otherProviders]);
+      setConfigured(true);
+      setMessage(`${solarmanPlants.length} usinas SOLARMAN sincronizadas com segurança.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível sincronizar agora.');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
+
     checkSolarMonitoring()
-      .then((status) => {
+      .then(async (status) => {
         if (!active) return;
-        setConfigured(Boolean(status.configured));
-        if (status.configured) setMessage('SOLARMAN configurada no servidor. Clique em Sincronizar agora.');
+        const isConfigured = Boolean(status.configured);
+        setConfigured(isConfigured);
+
+        if (!isConfigured) {
+          setMessage('Credenciais oficiais da SOLARMAN ainda não foram configuradas no servidor.');
+          return;
+        }
+
+        setMessage('SOLARMAN conectada. Sincronizando todas as usinas...');
+        setSyncing(true);
+        try {
+          const solarmanPlants = await syncSolarmanPlants();
+          if (!active) return;
+          setPlants(solarmanPlants);
+          setMessage(`${solarmanPlants.length} usinas SOLARMAN sincronizadas com segurança.`);
+        } catch (error) {
+          if (active) setMessage(error instanceof Error ? error.message : 'Não foi possível sincronizar agora.');
+        } finally {
+          if (active) setSyncing(false);
+        }
       })
       .catch(() => {
-        if (active) setMessage('Função de servidor criada, mas ainda não foi publicada no Supabase.');
+        if (active) setMessage('A função de monitoramento ainda não foi publicada no Supabase.');
       });
+
     return () => { active = false; };
   }, []);
 
@@ -69,21 +98,6 @@ function MonitoramentoSolarPage() {
   }), [plants]);
 
   const providerName = (id) => PROVIDERS.find((provider) => provider.id === id)?.name || id;
-
-  const syncNow = async () => {
-    setSyncing(true);
-    try {
-      const solarmanPlants = await syncSolarmanPlants();
-      const otherProviders = plants.filter((plant) => plant.provider !== 'solarman' && !plant.id.startsWith('demo-'));
-      setPlants([...solarmanPlants, ...otherProviders]);
-      setConfigured(true);
-      setMessage(`${solarmanPlants.length} usinas SOLARMAN sincronizadas com segurança.`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Não foi possível sincronizar agora.');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   return (
     <FinanceLayout
@@ -103,7 +117,7 @@ function MonitoramentoSolarPage() {
       </section>
 
       <section className="monitor-kpis">
-        <article><span><Cloud size={20} /></span><div><small>Usinas</small><strong>{totals.plants}</strong></div></article>
+        <article><span><Cloud size={20} /></span><div><small>Usinas sincronizadas</small><strong>{totals.plants}</strong></div></article>
         <article><span><CheckCircle2 size={20} /></span><div><small>Online</small><strong>{totals.online}</strong></div></article>
         <article><span><AlertTriangle size={20} /></span><div><small>Alertas</small><strong>{totals.alerts}</strong></div></article>
         <article><span><Zap size={20} /></span><div><small>Geração hoje</small><strong>{totals.today.toFixed(1)} kWh</strong></div></article>
@@ -141,6 +155,14 @@ function MonitoramentoSolarPage() {
             {PROVIDERS.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
           </select>
         </div>
+
+        {!syncing && visiblePlants.length === 0 ? (
+          <div className="monitor-empty">
+            <Sun size={34} />
+            <strong>Nenhuma usina sincronizada</strong>
+            <span>{configured ? 'Clique em Sincronizar agora para consultar a conta SOLARMAN.' : 'Configure as credenciais da SOLARMAN no servidor.'}</span>
+          </div>
+        ) : null}
 
         <div className="plant-grid">
           {visiblePlants.map((plant) => (
