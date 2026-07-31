@@ -1,9 +1,9 @@
-name: Publicar ERP 2.0 Preview
+name: Publicar ERP 1 no GitHub Pages
 
 on:
   push:
     branches:
-      - erp-v2-preview
+      - main
   workflow_dispatch:
 
 permissions:
@@ -12,22 +12,22 @@ permissions:
   id-token: write
 
 concurrency:
-  group: erp-v2-preview-pages
+  group: github-pages
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Gerar Preview
+    name: Gerar ERP 1
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: MM_ERP_GitHub_Pronto/apps/web
 
     steps:
-      - name: Baixar código da ERP 2.0 Preview
+      - name: Baixar código da ERP 1
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: erp-v2-preview
+          ref: main
 
       - name: Configurar Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -49,10 +49,10 @@ jobs:
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
 
-      - name: Empacotar artefato da Preview
+      - name: Empacotar artefato da ERP 1
         run: tar --dereference --hard-dereference --directory dist -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
 
-      - name: Enviar artefato da Preview
+      - name: Enviar artefato da ERP 1
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: github-pages
@@ -61,7 +61,7 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    name: Publicar Preview
+    name: Publicar ERP 1
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
