@@ -29,11 +29,9 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: MM_ERP_GitHub_Pronto/apps/web/package-lock.json
 
       - name: Instalar dependências
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Validar código
         run: npm run lint
