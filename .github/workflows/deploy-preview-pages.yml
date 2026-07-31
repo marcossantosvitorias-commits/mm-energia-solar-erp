@@ -1,9 +1,8 @@
-name: Publicar ERP 1 no GitHub Pages
+name: Publicar ERP 1 manualmente no GitHub Pages
 
+# A ERP 2.0 Preview é a versão publicada automaticamente neste endereço.
+# Este fluxo existe apenas para uma publicação manual e deliberada da ERP 1.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
