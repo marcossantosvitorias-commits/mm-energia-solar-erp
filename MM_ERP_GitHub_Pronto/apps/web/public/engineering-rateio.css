@@ -1,0 +1,86 @@
+.belenus-form .finance-field span {
+  display: block;
+  margin-bottom: 10px;
+  color: #30394a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.belenus-form .finance-field input[name="mensalidadeTreviso"],
+.belenus-form .finance-field input[name="instalacoesMes"] {
+  min-height: 64px;
+  padding: 0 18px;
+  border: 1.5px solid #d9dee7;
+  border-radius: 18px;
+  background: #fff;
+  color: #10182a;
+  font-size: 23px;
+  box-shadow: none;
+}
+
+.belenus-form .finance-field input[name="mensalidadeTreviso"]:focus,
+.belenus-form .finance-field input[name="instalacoesMes"]:focus {
+  border-color: #d7b923;
+  outline: 3px solid rgba(245, 196, 0, .16);
+}
+
+.belenus-engineering-share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  grid-column: 1 / -1;
+  min-height: 96px;
+  margin-top: 4px;
+  padding: 22px 24px;
+  border: 1.5px solid #e1c94f;
+  border-radius: 18px;
+  color: #6c5900;
+  background: linear-gradient(135deg, #fffbe5, #fff8c9);
+  box-shadow: 0 8px 22px rgba(126, 102, 0, .08);
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.belenus-engineering-share span {
+  font-weight: 600;
+}
+
+.belenus-engineering-share strong {
+  flex-shrink: 0;
+  color: #071d3b;
+  font-size: clamp(25px, 3vw, 34px);
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+
+@media (max-width: 700px) {
+  .belenus-form .finance-field span {
+    font-size: 16px;
+  }
+
+  .belenus-form .finance-field input[name="mensalidadeTreviso"],
+  .belenus-form .finance-field input[name="instalacoesMes"] {
+    min-height: 68px;
+    font-size: 25px;
+  }
+
+  .belenus-engineering-share {
+    min-height: 104px;
+    padding: 21px 18px;
+    border-radius: 17px;
+    font-size: 16px;
+  }
+
+  .belenus-engineering-share strong {
+    font-size: 27px;
+  }
+}
+
+@media (max-width: 430px) {
+  .belenus-engineering-share {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
