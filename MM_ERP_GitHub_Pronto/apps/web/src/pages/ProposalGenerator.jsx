@@ -88,11 +88,51 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const payload = (status='Gerada') => ({ client_id:clienteId||null, client_name:dados.cliente.trim(), phone:String(dados.telefone||''), city:dados.cidade||null, status, total_amount:Number(valor.toFixed(2)), panel_count:Math.round(Number(quantidadePlacas||0)), panel_power_w:Math.round(Number(dados.potenciaPlaca||0)), system_power_kw:Number(potenciaSistema.toFixed(2)), monthly_generation_kwh:Math.round(Number(dados.geracaoMensal||geracaoCalculada)), panel_model:dados.marcaPlaca, inverter_model:dados.inversor, validity_days:Math.round(Number(dados.validade||7)), notes:dados.observacoes||null, sent_at:status==='Enviada'?new Date().toISOString():null, proposal_data:{...dados,telefone:String(dados.telefone||''),clienteId,quantidadePlacas,potenciaSistema,paymentOptions} });
   const salvarProposta = async (status='Gerada') => { if(!isSupabaseConfigured||!supabase) return {saved:false,warning:'Supabase indisponível.'}; try { const {data,error}=await supabase.from('sales_proposals').insert(payload(status)).select('*').single(); if(error) return {saved:false,warning:`Não registrado no CRM: ${error.message}`}; if(clienteId){try{await createClientInteraction(clienteId,{type:'proposta',description:`Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`,nextActionAt:''});}catch{}} await carregarDados(); return {saved:true,data}; } catch(e){return{saved:false,warning:e?.message||'Erro ao salvar.'};} };
 
-  const criarArquivoPdf = async (origem=dados) => { const doc=new jsPDF({unit:'mm',format:'a4'}); const qtd=Number(origem.quantidadePlacas||quantidadePlacas||0); const pot=Number(origem.potenciaPlaca||dados.potenciaPlaca||0); const ger=Number(origem.geracaoMensal||gerarPorPainel(pot)*qtd); const validade=Number(origem.validade||7); const val=Number(origem.valorProposta||valor||0); cabecalho(doc,'Energia solar pensada para','economizar todos os meses.','PROPOSTA COMERCIAL'); let y=82; [['CLIENTE',origem.cliente||'-'],['LOCAL',origem.cidade||'-'],['CONTATO',origem.telefone||'-']].forEach(([a,b])=>{caixa(doc,12,y,186,14,[20,66,112]);doc.setTextColor(255,255,255);doc.setFontSize(8);doc.text(`${a}: ${b}`,16,y+9);y+=17;}); doc.setTextColor(16,47,82);doc.setFontSize(13);doc.text('Resumo do sistema',12,140); [['Quantidade',`${qtd} painéis`],['Potência',`${((qtd*pot)/1000).toFixed(2).replace('.',',')} kWp`],['Geração',`${Math.round(ger)} kWh/mês`],['Investimento',moeda.format(val)]].forEach(([a,b],i)=>{const x=i%2?106:12;const cy=i<2?147:174;caixa(doc,x,cy,92,22);doc.setFontSize(7);doc.text(a,x+4,cy+7);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text(b,x+4,cy+16);}); rodape(doc,validade);
+  const criarArquivoPdf = async (origem=dados) => {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const qtd = Number(origem.quantidadePlacas || quantidadePlacas || 0);
+    const pot = Number(origem.potenciaPlaca || dados.potenciaPlaca || 0);
+    const ger = Number(origem.geracaoMensal || gerarPorPainel(pot) * qtd);
+    const validade = Number(origem.validade || 7);
+    const val = Number(origem.valorProposta || valor || 0);
+
+    cabecalho(doc, 'Energia solar pensada para', 'economizar todos os meses.', 'PROPOSTA COMERCIAL');
+    let y = 82;
+    [['CLIENTE', origem.cliente || '-'], ['LOCAL', origem.cidade || '-'], ['CONTATO', origem.telefone || '-']].forEach(([a, b]) => {
+      caixa(doc, 12, y, 186, 14, [20, 66, 112]);
+      doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.text(`${a}: ${b}`, 16, y + 9);
+      y += 17;
+    });
+    doc.setTextColor(16, 47, 82); doc.setFontSize(13); doc.text('Resumo do sistema', 12, 140);
+    [['Quantidade', `${qtd} painéis`], ['Potência', `${((qtd * pot) / 1000).toFixed(2).replace('.', ',')} kWp`]].forEach(([a, b], i) => {
+      const x = i ? 106 : 12;
+      caixa(doc, x, 147, 92, 22); doc.setFontSize(7); doc.text(a, x + 4, 154);
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text(b, x + 4, 163);
+    });
+    caixa(doc, 12, 174, 186, 22); doc.setFontSize(7); doc.text('Geração estimada', 16, 181);
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${Math.round(ger)} kWh/mês`, 16, 190);
+    rodape(doc, validade);
     doc.addPage(); cabecalho(doc,'Sua geração prevista','em todos os meses.','PREVISÃO ANUAL'); desenharGraficoGeracao(doc, ger, origem.cidade); rodape(doc,validade);
     doc.addPage(); cabecalho(doc,'Condições de pagamento','BelCred e cartão.','PAGAMENTOS'); doc.setTextColor(16,47,82);doc.setFontSize(12);doc.text('Financiamento BelCred',12,83); BELCRED.map(o=>({...o,valor:val*o.fator})).forEach((o,i)=>{caixa(doc,12,90+i*12,186,11);doc.setFontSize(8);doc.text(`${o.parcelas}x`,16,97+i*12);doc.text(moeda.format(o.valor),62,97+i*12);doc.text(`${o.taxa} a.m.`,155,97+i*12);}); doc.setFontSize(12);doc.text('Cartão de crédito',12,200); Array.from({length:10},(_,i)=>({p:i+12,v:totalCartao/(i+12)})).forEach((o,i)=>{const x=12+(i%3)*63;const cy=207+Math.floor(i/3)*13;caixa(doc,x,cy,59,10);doc.setFontSize(7);doc.text(`${o.p}x de ${moeda.format(o.v)}`,x+3,cy+6.5);}); rodape(doc,validade);
     doc.addPage(); cabecalho(doc,'Equipamentos escolhidos para','desempenho e segurança.','EQUIPAMENTOS'); caixa(doc,12,84,90,105,[255,255,255]);imagemContida(doc,PAINEL_IMAGE,20,91,74,50);doc.setTextColor(16,47,82);doc.setFontSize(10);doc.text('Painel fotovoltaico 620 Wp',16,149);doc.setFontSize(7);doc.text('Garantia: 15 anos',16,181); caixa(doc,108,84,90,105,[255,255,255]);imagemContida(doc,MICROINVERSOR_IMAGE,116,91,74,50);doc.setFontSize(10);doc.text('Microinversor 2,25 kW',112,149);doc.setFontSize(7);doc.text('Garantia: 15 anos',112,181);doc.setFontSize(12);doc.text('Garantia da instalação: 1 ano',12,211);rodape(doc,validade);
-    doc.addPage();cabecalho(doc,'Seu projeto acompanhado','do início ao pós-venda.','ETAPAS DO PROJETO');[['Vistoria técnica','Validação do local'],['Projeto executivo','Dimensionamento e documentação'],['Instalação','Montagem e testes'],['Homologação','Processo junto à concessionária'],['Monitoramento','Configuração do aplicativo'],['Pós-venda','Suporte após a entrega']].forEach(([a,b],i)=>{const x=i%2?106:12;const cy=84+Math.floor(i/2)*48;caixa(doc,x,cy,92,38,[255,255,255]);doc.setTextColor(16,47,82);doc.setFontSize(9);doc.text(a,x+5,cy+11);doc.setFontSize(7);doc.text(b,x+5,cy+22);});rodape(doc,validade); const blob=doc.output('blob');return new File([blob],`Proposta MM Energia Solar - ${arquivoSeguro(origem.cliente)}.pdf`,{type:'application/pdf'}); };
+    doc.addPage();cabecalho(doc,'Seu projeto acompanhado','do início ao pós-venda.','ETAPAS DO PROJETO');[['Vistoria técnica','Validação do local'],['Projeto executivo','Dimensionamento e documentação'],['Instalação','Montagem e testes'],['Homologação','Processo junto à concessionária'],['Monitoramento','Configuração do aplicativo'],['Pós-venda','Suporte após a entrega']].forEach(([a,b],i)=>{const x=i%2?106:12;const cy=84+Math.floor(i/2)*48;caixa(doc,x,cy,92,38,[255,255,255]);doc.setTextColor(16,47,82);doc.setFontSize(9);doc.text(a,x+5,cy+11);doc.setFontSize(7);doc.text(b,x+5,cy+22);});rodape(doc,validade);
+
+    doc.addPage();
+    cabecalho(doc, 'Pronto para começar a', 'economizar com energia solar.', 'VALOR DA PROPOSTA');
+    doc.setTextColor(16, 47, 82); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+    doc.text('Investimento total do seu projeto', 105, 102, { align: 'center' });
+    caixa(doc, 18, 116, 174, 58, [255, 250, 229]);
+    doc.setTextColor(8, 46, 88); doc.setFont('helvetica', 'bold'); doc.setFontSize(38);
+    doc.text(moeda.format(val), 105, 151, { align: 'center' });
+    doc.setTextColor(80, 99, 118); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.text(`Proposta válida por ${validade} dias`, 105, 188, { align: 'center' });
+    doc.setFontSize(11); doc.setTextColor(16, 47, 82);
+    doc.text('Conte com a MM Energia Solar do projeto ao pós-venda.', 105, 215, { align: 'center' });
+    rodape(doc, validade);
+
+    const blob=doc.output('blob');
+    return new File([blob],`Proposta MM Energia Solar - ${arquivoSeguro(origem.cliente)}.pdf`,{type:'application/pdf'});
+  };
   const baixarPdf=(arquivo)=>{const url=URL.createObjectURL(arquivo);const a=document.createElement('a');a.href=url;a.download=arquivo.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);};
   const gerarESalvar=async()=>{if(!dados.cliente.trim()){setMensagem('Informe o nome do cliente.');return;}setSalvando(true);try{const arq=await criarArquivoPdf();baixarPdf(arq);const r=await salvarProposta('Gerada');setMensagem(r.saved?'Proposta salva no histórico e PDF gerado.':r.warning);}finally{setSalvando(false);}};
   const enviarWhatsApp=async()=>{if(!dados.cliente.trim()){setMensagem('Informe o nome do cliente.');return;}let telefone=somenteNumeros(dados.telefone).replace(/^0+/,'');if(!telefone){setMensagem('Informe o WhatsApp do cliente.');return;}if(telefone.length<=11)telefone=`55${telefone}`;setSalvando(true);try{const arquivo=await criarArquivoPdf();const texto=`Olá, ${dados.cliente.trim()}! Segue sua proposta da MM Energia Solar.`;const podeCompartilhar=typeof navigator.share==='function'&&(!navigator.canShare||navigator.canShare({files:[arquivo]}));if(podeCompartilhar){await navigator.share({title:`Proposta MM Energia Solar - ${dados.cliente.trim()}`,text:texto,files:[arquivo]});setMensagem('PDF compartilhado. Escolha o WhatsApp Business e o contato do cliente.');salvarProposta('Enviada').catch(()=>{});return;}baixarPdf(arquivo);const mensagem=encodeURIComponent(`${texto}\n\nO PDF foi baixado no aparelho. Anexe-o nesta conversa.`);const destino=/Android/i.test(navigator.userAgent)?`intent://send?phone=${telefone}&text=${mensagem}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end`:`https://wa.me/${telefone}?text=${mensagem}`;setMensagem('O navegador não permite anexar automaticamente. O PDF foi baixado e o WhatsApp será aberto.');salvarProposta('Enviada').catch(()=>{});window.location.assign(destino);}catch(error){if(error?.name!=='AbortError')setMensagem(`Não foi possível compartilhar o PDF: ${error?.message||'erro desconhecido'}`);}finally{setSalvando(false);}};
