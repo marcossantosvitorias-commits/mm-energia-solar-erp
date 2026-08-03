@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { submitSolarSimulation } from '../services/solarSimulationService';
+import SaoPauloCitySelect from '../components/SaoPauloCitySelect.jsx';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
@@ -80,7 +81,7 @@ export default function CalculadoraSolarPublicaPage() {
               <Field label="Nome completo" name="name" value={form.name} onChange={update} required />
               <Field label="WhatsApp" name="phone" value={form.phone} onChange={update} placeholder="(14) 99999-9999" required />
               <Field label="E-mail" name="email" value={form.email} onChange={update} type="email" />
-              <Field label="Cidade" name="city" value={form.city} onChange={update} required />
+              <CityField label="Cidade" name="city" value={form.city} onChange={update} required />
               <Field label="Concessionária" name="utilityCompany" value={form.utilityCompany} onChange={update} />
               <label style={labelStyle}>
                 Tipo de ligação
@@ -150,6 +151,10 @@ const labelStyle = { display: 'block', fontWeight: 800, fontSize: 14, color: '#3
 
 function Field({ label, ...props }) {
   return <label style={labelStyle}>{label}<input {...props} style={inputStyle} /></label>;
+}
+
+function CityField({ label, ...props }) {
+  return <label style={labelStyle}>{label}<SaoPauloCitySelect {...props} style={inputStyle} /></label>;
 }
 
 function Metric({ title, value }) {

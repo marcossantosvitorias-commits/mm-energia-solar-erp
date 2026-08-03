@@ -6,6 +6,7 @@ import { MICROINVERSOR_IMAGE, PAINEL_IMAGE } from '../assets/proposalImages.js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import { createClientInteraction, listClients } from '../services/clientService.js';
 import { closeProposalAsSale } from '../services/proposalWorkflowService.js';
+import { buildMonthlyGeneration } from '../components/solar/MonthlyGenerationChart.jsx';
 
 const BELCRED = [
   { parcelas: 24, taxa: '1,91%', fator: 978.28 / 16383.49 },
@@ -31,6 +32,45 @@ function cabecalho(doc, titulo, destaque, selo) {
 }
 function rodape(doc, validade) { doc.setFillColor(8, 46, 88); doc.rect(0, 266, 210, 31, 'F'); doc.setTextColor(255,255,255); doc.setFontSize(7); doc.text(`MM Energia Solar • Validade ${validade} dias`,198,283,{align:'right'}); }
 function imagemContida(doc, imagem, x, y, w, h) { try { const p = doc.getImageProperties(imagem); const e = Math.min(w / p.width, h / p.height); const iw = p.width * e; const ih = p.height * e; doc.addImage(imagem, 'JPEG', x + (w-iw)/2, y + (h-ih)/2, iw, ih, undefined, 'NONE'); } catch {} }
+function desenharGraficoGeracao(doc, mediaMensal, cidade) {
+  const meses = buildMonthlyGeneration(mediaMensal);
+  const totalAnual = Math.round(meses.reduce((soma, item) => soma + item.generation, 0));
+  const maiorGeracao = Math.max(...meses.map((item) => item.generation), 1);
+  const escalaMaxima = Math.max(100, Math.ceil(maiorGeracao / 50) * 50);
+  const x = 13; const y = 95; const largura = 184; const altura = 130;
+  const esquerda = x + 18; const direita = x + largura - 6;
+  const topo = y + 20; const base = y + altura - 23;
+  const areaAltura = base - topo; const areaLargura = direita - esquerda;
+  const larguraSlot = areaLargura / meses.length; const larguraBarra = Math.min(9, larguraSlot * 0.62);
+
+  doc.setTextColor(16, 47, 82); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+  doc.text('Estimativa de geração de janeiro a dezembro', 13, 84);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(80, 99, 118);
+  doc.text(`Local: ${cidade || 'São Paulo'} · Geração anual estimada: ${totalAnual.toLocaleString('pt-BR')} kWh`, 13, 90);
+  doc.setFillColor(249, 251, 253); doc.setDrawColor(220, 229, 237); doc.roundedRect(x, y, largura, altura, 4, 4, 'FD');
+
+  for (let indice = 0; indice <= 4; indice += 1) {
+    const linhaY = topo + (areaAltura / 4) * indice;
+    const valor = Math.round(escalaMaxima - (escalaMaxima / 4) * indice);
+    doc.setDrawColor(221, 229, 237); doc.setLineWidth(0.25); doc.line(esquerda, linhaY, direita, linhaY);
+    doc.setFontSize(5.5); doc.setTextColor(103, 119, 135); doc.text(String(valor), esquerda - 3, linhaY + 1.7, { align: 'right' });
+  }
+
+  meses.forEach((item, indice) => {
+    const alturaBarra = Math.max(1, (item.generation / escalaMaxima) * areaAltura);
+    const barraX = esquerda + larguraSlot * indice + (larguraSlot - larguraBarra) / 2;
+    const barraY = base - alturaBarra;
+    doc.setFillColor(indice === 10 ? 245 : 22, indice === 10 ? 196 : 115, indice === 10 ? 0 : 178);
+    doc.roundedRect(barraX, barraY, larguraBarra, alturaBarra, 1, 1, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.2); doc.setTextColor(37, 55, 72);
+    doc.text(Math.round(item.generation).toLocaleString('pt-BR'), barraX + larguraBarra / 2, Math.max(topo + 5, barraY - 2), { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(81, 99, 116);
+    doc.text(item.month, barraX + larguraBarra / 2, base + 7, { align: 'center' });
+  });
+
+  doc.setFontSize(6.4); doc.setTextColor(91, 109, 128);
+  doc.text('A estimativa pode variar conforme orientação, inclinação, sombreamento, clima e condições reais da instalação.', 13, 238);
+}
 
 export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw, precoCartao = 0, taxaCartao = 0 }) {
   const navigate = useNavigate();
@@ -49,6 +89,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const salvarProposta = async (status='Gerada') => { if(!isSupabaseConfigured||!supabase) return {saved:false,warning:'Supabase indisponível.'}; try { const {data,error}=await supabase.from('sales_proposals').insert(payload(status)).select('*').single(); if(error) return {saved:false,warning:`Não registrado no CRM: ${error.message}`}; if(clienteId){try{await createClientInteraction(clienteId,{type:'proposta',description:`Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`,nextActionAt:''});}catch{}} await carregarDados(); return {saved:true,data}; } catch(e){return{saved:false,warning:e?.message||'Erro ao salvar.'};} };
 
   const criarArquivoPdf = async (origem=dados) => { const doc=new jsPDF({unit:'mm',format:'a4'}); const qtd=Number(origem.quantidadePlacas||quantidadePlacas||0); const pot=Number(origem.potenciaPlaca||dados.potenciaPlaca||0); const ger=Number(origem.geracaoMensal||gerarPorPainel(pot)*qtd); const validade=Number(origem.validade||7); const val=Number(origem.valorProposta||valor||0); cabecalho(doc,'Energia solar pensada para','economizar todos os meses.','PROPOSTA COMERCIAL'); let y=82; [['CLIENTE',origem.cliente||'-'],['LOCAL',origem.cidade||'-'],['CONTATO',origem.telefone||'-']].forEach(([a,b])=>{caixa(doc,12,y,186,14,[20,66,112]);doc.setTextColor(255,255,255);doc.setFontSize(8);doc.text(`${a}: ${b}`,16,y+9);y+=17;}); doc.setTextColor(16,47,82);doc.setFontSize(13);doc.text('Resumo do sistema',12,140); [['Quantidade',`${qtd} painéis`],['Potência',`${((qtd*pot)/1000).toFixed(2).replace('.',',')} kWp`],['Geração',`${Math.round(ger)} kWh/mês`],['Investimento',moeda.format(val)]].forEach(([a,b],i)=>{const x=i%2?106:12;const cy=i<2?147:174;caixa(doc,x,cy,92,22);doc.setFontSize(7);doc.text(a,x+4,cy+7);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text(b,x+4,cy+16);}); rodape(doc,validade);
+    doc.addPage(); cabecalho(doc,'Sua geração prevista','em todos os meses.','PREVISÃO ANUAL'); desenharGraficoGeracao(doc, ger, origem.cidade); rodape(doc,validade);
     doc.addPage(); cabecalho(doc,'Condições de pagamento','BelCred e cartão.','PAGAMENTOS'); doc.setTextColor(16,47,82);doc.setFontSize(12);doc.text('Financiamento BelCred',12,83); BELCRED.map(o=>({...o,valor:val*o.fator})).forEach((o,i)=>{caixa(doc,12,90+i*12,186,11);doc.setFontSize(8);doc.text(`${o.parcelas}x`,16,97+i*12);doc.text(moeda.format(o.valor),62,97+i*12);doc.text(`${o.taxa} a.m.`,155,97+i*12);}); doc.setFontSize(12);doc.text('Cartão de crédito',12,200); Array.from({length:10},(_,i)=>({p:i+12,v:totalCartao/(i+12)})).forEach((o,i)=>{const x=12+(i%3)*63;const cy=207+Math.floor(i/3)*13;caixa(doc,x,cy,59,10);doc.setFontSize(7);doc.text(`${o.p}x de ${moeda.format(o.v)}`,x+3,cy+6.5);}); rodape(doc,validade);
     doc.addPage(); cabecalho(doc,'Equipamentos escolhidos para','desempenho e segurança.','EQUIPAMENTOS'); caixa(doc,12,84,90,105,[255,255,255]);imagemContida(doc,PAINEL_IMAGE,20,91,74,50);doc.setTextColor(16,47,82);doc.setFontSize(10);doc.text('Painel fotovoltaico 620 Wp',16,149);doc.setFontSize(7);doc.text('Garantia: 15 anos',16,181); caixa(doc,108,84,90,105,[255,255,255]);imagemContida(doc,MICROINVERSOR_IMAGE,116,91,74,50);doc.setFontSize(10);doc.text('Microinversor 2,25 kW',112,149);doc.setFontSize(7);doc.text('Garantia: 15 anos',112,181);doc.setFontSize(12);doc.text('Garantia da instalação: 1 ano',12,211);rodape(doc,validade);
     doc.addPage();cabecalho(doc,'Seu projeto acompanhado','do início ao pós-venda.','ETAPAS DO PROJETO');[['Vistoria técnica','Validação do local'],['Projeto executivo','Dimensionamento e documentação'],['Instalação','Montagem e testes'],['Homologação','Processo junto à concessionária'],['Monitoramento','Configuração do aplicativo'],['Pós-venda','Suporte após a entrega']].forEach(([a,b],i)=>{const x=i%2?106:12;const cy=84+Math.floor(i/2)*48;caixa(doc,x,cy,92,38,[255,255,255]);doc.setTextColor(16,47,82);doc.setFontSize(9);doc.text(a,x+5,cy+11);doc.setFontSize(7);doc.text(b,x+5,cy+22);});rodape(doc,validade); const blob=doc.output('blob');return new File([blob],`Proposta MM Energia Solar - ${arquivoSeguro(origem.cliente)}.pdf`,{type:'application/pdf'}); };

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { History, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
+import SaoPauloCitySelect from '../components/SaoPauloCitySelect.jsx';
 import {
   createClient,
   createClientInteraction,
@@ -82,7 +83,7 @@ export default function ClientesPage() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => ({ ...current, [name]: value, ...(name === 'city' ? { state: 'SP' } : {}) }));
   };
 
   const resetForm = () => {
@@ -100,7 +101,7 @@ export default function ClientesPage() {
 
     setSaving(true);
     try {
-      const payload = { ...form, monthlyBill: Number(form.monthlyBill || 0) };
+      const payload = { ...form, state: 'SP', monthlyBill: Number(form.monthlyBill || 0) };
       if (editingId) {
         await updateClient(editingId, payload);
         setMessage('Cliente atualizado com sucesso.');
@@ -119,7 +120,7 @@ export default function ClientesPage() {
 
   const handleEdit = (client) => {
     setEditingId(client.id);
-    setForm({ ...emptyForm, ...client, monthlyBill: client.monthlyBill || '' });
+    setForm({ ...emptyForm, ...client, state: 'SP', monthlyBill: client.monthlyBill || '' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -195,8 +196,8 @@ export default function ClientesPage() {
           <label className="finance-field"><span>E-mail</span><input type="email" name="email" value={form.email} onChange={handleChange} /></label>
           <label className="finance-field"><span>Endereço</span><input name="address" value={form.address} onChange={handleChange} /></label>
           <label className="finance-field"><span>CEP</span><input name="zipCode" value={form.zipCode} onChange={handleChange} /></label>
-          <label className="finance-field"><span>Cidade</span><input name="city" value={form.city} onChange={handleChange} /></label>
-          <label className="finance-field"><span>Estado</span><input name="state" value={form.state} onChange={handleChange} maxLength={2} /></label>
+          <label className="finance-field"><span>Cidade</span><SaoPauloCitySelect name="city" value={form.city} onChange={handleChange} required /></label>
+          <label className="finance-field"><span>Estado</span><input name="state" value="SP" readOnly aria-label="Estado: São Paulo" /></label>
           <label className="finance-field"><span>Tipo</span><select name="customerType" value={form.customerType} onChange={handleChange}><option value="residencial">Residencial</option><option value="comercial">Comercial</option><option value="rural">Rural</option><option value="industrial">Industrial</option></select></label>
           <label className="finance-field"><span>Etapa comercial</span><select name="status" value={form.status} onChange={handleChange}>{Object.entries(stageLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
           <label className="finance-field"><span>Valor médio da conta</span><input type="number" min="0" step="0.01" name="monthlyBill" value={form.monthlyBill} onChange={handleChange} /></label>
