@@ -3,11 +3,11 @@ import { ArrowLeft, Download, MessageCircle, Printer } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MonthlyGenerationChart from '../components/solar/MonthlyGenerationChart.jsx';
 import { getSalesProposal, markProposalAsSent } from '../services/proposalManagementService.js';
+import { canShareProposalPdf, downloadProposalPdf, generateProfessionalProposalPdf, whatsappUrl } from '../services/professionalProposalPdfService.js';
 import './proposta-pdf.css';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
-const digits = (value = '') => String(value).replace(/\D/g, '');
 
 export default function PropostaPdfPage() {
   const { id } = useParams();
@@ -26,22 +26,37 @@ export default function PropostaPdfPage() {
   const validityDate = useMemo(() => { if (!proposal) return ''; const date = new Date(proposal.created_at); date.setDate(date.getDate() + Number(proposal.validity_days || 7)); return date.toLocaleDateString('pt-BR'); }, [proposal]);
   const estimatedConsumption = useMemo(() => Number(proposal?.estimated_consumption_kwh || proposal?.monthly_generation_kwh || 0), [proposal]);
   const printProposal = () => window.print();
+  const downloadPdf = async () => {
+    if (!proposal) return;
+    try {
+      downloadProposalPdf(await generateProfessionalProposalPdf(proposal));
+      setMessage('PDF profissional completo gerado com todas as páginas.');
+    } catch (error) { setMessage(error.message || 'Não foi possível gerar o PDF.'); }
+  };
 
   const sendWhatsApp = async () => {
     if (!proposal) return;
     try {
-      const updated = await markProposalAsSent(proposal.id); setProposal(updated);
-      const phone = digits(proposal.phone); const destination = phone.startsWith('55') ? phone : `55${phone}`;
       const text = [`Olá, ${proposal.client_name}!`, 'Sua proposta personalizada da MM Energia Solar está pronta.', `Sistema: ${proposal.panel_count || 0} módulos, ${number.format(proposal.system_power_kw || 0)} kWp.`, `Investimento: ${money.format(finalAmount)}.`, `Proposta válida até ${validityDate}.`].join('\n');
-      window.open(`https://wa.me/${destination}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
-    } catch (error) { setMessage(error.message); }
+      const file = await generateProfessionalProposalPdf(proposal);
+      if (canShareProposalPdf(file)) {
+        await navigator.share({ title: file.name, text, files: [file] });
+        const updated = await markProposalAsSent(proposal.id); setProposal(updated);
+        setMessage('PDF completo anexado. Escolha o WhatsApp Business e depois o contato.');
+        return;
+      }
+      downloadProposalPdf(file);
+      window.location.assign(whatsappUrl(proposal.phone, `${text}\n\nO PDF completo foi baixado no aparelho. Anexe-o nesta conversa.`));
+      const updated = await markProposalAsSent(proposal.id); setProposal(updated);
+      setMessage('O PDF completo foi baixado. Anexe-o na conversa do WhatsApp Business que será aberta.');
+    } catch (error) { setMessage(error?.name === 'AbortError' ? 'Compartilhamento cancelado.' : error.message || 'Não foi possível compartilhar o PDF.'); }
   };
 
   if (loading) return <main className="proposal-loading">Carregando proposta...</main>;
   if (!proposal) return <main className="proposal-loading">{message || 'Proposta não encontrada.'}</main>;
 
   return <main className="proposal-screen">
-    <div className="proposal-toolbar no-print"><button onClick={() => navigate('/app/propostas')}><ArrowLeft size={18} /> Voltar</button><div><button onClick={sendWhatsApp}><MessageCircle size={18} /> Enviar pelo WhatsApp</button><button className="primary" onClick={printProposal}><Download size={18} /> Salvar em PDF</button><button onClick={printProposal}><Printer size={18} /> Imprimir</button></div></div>
+    <div className="proposal-toolbar no-print"><button onClick={() => navigate('/app/propostas')}><ArrowLeft size={18} /> Voltar</button><div><button onClick={sendWhatsApp}><MessageCircle size={18} /> Enviar PDF no WhatsApp</button><button className="primary" onClick={downloadPdf}><Download size={18} /> Salvar PDF completo</button><button onClick={printProposal}><Printer size={18} /> Imprimir</button></div></div>
     {message && <p className="proposal-alert no-print">{message}</p>}
     <article className="proposal-document">
       <header className="proposal-cover">

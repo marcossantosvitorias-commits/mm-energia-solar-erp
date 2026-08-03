@@ -12,6 +12,7 @@ import {
   updateSalesProposal,
 } from '../services/proposalManagementService.js';
 import { buildPublicProposalUrl } from '../services/publicProposalService.js';
+import { canShareProposalPdf, downloadProposalPdf, generateProfessionalProposalPdf, whatsappUrl } from '../services/professionalProposalPdfService.js';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const statuses = ['Gerada', 'Enviada', 'Em negociação', 'Aceita', 'Venda Fechada', 'Recusada'];
@@ -29,6 +30,7 @@ export default function PropostasPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
+  const [sendingId, setSendingId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -119,10 +121,23 @@ export default function PropostasPage() {
     catch { window.prompt('Copie o link público da proposta:', url); }
   };
 
-  const whatsapp = (proposal) => {
-    const url = publicUrl(proposal);
-    const text = [`Olá, ${proposal.client_name}! Sua proposta da MM Energia Solar está pronta.`, `Valor: ${money.format(Number(proposal.total_amount || 0) - Number(proposal.discount_amount || 0))}.`, url ? `Acesse, confira e aceite pelo link: ${url}` : ''].filter(Boolean).join('\n');
-    window.open(`https://wa.me/${digits(proposal.phone).startsWith('55') ? digits(proposal.phone) : `55${digits(proposal.phone)}`}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+  const whatsapp = async (proposal) => {
+    if (!digits(proposal.phone)) { setMessage('Informe o WhatsApp do cliente antes de enviar a proposta.'); return; }
+    setSendingId(proposal.id); setMessage('Gerando o PDF completo para o WhatsApp Business...');
+    try {
+      const value = Math.max(0, Number(proposal.total_amount || 0) - Number(proposal.discount_amount || 0));
+      const text = [`Olá, ${proposal.client_name}!`, 'Segue sua proposta personalizada da MM Energia Solar.', `Investimento: ${money.format(value)}.`].join('\n');
+      const file = await generateProfessionalProposalPdf(proposal);
+      if (canShareProposalPdf(file)) {
+        await navigator.share({ title: file.name, text, files: [file] });
+        setMessage('PDF completo anexado. Escolha o WhatsApp Business e depois o contato.');
+        return;
+      }
+      downloadProposalPdf(file);
+      window.location.assign(whatsappUrl(proposal.phone, `${text}\n\nO PDF completo foi baixado no aparelho. Anexe-o nesta conversa.`));
+      setMessage('O PDF completo foi baixado. Anexe-o na conversa do WhatsApp Business que será aberta.');
+    } catch (error) { setMessage(error?.name === 'AbortError' ? 'Compartilhamento cancelado.' : error.message || 'Não foi possível compartilhar o PDF.'); }
+    finally { setSendingId(null); }
   };
 
   return <FinanceLayout title="Propostas comerciais" subtitle="Gerencie propostas, aceite do cliente, confirmação interna da venda e geração da Ordem de Serviço.">
@@ -135,7 +150,7 @@ export default function PropostasPage() {
         <td>{proposal.panel_count || 0} módulos · {proposal.system_power_kw || 0} kWp</td><td><strong>{money.format(proposal.total_amount || 0)}</strong></td>
         <td><select value={proposal.status} onChange={(e) => changeStatus(proposal, e.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></td>
         <td><small>{proposal.public_view_count || 0} visualização(ões)</small>{proposal.public_viewed_at && <small>Última: {new Date(proposal.public_viewed_at).toLocaleString('pt-BR')}</small>}</td>
-        <td><div className="finance-actions compact">{proposal.status === 'Aceita' && proposal.sale_confirmation_status === 'Pendente' && <><button title="Confirmar venda e gerar OS" disabled={confirmingId === proposal.id} onClick={() => confirmSale(proposal)}><CheckCircle2 size={17} /></button><button title="Retornar à negociação" onClick={() => returnToNegotiation(proposal)}><RotateCcw size={17} /></button></>}<button title="Gerar PDF" onClick={() => navigate(`/app/propostas/${proposal.id}/pdf`)}><FileDown size={17} /></button><button title="Copiar link público" onClick={() => copyPublicLink(proposal)}><Copy size={17} /></button>{proposal.public_token && <button title="Abrir link público" onClick={() => window.open(publicUrl(proposal), '_blank', 'noopener,noreferrer')}><ExternalLink size={17} /></button>}<button title="Editar" onClick={() => openEditor(proposal)}><Pencil size={17} /></button><button title="Enviar link pelo WhatsApp" onClick={() => whatsapp(proposal)}><MessageCircle size={17} /></button><button title="Excluir" onClick={() => remove(proposal)}><Trash2 size={17} /></button></div></td>
+        <td><div className="finance-actions compact">{proposal.status === 'Aceita' && proposal.sale_confirmation_status === 'Pendente' && <><button title="Confirmar venda e gerar OS" disabled={confirmingId === proposal.id} onClick={() => confirmSale(proposal)}><CheckCircle2 size={17} /></button><button title="Retornar à negociação" onClick={() => returnToNegotiation(proposal)}><RotateCcw size={17} /></button></>}<button title="Gerar PDF" onClick={() => navigate(`/app/propostas/${proposal.id}/pdf`)}><FileDown size={17} /></button><button title="Copiar link público" onClick={() => copyPublicLink(proposal)}><Copy size={17} /></button>{proposal.public_token && <button title="Abrir link público" onClick={() => window.open(publicUrl(proposal), '_blank', 'noopener,noreferrer')}><ExternalLink size={17} /></button>}<button title="Editar" onClick={() => openEditor(proposal)}><Pencil size={17} /></button><button title="Enviar PDF no WhatsApp Business" disabled={sendingId === proposal.id} onClick={() => whatsapp(proposal)}><MessageCircle size={17} /></button><button title="Excluir" onClick={() => remove(proposal)}><Trash2 size={17} /></button></div></td>
       </tr>)}</tbody></table></div>
     </section>
     {editor && <div className="finance-modal-backdrop" onMouseDown={() => setEditor(null)}><div className="finance-modal" onMouseDown={(e) => e.stopPropagation()}><div className="finance-panel-header"><div><h2><FileText size={22} /> Editar proposta</h2><p>{editor.client_name}</p></div><button onClick={() => setEditor(null)}><X size={22} /></button></div><div className="finance-form">
