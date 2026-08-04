@@ -4,7 +4,8 @@ import StatCard from '../components/finance/StatCard.jsx';
 import { formatarMoeda } from '../components/finance/storage.js';
 import ProposalGenerator from './ProposalGenerator.jsx';
 
-const presets = [4, 6, 8, 10, 12, 14, 16, 20];
+const presets = [4, 6, 7, 8, 10, 12, 14, 16, 20];
+const precosAVista = { 7: 11412.5 };
 
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
@@ -66,8 +67,7 @@ function PrecificacaoKitsPage() {
     const aliquotaComissao = percentual(form.comissao);
     const margem = percentual(form.margemDesejada);
 
-    const baseCredito =
-      custoEquipamentos * percentual(form.baseCredito);
+    const baseCredito = custoEquipamentos * percentual(form.baseCredito);
 
     const creditoTributario =
       modoTributario === 'reforma'
@@ -76,8 +76,9 @@ function PrecificacaoKitsPage() {
 
     const divisor = 1 - aliquotaTributo - aliquotaComissao - margem;
 
-    const precoVenda =
+    const precoCalculado =
       divisor > 0 ? (custoTotal - creditoTributario) / divisor : 0;
+    const precoVenda = precosAVista[quantidadePlacas] ?? precoCalculado;
 
     const tributoBruto = precoVenda * aliquotaTributo;
     const tributoLiquido = Math.max(0, tributoBruto - creditoTributario);
@@ -90,9 +91,7 @@ function PrecificacaoKitsPage() {
         ? precoVenda - tributoLiquido
         : precoVenda;
 
-    const precoComDesconto =
-      precoVenda * (1 - percentual(form.descontoMaximo));
-
+    const precoComDesconto = precoVenda * (1 - percentual(form.descontoMaximo));
     const markup = custoTotal > 0 ? precoVenda / custoTotal : 0;
 
     return {
@@ -137,9 +136,7 @@ function PrecificacaoKitsPage() {
 
       const credito =
         modoTributario === 'reforma'
-          ? (custoPaineis +
-              numero(form.custoInversor) +
-              numero(form.custoEstrutura)) *
+          ? (custoPaineis + numero(form.custoInversor) + numero(form.custoEstrutura)) *
             percentual(form.baseCredito) *
             percentual(form.creditoCompras)
           : 0;
@@ -150,7 +147,8 @@ function PrecificacaoKitsPage() {
         percentual(form.comissao) -
         percentual(form.margemDesejada);
 
-      const preco = divisor > 0 ? (custoTotal - credito) / divisor : 0;
+      const precoCalculado = divisor > 0 ? (custoTotal - credito) / divisor : 0;
+      const preco = precosAVista[quantidade] ?? precoCalculado;
 
       return {
         quantidade,
@@ -177,9 +175,7 @@ function PrecificacaoKitsPage() {
           {presets.map((quantidade) => (
             <button
               key={quantidade}
-              className={`kit-preset ${
-                quantidadePlacas === quantidade ? 'active' : ''
-              }`}
+              className={`kit-preset ${quantidadePlacas === quantidade ? 'active' : ''}`}
               onClick={() => setQuantidadePlacas(quantidade)}
             >
               <strong>{quantidade}</strong>
@@ -193,9 +189,7 @@ function PrecificacaoKitsPage() {
               type="number"
               min="1"
               value={quantidadePlacas}
-              onChange={(event) =>
-                setQuantidadePlacas(Number(event.target.value || 1))
-              }
+              onChange={(event) => setQuantidadePlacas(Number(event.target.value || 1))}
             />
           </label>
         </div>
@@ -230,55 +224,16 @@ function PrecificacaoKitsPage() {
           <h2>Custos do kit</h2>
 
           <div className="finance-form">
-            <label className="finance-field">
-              <span>Custo de cada placa</span>
-              <input type="number" step="0.01" name="custoPlaca" value={form.custoPlaca} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Inversor ou microinversores</span>
-              <input type="number" step="0.01" name="custoInversor" value={form.custoInversor} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Estrutura</span>
-              <input type="number" step="0.01" name="custoEstrutura" value={form.custoEstrutura} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Material elétrico</span>
-              <input type="number" step="0.01" name="materialEletrico" value={form.materialEletrico} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Frete proporcional</span>
-              <input type="number" step="0.01" name="frete" value={form.frete} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Mão de obra</span>
-              <input type="number" step="0.01" name="maoDeObra" value={form.maoDeObra} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Engenharia</span>
-              <input type="number" step="0.01" name="engenharia" value={form.engenharia} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>TRT</span>
-              <input type="number" step="0.01" name="trt" value={form.trt} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Combustível</span>
-              <input type="number" step="0.01" name="combustivel" value={form.combustivel} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Outros custos</span>
-              <input type="number" step="0.01" name="outrosCustos" value={form.outrosCustos} onChange={atualizar} />
-            </label>
+            <label className="finance-field"><span>Custo de cada placa</span><input type="number" step="0.01" name="custoPlaca" value={form.custoPlaca} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Inversor ou microinversores</span><input type="number" step="0.01" name="custoInversor" value={form.custoInversor} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Estrutura</span><input type="number" step="0.01" name="custoEstrutura" value={form.custoEstrutura} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Material elétrico</span><input type="number" step="0.01" name="materialEletrico" value={form.materialEletrico} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Frete proporcional</span><input type="number" step="0.01" name="frete" value={form.frete} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Mão de obra</span><input type="number" step="0.01" name="maoDeObra" value={form.maoDeObra} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Engenharia</span><input type="number" step="0.01" name="engenharia" value={form.engenharia} onChange={atualizar} /></label>
+            <label className="finance-field"><span>TRT</span><input type="number" step="0.01" name="trt" value={form.trt} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Combustível</span><input type="number" step="0.01" name="combustivel" value={form.combustivel} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Outros custos</span><input type="number" step="0.01" name="outrosCustos" value={form.outrosCustos} onChange={atualizar} /></label>
           </div>
         </article>
 
@@ -286,51 +241,22 @@ function PrecificacaoKitsPage() {
           <h2>Tributos e margem</h2>
 
           <div className="finance-form">
-            <label className="finance-field">
-              <span>Imposto atual sobre a venda (%)</span>
-              <input type="number" step="0.01" name="impostoVenda" value={form.impostoVenda} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>IBS + CBS estimado (%)</span>
-              <input type="number" step="0.01" name="ibsCbs" value={form.ibsCbs} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Crédito sobre compras (%)</span>
-              <input type="number" step="0.01" name="creditoCompras" value={form.creditoCompras} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Parte dos equipamentos com crédito (%)</span>
-              <input type="number" step="0.01" name="baseCredito" value={form.baseCredito} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Comissão de venda (%)</span>
-              <input type="number" step="0.01" name="comissao" value={form.comissao} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Margem líquida desejada (%)</span>
-              <input type="number" step="0.01" name="margemDesejada" value={form.margemDesejada} onChange={atualizar} />
-            </label>
-
-            <label className="finance-field">
-              <span>Desconto máximo permitido (%)</span>
-              <input type="number" step="0.01" name="descontoMaximo" value={form.descontoMaximo} onChange={atualizar} />
-            </label>
+            <label className="finance-field"><span>Imposto atual sobre a venda (%)</span><input type="number" step="0.01" name="impostoVenda" value={form.impostoVenda} onChange={atualizar} /></label>
+            <label className="finance-field"><span>IBS + CBS estimado (%)</span><input type="number" step="0.01" name="ibsCbs" value={form.ibsCbs} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Crédito sobre compras (%)</span><input type="number" step="0.01" name="creditoCompras" value={form.creditoCompras} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Parte dos equipamentos com crédito (%)</span><input type="number" step="0.01" name="baseCredito" value={form.baseCredito} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Comissão de venda (%)</span><input type="number" step="0.01" name="comissao" value={form.comissao} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Margem líquida desejada (%)</span><input type="number" step="0.01" name="margemDesejada" value={form.margemDesejada} onChange={atualizar} /></label>
+            <label className="finance-field"><span>Desconto máximo permitido (%)</span><input type="number" step="0.01" name="descontoMaximo" value={form.descontoMaximo} onChange={atualizar} /></label>
           </div>
 
-          <div className="tax-warning">
-            As alíquotas ficam editáveis para você ajustar conforme a orientação do contador.
-          </div>
+          <div className="tax-warning">As alíquotas ficam editáveis para você ajustar conforme a orientação do contador.</div>
         </article>
       </section>
 
       <section className="finance-grid">
         <StatCard label="Custo total" value={formatarMoeda(resultado.custoTotal)} helper={`${quantidadePlacas} placas e instalação`} tone="negative" />
-        <StatCard label="Preço recomendado" value={formatarMoeda(resultado.precoVenda)} helper={`Margem desejada de ${form.margemDesejada}%`} tone="primary" />
+        <StatCard label="Preço à vista" value={formatarMoeda(resultado.precoVenda)} helper={precosAVista[quantidadePlacas] ? 'Preço comercial cadastrado' : `Margem desejada de ${form.margemDesejada}%`} tone="primary" />
         <StatCard label="Lucro estimado" value={formatarMoeda(resultado.lucro)} helper={`Margem real de ${resultado.margemReal.toFixed(2)}%`} tone="positive" />
         <StatCard label="Preço com desconto" value={formatarMoeda(resultado.precoComDesconto)} helper={`Desconto máximo de ${form.descontoMaximo}%`} tone="warning" />
       </section>
@@ -344,94 +270,31 @@ function PrecificacaoKitsPage() {
       <section className="finance-two-columns">
         <article className="finance-panel">
           <h2>Detalhamento do cálculo</h2>
-
-          <div className="finance-list-item">
-            <div><strong>Custo dos painéis</strong><span>{quantidadePlacas} × {formatarMoeda(form.custoPlaca)}</span></div>
-            <strong>{formatarMoeda(resultado.custoPaineis)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Equipamentos</strong><span>Painéis, inversor e estrutura</span></div>
-            <strong>{formatarMoeda(resultado.custoEquipamentos)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Custos operacionais</strong><span>Instalação e despesas adicionais</span></div>
-            <strong>{formatarMoeda(resultado.custosOperacionais)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Crédito tributário estimado</strong><span>Aplicável no cenário IBS + CBS</span></div>
-            <strong>{formatarMoeda(resultado.creditoTributario)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Imposto bruto da venda</strong><span>Antes do aproveitamento de créditos</span></div>
-            <strong>{formatarMoeda(resultado.tributoBruto)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Imposto líquido estimado</strong><span>Imposto bruto menos créditos</span></div>
-            <strong>{formatarMoeda(resultado.tributoLiquido)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Comissão</strong><span>Percentual informado</span></div>
-            <strong>{formatarMoeda(resultado.comissao)}</strong>
-          </div>
+          <div className="finance-list-item"><div><strong>Custo dos painéis</strong><span>{quantidadePlacas} × {formatarMoeda(form.custoPlaca)}</span></div><strong>{formatarMoeda(resultado.custoPaineis)}</strong></div>
+          <div className="finance-list-item"><div><strong>Equipamentos</strong><span>Painéis, inversor e estrutura</span></div><strong>{formatarMoeda(resultado.custoEquipamentos)}</strong></div>
+          <div className="finance-list-item"><div><strong>Custos operacionais</strong><span>Instalação e despesas adicionais</span></div><strong>{formatarMoeda(resultado.custosOperacionais)}</strong></div>
+          <div className="finance-list-item"><div><strong>Crédito tributário estimado</strong><span>Aplicável no cenário IBS + CBS</span></div><strong>{formatarMoeda(resultado.creditoTributario)}</strong></div>
+          <div className="finance-list-item"><div><strong>Imposto bruto da venda</strong><span>Antes do aproveitamento de créditos</span></div><strong>{formatarMoeda(resultado.tributoBruto)}</strong></div>
+          <div className="finance-list-item"><div><strong>Imposto líquido estimado</strong><span>Imposto bruto menos créditos</span></div><strong>{formatarMoeda(resultado.tributoLiquido)}</strong></div>
+          <div className="finance-list-item"><div><strong>Comissão</strong><span>Percentual informado</span></div><strong>{formatarMoeda(resultado.comissao)}</strong></div>
         </article>
 
         <article className="finance-panel">
           <h2>Informações comerciais</h2>
-
-          <div className="finance-list-item">
-            <div><strong>Valor líquido recebido</strong><span>Após retenção tributária estimada</span></div>
-            <strong>{formatarMoeda(resultado.valorLiquidoRecebido)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Markup</strong><span>Preço dividido pelo custo total</span></div>
-            <strong>{resultado.markup.toFixed(2)}×</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Parcela em 96 vezes</strong><span>Sem juros bancários</span></div>
-            <strong>{formatarMoeda(resultado.precoVenda / 96)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Parcela em 60 vezes</strong><span>Sem juros bancários</span></div>
-            <strong>{formatarMoeda(resultado.precoVenda / 60)}</strong>
-          </div>
-
-          <div className="finance-list-item">
-            <div><strong>Parcela em 48 vezes</strong><span>Sem juros bancários</span></div>
-            <strong>{formatarMoeda(resultado.precoVenda / 48)}</strong>
-          </div>
-
-          <div className="pricing-highlight">
-            <span>Preço mínimo recomendado</span>
-            <strong>{formatarMoeda(resultado.precoVenda)}</strong>
-          </div>
+          <div className="finance-list-item"><div><strong>Valor líquido recebido</strong><span>Após retenção tributária estimada</span></div><strong>{formatarMoeda(resultado.valorLiquidoRecebido)}</strong></div>
+          <div className="finance-list-item"><div><strong>Markup</strong><span>Preço dividido pelo custo total</span></div><strong>{resultado.markup.toFixed(2)}×</strong></div>
+          <div className="finance-list-item"><div><strong>Parcela em 96 vezes</strong><span>Sem juros bancários</span></div><strong>{formatarMoeda(resultado.precoVenda / 96)}</strong></div>
+          <div className="finance-list-item"><div><strong>Parcela em 60 vezes</strong><span>Sem juros bancários</span></div><strong>{formatarMoeda(resultado.precoVenda / 60)}</strong></div>
+          <div className="finance-list-item"><div><strong>Parcela em 48 vezes</strong><span>Sem juros bancários</span></div><strong>{formatarMoeda(resultado.precoVenda / 48)}</strong></div>
+          <div className="pricing-highlight"><span>Preço à vista</span><strong>{formatarMoeda(resultado.precoVenda)}</strong></div>
         </article>
       </section>
 
       <section className="finance-panel">
-        <div className="finance-panel-header">
-          <h2>Tabela automática de preços</h2>
-        </div>
-
+        <div className="finance-panel-header"><h2>Tabela automática de preços</h2></div>
         <div className="finance-table-wrapper">
           <table className="finance-table">
-            <thead>
-              <tr>
-                <th>Kit</th>
-                <th>Custo total</th>
-                <th>Crédito estimado</th>
-                <th>Preço recomendado</th>
-                <th>Parcela em 96x</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Kit</th><th>Custo total</th><th>Crédito estimado</th><th>Preço à vista</th><th>Parcela em 96x</th></tr></thead>
             <tbody>
               {comparativo.map((item) => (
                 <tr key={item.quantidade}>
