@@ -11,8 +11,26 @@ const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const CONTAS_PADRAO = [
   'Energia', 'COHAB', 'Claro TV', 'IPTU Bauru', 'IPTU Cascavel', 'Consórcio',
   'Cartão Nubank', 'Cartão Nubank Manu', 'Neon', 'Maira', 'Álbum', 'Shopee',
-  'Terreno 01', 'Terreno 02',
+  'Terreno 01', 'Terreno 02', 'Combustível',
 ];
+
+const CONTAS_RECORRENTES_2026 = {
+  'Cartão Nubank': { dia: 5, valor: 326 },
+  Shopee: { dia: 6, valor: 221.24 },
+  Consórcio: { dia: 7, valor: 871.5 },
+  'Cartão Nubank Manu': { dia: 10, valor: 300 },
+  COHAB: { dia: 10, valor: 636 },
+  Maira: { dia: 11, valor: 700 },
+  'Terreno 01': { dia: 20, valor: 210.39 },
+  'Terreno 02': { dia: 20, valor: 331.07 },
+  'Claro TV': { dia: 21, valor: 237.1 },
+  Neon: { dia: 21, valor: 72.29 },
+  Álbum: { dia: 24, valor: 232 },
+  Energia: { dia: 28, valor: 26.95 },
+  Combustível: { dia: 30, valor: 600 },
+};
+
+const MESES_RECORRENTES = new Set(['2026-08', '2026-09', '2026-10', '2026-11', '2026-12']);
 
 const PARCELAS_TERRENOS = {
   '2026-01': { 'Terreno 01': 469.06, 'Terreno 02': 738.12 },
@@ -26,6 +44,7 @@ const PARCELAS_TERRENOS = {
   '2026-09': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
   '2026-10': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
   '2026-11': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
+  '2026-12': { 'Terreno 01': 210.39, 'Terreno 02': 331.07 },
 };
 
 const CONTAS_CONFIRMADAS = {
@@ -47,19 +66,22 @@ const mesAtual = () => new Date().toISOString().slice(0, 7);
 const idNovo = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const vencimentoDoMes = (mes) => PARCELAS_TERRENOS[mes] ? `${mes}-20` : '';
 const vazio = (valor) => valor === '' || valor == null;
+const dataDoMes = (mes, dia) => `${mes}-${String(dia).padStart(2, '0')}`;
+const recorrenteDoMes = (nome, mes) => MESES_RECORRENTES.has(mes) ? CONTAS_RECORRENTES_2026[nome] : null;
 
 function carregar(chave) {
   try { return JSON.parse(localStorage.getItem(chave) || '{}'); } catch { return {}; }
 }
 
 function criarConta(nome, mes) {
+  const recorrente = recorrenteDoMes(nome, mes);
   const parcela = PARCELAS_TERRENOS[mes]?.[nome];
   const confirmada = CONTAS_CONFIRMADAS[mes]?.[nome];
   return {
     id: idNovo(), nome,
-    vencimento: confirmada?.vencimento || (parcela ? vencimentoDoMes(mes) : ''),
+    vencimento: confirmada?.vencimento || (recorrente ? dataDoMes(mes, recorrente.dia) : (parcela ? vencimentoDoMes(mes) : '')),
     dataPagamento: confirmada?.dataPagamento || '',
-    valor: confirmada?.valor ?? parcela ?? '',
+    valor: confirmada?.valor ?? recorrente?.valor ?? parcela ?? '',
     pago: confirmada?.pago ?? false,
   };
 }
@@ -73,13 +95,16 @@ function completarContasDoMes(contas, mes) {
   const todas = CONTAS_PADRAO.map((nome) => porNome.get(nome) || criarConta(nome, mes));
   const extras = contas.filter((conta) => !CONTAS_PADRAO.includes(conta.nome));
   return [...todas, ...extras].map((conta) => {
+    const recorrente = recorrenteDoMes(conta.nome, mes);
     const parcela = PARCELAS_TERRENOS[mes]?.[conta.nome];
     const confirmada = CONTAS_CONFIRMADAS[mes]?.[conta.nome];
     return {
       ...conta,
-      vencimento: vazio(conta.vencimento) ? (confirmada?.vencimento || (parcela ? vencimentoDoMes(mes) : '')) : conta.vencimento,
+      vencimento: vazio(conta.vencimento)
+        ? (confirmada?.vencimento || (recorrente ? dataDoMes(mes, recorrente.dia) : (parcela ? vencimentoDoMes(mes) : '')))
+        : conta.vencimento,
       dataPagamento: vazio(conta.dataPagamento) ? (confirmada?.dataPagamento || '') : conta.dataPagamento,
-      valor: vazio(conta.valor) ? (confirmada?.valor ?? parcela ?? '') : conta.valor,
+      valor: vazio(conta.valor) ? (confirmada?.valor ?? recorrente?.valor ?? parcela ?? '') : conta.valor,
       pago: conta.pago || Boolean(confirmada?.pago),
     };
   });
@@ -117,11 +142,9 @@ export default function MarcosFinancePage() {
   const contasOrdenadas = useMemo(() => [...contas].sort((a, b) => {
     const dataA = a.pago ? (a.dataPagamento || a.vencimento) : a.vencimento;
     const dataB = b.pago ? (b.dataPagamento || b.vencimento) : b.vencimento;
-
     if (!dataA && !dataB) return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
     if (!dataA) return 1;
     if (!dataB) return -1;
-
     const comparacaoData = dataA.localeCompare(dataB);
     return comparacaoData || String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
   }), [contas]);
@@ -133,7 +156,6 @@ export default function MarcosFinancePage() {
 
   useEffect(() => {
     let ativo = true;
-
     async function carregarSupabase() {
       if (!isSupabaseConfigured || !supabase) return;
       setAviso('Atualizando dados do banco...');
@@ -146,45 +168,26 @@ export default function MarcosFinancePage() {
         .gte('transaction_date', inicio)
         .lt('transaction_date', fim)
         .order('transaction_date', { ascending: true });
-
       if (!ativo) return;
-      if (error) {
-        setAviso(`Não foi possível ler o Supabase: ${error.message}`);
-        return;
-      }
-      if (!data?.length) {
-        setAviso('Nenhum lançamento encontrado no banco para este mês.');
-        return;
-      }
-
+      if (error) { setAviso(`Não foi possível ler o Supabase: ${error.message}`); return; }
+      if (!data?.length) { setAviso('Nenhum lançamento encontrado no banco para este mês.'); return; }
       const importadas = data.map((item) => ({
         id: item.id || item.external_id || idNovo(),
         nome: item.description || item.category || 'Despesa',
         vencimento: String(item.transaction_date || '').slice(0, 10),
         dataPagamento: String(item.transaction_date || '').slice(0, 10),
-        valor: Number(item.amount || 0),
-        pago: true,
-        importada: true,
+        valor: Number(item.amount || 0), pago: true, importada: true,
       }));
       const totalCompras = importadas.reduce((soma, item) => soma + Number(item.valor || 0), 0);
-
       setDados((atual) => ({ ...atual, [mes]: importadas }));
       setFinancas((atual) => {
         const existente = completarFinancasDoMes(atual[mes], mes);
         const recebimentos = Number(existente.recebimentos || 0);
         const saldoInicial = Number(existente.saldoInicial || 0);
-        return {
-          ...atual,
-          [mes]: {
-            ...existente,
-            compras: Number(totalCompras.toFixed(2)),
-            saldoFinal: Number((saldoInicial + recebimentos - totalCompras).toFixed(2)),
-          },
-        };
+        return { ...atual, [mes]: { ...existente, compras: Number(totalCompras.toFixed(2)), saldoFinal: Number((saldoInicial + recebimentos - totalCompras).toFixed(2)) } };
       });
       setAviso(`${importadas.length} lançamentos carregados do Supabase — ${moeda.format(totalCompras)} pagos.`);
     }
-
     carregarSupabase();
     return () => { ativo = false; };
   }, [mes]);
@@ -199,15 +202,12 @@ export default function MarcosFinancePage() {
       : conta),
   }));
 
-  const atualizarFinancas = (campo, valor) => setFinancas((atual) => ({
-    ...atual, [mes]: { ...completarFinancasDoMes(atual[mes], mes), [campo]: valor },
-  }));
+  const atualizarFinancas = (campo, valor) => setFinancas((atual) => ({ ...atual, [mes]: { ...completarFinancasDoMes(atual[mes], mes), [campo]: valor } }));
 
   const alternarPago = (id) => setDados((atual) => ({
     ...atual,
     [mes]: (atual[mes] || []).map((conta) => conta.id === id ? {
-      ...conta,
-      pago: !conta.pago,
+      ...conta, pago: !conta.pago,
       dataPagamento: !conta.pago && !conta.dataPagamento ? new Date().toISOString().slice(0, 10) : conta.dataPagamento,
     } : conta),
   }));
