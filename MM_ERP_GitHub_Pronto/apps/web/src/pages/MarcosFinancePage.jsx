@@ -114,6 +114,18 @@ export default function MarcosFinancePage() {
   const contas = dados[mes] || criarContasDoMes(mes);
   const resumoFinanceiro = financas[mes] || criarFinancasDoMes(mes);
 
+  const contasOrdenadas = useMemo(() => [...contas].sort((a, b) => {
+    const dataA = a.pago ? (a.dataPagamento || a.vencimento) : a.vencimento;
+    const dataB = b.pago ? (b.dataPagamento || b.vencimento) : b.vencimento;
+
+    if (!dataA && !dataB) return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+    if (!dataA) return 1;
+    if (!dataB) return -1;
+
+    const comparacaoData = dataA.localeCompare(dataB);
+    return comparacaoData || String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+  }), [contas]);
+
   useEffect(() => {
     setDados((atual) => ({ ...atual, [mes]: completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes) }));
     setFinancas((atual) => ({ ...atual, [mes]: completarFinancasDoMes(atual[mes], mes) }));
@@ -238,7 +250,7 @@ export default function MarcosFinancePage() {
       <section className="pf-painel">
         <div className="pf-cabecalho"><span>Conta</span><span>Venc.</span><span>Valor</span><span>Pago</span></div>
         <div className="pf-lista">
-          {contas.map((conta) => (
+          {contasOrdenadas.map((conta) => (
             <article key={conta.id} className={`pf-linha ${conta.pago ? 'paga' : ''}`}>
               <input className="pf-nome" value={conta.nome} onChange={(event) => atualizarConta(conta.id, 'nome', event.target.value)} />
               <input className="pf-data" type="date" value={conta.vencimento} onChange={(event) => atualizarConta(conta.id, 'vencimento', event.target.value)} />
