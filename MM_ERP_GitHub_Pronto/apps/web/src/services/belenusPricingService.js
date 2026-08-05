@@ -1,6 +1,23 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const SETTINGS_KEY = 'belenus_pricing';
+const KIT_7_PLACAS = {
+  id: 'MM-7-PLACAS',
+  placas: 7,
+  potencia: 4.34,
+  modulo: 'TCL Solar bifacial N-Type 620 W',
+  inversores: 2,
+  inversor: 'Microinversor Deye 2,25 kW 220 V',
+  produtos: 0,
+  frete: 0,
+  total: 0,
+  precoAvista: 11412.5,
+  estrutura: 'Kit on-grid completo',
+  emissao: null,
+  validade: null,
+  status: 'Ativo',
+  kitComercial: true,
+};
 
 function ensureDatabase() {
   if (!isSupabaseConfigured || !supabase) {
@@ -34,7 +51,8 @@ async function listQuotes() {
     .eq('supplier', 'Belenus')
     .order('panels_count', { ascending: true });
   if (error) throw error;
-  return (data || []).map(mapQuote);
+  const quotes = (data || []).map(mapQuote).filter((item) => item.placas !== 7);
+  return [...quotes, KIT_7_PLACAS].sort((a, b) => a.placas - b.placas);
 }
 
 async function getSettings() {
