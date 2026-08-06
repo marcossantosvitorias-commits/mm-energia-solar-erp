@@ -23,6 +23,7 @@ import MigracaoDadosPage from './pages/MigracaoDadosPage.jsx';
 import BlingIntegracaoPage from './pages/BlingIntegracaoPage.jsx';
 import ContratosPage from './pages/ContratosPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
+import GeradorInstagramPage from './pages/GeradorInstagramPage.jsx';
 
 const privateRoute = (element) => (
   <ProtectedRoute>{element}</ProtectedRoute>
@@ -51,6 +52,7 @@ function App() {
           <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />)} />
           <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />)} />
           <Route path="/app/contratos" element={privateRoute(<ContratosPage />)} />
+          <Route path="/app/gerador-posts" element={privateRoute(<GeradorInstagramPage />)} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
