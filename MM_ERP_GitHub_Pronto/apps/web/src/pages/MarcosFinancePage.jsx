@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import StatCard from '../components/finance/StatCard.jsx';
 import FinanceTable from '../components/finance/FinanceTable.jsx';
@@ -9,6 +10,18 @@ const ESCOPO = 'personal-marcos';
 const FORM_INICIAL = {
   descricao: '', tipo: 'saida', categoria: 'Supermercado', valor: '', data: dataHoje(), formaPagamento: 'PIX',
 };
+
+const CONTAS_MAIRA = [
+  { descricao: 'Ótica', parcela: '1/3', valor: 66.68 },
+  { descricao: 'Lavacar', parcela: '', valor: 100.00 },
+  { descricao: 'Mecânica Robson', parcela: '2x', valor: 165.00 },
+  { descricao: 'Azul', parcela: '3/10', valor: 56.99 },
+  { descricao: 'Mercado Livre', parcela: '4/5', valor: 55.80 },
+  { descricao: 'Curso', parcela: '6/10', valor: 89.70 },
+  { descricao: 'Mercado Livre', parcela: '10/12', valor: 100.00 },
+  { descricao: 'Pintura', parcela: '', valor: 67.13 },
+  { descricao: 'Sala', parcela: '1/3', valor: 131.67 },
+];
 
 function mapear(row) {
   return {
@@ -27,6 +40,7 @@ function MarcosFinancePage() {
   const [form, setForm] = useState(FORM_INICIAL);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [mairaAberta, setMairaAberta] = useState(false);
 
   async function carregar() {
     try {
@@ -48,6 +62,8 @@ function MarcosFinancePage() {
     const saidas = movimentacoes.filter((item) => item.tipo === 'saida').reduce((total, item) => total + Number(item.valor), 0);
     return { entradas, saidas, saldo: entradas - saidas };
   }, [movimentacoes]);
+
+  const totalMaira = useMemo(() => CONTAS_MAIRA.reduce((total, item) => total + item.valor, 0), []);
 
   function atualizar(event) {
     const { name, value } = event.target;
@@ -103,6 +119,45 @@ function MarcosFinancePage() {
         <StatCard label="Entradas" value={formatarMoeda(totais.entradas)} helper="Valores recebidos" tone="positive" />
         <StatCard label="Despesas" value={formatarMoeda(totais.saidas)} helper="Valores gastos" tone="negative" />
         <StatCard label="Lançamentos" value={carregando ? '...' : movimentacoes.length} helper="Registros pessoais" tone="warning" />
+      </section>
+
+      <section className="finance-panel">
+        <button
+          type="button"
+          onClick={() => setMairaAberta((aberta) => !aberta)}
+          aria-expanded={mairaAberta}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            border: 0, background: 'transparent', padding: 0, cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0 }}>Maira</h2>
+            <span style={{ display: 'block', marginTop: 4, color: '#64748b' }}>Contas parceladas — total {formatarMoeda(totalMaira)}</span>
+          </div>
+          {mairaAberta ? <ChevronUp size={22} /> : <ChevronDown size={22} />}
+        </button>
+
+        {mairaAberta && (
+          <div style={{ marginTop: 16, overflowX: 'auto' }}>
+            <table className="finance-table" style={{ width: '100%' }}>
+              <thead><tr><th>Conta</th><th>Parcela</th><th style={{ textAlign: 'right' }}>Valor</th></tr></thead>
+              <tbody>
+                {CONTAS_MAIRA.map((item, index) => (
+                  <tr key={`${item.descricao}-${index}`}>
+                    <td>{item.descricao}</td>
+                    <td>{item.parcela || '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatarMoeda(item.valor)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan="2" style={{ fontWeight: 800 }}>Total das contas da Maira</td>
+                  <td style={{ textAlign: 'right', fontWeight: 800 }}>{formatarMoeda(totalMaira)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="finance-panel">
