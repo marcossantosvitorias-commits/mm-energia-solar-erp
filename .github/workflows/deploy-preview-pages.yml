@@ -15,7 +15,7 @@ concurrency:
   group: erp-v2-preview-pages
   cancel-in-progress: true
 
-# Publicação forçada em 06/08/2026 após correções na ERP 2.0.
+# ERP 2.0 é a única versão usada e publicada nesta branch.
 jobs:
   build:
     name: Gerar Preview
@@ -37,7 +37,7 @@ jobs:
           node-version: 24
 
       - name: Instalar dependências
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Gerar build para GitHub Pages
         run: npm run build -- --base=/mm-energia-solar-erp/
