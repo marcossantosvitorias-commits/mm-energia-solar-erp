@@ -15,7 +15,7 @@ concurrency:
   group: erp-v2-preview-pages
   cancel-in-progress: true
 
-# Mantém o endereço de prévia apontando para a ERP 2.0.
+# Publicação forçada em 06/08/2026 após correções na ERP 2.0.
 jobs:
   build:
     name: Gerar Preview
