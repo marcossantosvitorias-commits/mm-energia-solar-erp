@@ -26,13 +26,15 @@ const CONTAS_MAIRA = [
   { descricao: 'Sala', parcela: '1/3', valor: 131.67 },
 ];
 
+const TOTAL_MAIRA_PADRAO = Number(CONTAS_MAIRA.reduce((total, item) => total + item.valor, 0).toFixed(2));
+
 const CONTAS_RECORRENTES_2026 = {
   'Cartão Nubank': { dia: 5, valor: 326 },
   Shopee: { dia: 6, valor: 221.24 },
   Consórcio: { dia: 7, valor: 871.5 },
   'Cartão Nubank Manu': { dia: 10, valor: 300 },
   COHAB: { dia: 10, valor: 636 },
-  Maira: { dia: 11, valor: 700 },
+  Maira: { dia: 11, valor: TOTAL_MAIRA_PADRAO },
   'Terreno 01': { dia: 20, valor: 210.39 },
   'Terreno 02': { dia: 20, valor: 331.07 },
   'Claro TV': { dia: 21, valor: 237.1 },
@@ -149,7 +151,7 @@ export default function MarcosFinancePage() {
 
   const contas = dados[mes] || criarContasDoMes(mes);
   const resumoFinanceiro = financas[mes] || criarFinancasDoMes(mes);
-  const totalMaira = useMemo(() => CONTAS_MAIRA.reduce((total, item) => total + item.valor, 0), []);
+  const totalMaira = useMemo(() => Number(CONTAS_MAIRA.reduce((total, item) => total + item.valor, 0).toFixed(2)), []);
 
   const contasOrdenadas = useMemo(() => [...contas].sort((a, b) => {
     const dataA = a.pago ? (a.dataPagamento || a.vencimento) : a.vencimento;
@@ -162,10 +164,16 @@ export default function MarcosFinancePage() {
   }), [contas]);
 
   useEffect(() => {
-    setDados((atual) => ({ ...atual, [mes]: completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes) }));
+    setDados((atual) => {
+      const contasCompletas = completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes);
+      const contasSincronizadas = contasCompletas.map((conta) => String(conta.nome || '').trim().toLowerCase() === 'maira'
+        ? { ...conta, valor: totalMaira }
+        : conta);
+      return { ...atual, [mes]: contasSincronizadas };
+    });
     setFinancas((atual) => ({ ...atual, [mes]: completarFinancasDoMes(atual[mes], mes) }));
     setMairaAberta(false);
-  }, [mes]);
+  }, [mes, totalMaira]);
 
   useEffect(() => {
     let ativo = true;
@@ -276,7 +284,7 @@ export default function MarcosFinancePage() {
                   <input className="pf-nome" value={conta.nome} onChange={(event) => atualizarConta(conta.id, 'nome', event.target.value)} />
                 )}
                 <input className="pf-data" type="date" value={conta.vencimento} onChange={(event) => atualizarConta(conta.id, 'vencimento', event.target.value)} />
-                <input className="pf-valor" type="number" min="0" step="0.01" placeholder="0,00" value={conta.valor} onChange={(event) => atualizarConta(conta.id, 'valor', event.target.value)} />
+                <input className="pf-valor" type="number" min="0" step="0.01" placeholder="0,00" value={conta.valor} onChange={(event) => atualizarConta(conta.id, 'valor', event.target.value)} readOnly={ehMaira} />
                 <button type="button" className={`pf-check ${conta.pago ? 'ativo' : ''}`} onClick={() => alternarPago(conta.id)}><Check size={17} /></button>
 
                 {ehMaira && mairaAberta && (
