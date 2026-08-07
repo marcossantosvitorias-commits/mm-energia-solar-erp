@@ -37,6 +37,9 @@ import PropostasPage from './pages/PropostasPage.jsx';
 import PropostaPdfPage from './pages/PropostaPdfPage.jsx';
 import PropostaPublicaPage from './pages/PropostaPublicaPage.jsx';
 import ProspeccaoSolarPage from './pages/ProspeccaoSolarPage.jsx';
+import PrecosKitsPage from './pages/PrecosKitsPage.jsx';
+import InversorStringPage from './pages/InversorStringPage.jsx';
+import HybridKitsPage from './pages/HybridKitsPage.jsx';
 
 const ROLES = {
   ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
@@ -80,9 +83,14 @@ function App() {
           <Route path="/app/pos-venda" element={privateRoute(<PosVendaPage />, ROLES.ALL)} />
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
-          <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />, ROLES.COMMERCIAL)} />
+
+          <Route path="/app/precos" element={privateRoute(<PrecosKitsPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/precos/microinversor" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/precos/inversor" element={privateRoute(<InversorStringPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/precos/hibrido" element={privateRoute(<HybridKitsPage />, ROLES.COMMERCIAL)} />
           <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/kits-hibridos" element={privateRoute(<Navigate to="/app/precos?tipo=hibrido" replace />, ROLES.COMMERCIAL)} />
+          <Route path="/app/kits-hibridos" element={privateRoute(<Navigate to="/app/precos/hibrido" replace />, ROLES.COMMERCIAL)} />
+
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
           <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
           <Route path="/app/marcos-finance" element={privateRoute(<MarcosFinancePage />, ROLES.FINANCIAL)} />
