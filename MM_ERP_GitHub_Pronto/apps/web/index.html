@@ -5,62 +5,24 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <link rel="icon" type="image/png" href="%BASE_URL%logo-mm.png?v=20260807-1" />
-    <link rel="apple-touch-icon" href="%BASE_URL%logo-mm.png?v=20260807-1" />
-    <link rel="manifest" href="%BASE_URL%manifest-v2.webmanifest?v=20260807-1" />
-    <link rel="stylesheet" href="%BASE_URL%engineering-rateio.css?v=20260807-1" />
+    <link rel="icon" type="image/png" href="%BASE_URL%logo-mm.png?v=20260807-2" />
+    <link rel="apple-touch-icon" href="%BASE_URL%logo-mm.png?v=20260807-2" />
+    <link rel="manifest" href="%BASE_URL%manifest-v2.webmanifest?v=20260807-2" />
+    <link rel="stylesheet" href="%BASE_URL%engineering-rateio.css?v=20260807-2" />
     <meta name="theme-color" content="#0b2f55" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MM ERP" />
     <meta name="application-name" content="MM ERP" />
-    <meta name="generator" content="MM Energia Solar ERP 2.0 - build 20260807-1" />
+    <meta name="generator" content="MM Energia Solar ERP 2.0 - build 20260807-2" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>MM ERP - MM Energia Solar</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script src="%BASE_URL%belcred-options.js?v=20260807-1"></script>
-    <script>
-      (() => {
-        const liberarCamposMaira = () => {
-          document.querySelectorAll('.pf-linha-maira input').forEach((input) => {
-            input.readOnly = false;
-            input.disabled = false;
-            input.removeAttribute('readonly');
-            input.removeAttribute('disabled');
-          });
-        };
-
-        document.addEventListener('pointerdown', (event) => {
-          const input = event.target.closest('.pf-linha-maira input');
-          if (!input) return;
-          input.readOnly = false;
-          input.disabled = false;
-          setTimeout(() => input.focus({ preventScroll: true }), 0);
-        }, true);
-
-        document.addEventListener('input', (event) => {
-          const nome = event.target.closest('.pf-maira-nome .pf-nome');
-          if (!nome) return;
-          const linhas = Array.from(document.querySelectorAll('.pf-linha'));
-          const artigo = nome.closest('.pf-linha');
-          const indice = linhas.indexOf(artigo);
-          const posicao = nome.selectionStart;
-          setTimeout(() => {
-            const novo = document.querySelectorAll('.pf-linha')[indice]?.querySelector('.pf-nome');
-            if (!novo) return;
-            novo.focus({ preventScroll: true });
-            if (typeof posicao === 'number' && novo.setSelectionRange) novo.setSelectionRange(posicao, posicao);
-          }, 0);
-        }, true);
-
-        new MutationObserver(liberarCamposMaira).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['readonly', 'disabled'] });
-        window.addEventListener('DOMContentLoaded', liberarCamposMaira);
-        setTimeout(liberarCamposMaira, 500);
-      })();
-    </script>
+    <script src="%BASE_URL%belcred-options.js?v=20260807-2"></script>
+    <script src="%BASE_URL%maira-editor.js?v=20260807-2"></script>
   </body>
 </html>
