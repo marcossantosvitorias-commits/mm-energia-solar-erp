@@ -164,16 +164,10 @@ export default function MarcosFinancePage() {
   }), [contas]);
 
   useEffect(() => {
-    setDados((atual) => {
-      const contasCompletas = completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes);
-      const contasSincronizadas = contasCompletas.map((conta) => String(conta.nome || '').trim().toLowerCase() === 'maira'
-        ? { ...conta, valor: totalMaira }
-        : conta);
-      return { ...atual, [mes]: contasSincronizadas };
-    });
+    setDados((atual) => ({ ...atual, [mes]: completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes) }));
     setFinancas((atual) => ({ ...atual, [mes]: completarFinancasDoMes(atual[mes], mes) }));
     setMairaAberta(false);
-  }, [mes, totalMaira]);
+  }, [mes]);
 
   useEffect(() => {
     let ativo = true;
@@ -284,7 +278,7 @@ export default function MarcosFinancePage() {
                   <input className="pf-nome" value={conta.nome} onChange={(event) => atualizarConta(conta.id, 'nome', event.target.value)} />
                 )}
                 <input className="pf-data" type="date" value={conta.vencimento} onChange={(event) => atualizarConta(conta.id, 'vencimento', event.target.value)} />
-                <input className="pf-valor" type="number" min="0" step="0.01" placeholder="0,00" value={conta.valor} onChange={(event) => atualizarConta(conta.id, 'valor', event.target.value)} readOnly={ehMaira} />
+                <input className="pf-valor" type="number" min="0" step="0.01" placeholder="0,00" value={conta.valor} onChange={(event) => atualizarConta(conta.id, 'valor', event.target.value)} />
                 <button type="button" className={`pf-check ${conta.pago ? 'ativo' : ''}`} onClick={() => alternarPago(conta.id)}><Check size={17} /></button>
 
                 {ehMaira && mairaAberta && (
