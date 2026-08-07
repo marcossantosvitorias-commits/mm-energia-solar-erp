@@ -6,11 +6,65 @@ const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
 
+// Sempre usamos o maior valor exibido no orçamento: "Valor total".
+// Esse valor já contempla o frete quando o orçamento da distribuidora o inclui.
+const KITS_INVERSOR = [
+  {
+    placas: 4,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 4443.55,
+    inversor: 'Inversor monofásico 3 kW',
+    referencia: 'Orçamento enviado em 06/08/2026',
+  },
+  {
+    placas: 5,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 5114.23,
+    inversor: 'Inversor monofásico 5 kW',
+    referencia: 'Orçamento enviado em 06/08/2026',
+  },
+  {
+    placas: 6,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 5712.43,
+    inversor: 'Deye monofásico 5 kW, 2 MPPT, 220 V',
+    referencia: 'Orçamento WEB-006496328',
+  },
+  {
+    placas: 7,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 6377.43,
+    inversor: 'Inversor monofásico 5 kW',
+    referencia: 'Orçamento enviado em 06/08/2026',
+  },
+  {
+    placas: 8,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 6989.63,
+    inversor: 'Inversor monofásico 5 kW',
+    referencia: 'Orçamento enviado em 06/08/2026',
+  },
+  {
+    placas: 9,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 7654.62,
+    inversor: 'Inversor monofásico 5 kW',
+    referencia: 'Orçamento enviado em 06/08/2026',
+  },
+  {
+    placas: 10,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 8337.49,
+    inversor: 'Inversor monofásico 6,6 kW',
+    referencia: 'Orçamento enviado em 06/08/2026',
+  },
+];
+
 const FORM_PADRAO = {
   placas: 6,
   potenciaPlaca: 620,
-  custoEquipamentos: 5212.43,
-  frete: 500,
+  custoEquipamentos: 5712.43,
+  freteAdicional: 0,
   materialEletrico: 350,
   maoDeObra: 700,
   engenharia: 250,
@@ -24,10 +78,12 @@ const FORM_PADRAO = {
 
 export default function InversorStringPage() {
   const [form, setForm] = useState(FORM_PADRAO);
+  const [inversorSelecionado, setInversorSelecionado] = useState('Deye monofásico 5 kW, 2 MPPT, 220 V');
+  const [referencia, setReferencia] = useState('Orçamento WEB-006496328');
   const [formaPagamento, setFormaPagamento] = useState('avista');
 
   const resultado = useMemo(() => {
-    const custoTotal = numero(form.custoEquipamentos) + numero(form.frete) + numero(form.materialEletrico)
+    const custoTotal = numero(form.custoEquipamentos) + numero(form.freteAdicional) + numero(form.materialEletrico)
       + numero(form.maoDeObra) + numero(form.engenharia) + numero(form.trt)
       + numero(form.combustivel) + numero(form.outros);
     const imposto = percentual(form.imposto);
@@ -47,11 +103,24 @@ export default function InversorStringPage() {
 
   const atualizar = ({ target: { name, value } }) => setForm((atual) => ({ ...atual, [name]: value }));
 
+  const selecionarKit = (kit) => {
+    setForm((atual) => ({
+      ...atual,
+      placas: kit.placas,
+      potenciaPlaca: kit.potenciaPlaca,
+      custoEquipamentos: kit.valorTotalDistribuidora,
+      freteAdicional: 0,
+    }));
+    setInversorSelecionado(kit.inversor);
+    setReferencia(kit.referencia);
+    setFormaPagamento('avista');
+  };
+
   const campos = [
     ['placas', 'Quantidade de placas', '1'],
     ['potenciaPlaca', 'Potência de cada placa (W)', '1'],
-    ['custoEquipamentos', 'Produtos da distribuidora', '0.01'],
-    ['frete', 'Frete', '0.01'],
+    ['custoEquipamentos', 'Valor total da distribuidora', '0.01'],
+    ['freteAdicional', 'Frete adicional (se houver)', '0.01'],
     ['materialEletrico', 'Material elétrico adicional', '0.01'],
     ['maoDeObra', 'Mão de obra', '0.01'],
     ['engenharia', 'Engenharia', '0.01'],
@@ -67,9 +136,32 @@ export default function InversorStringPage() {
     <FinanceLayout title="Proposta com inversor" subtitle="Kits on-grid com inversor string/central." theme="empresa">
       <section className="finance-panel">
         <div className="finance-panel-header">
-          <div><h2>Modelo inicial da distribuidora</h2><p>6 módulos TCL Solar 620 W + inversor Deye monofásico 5 kW, 2 MPPT, 220 V.</p></div>
+          <div>
+            <h2>Escolha o kit com inversor</h2>
+            <p>Os valores abaixo usam sempre o maior valor do orçamento: o Valor total da distribuidora.</p>
+          </div>
         </div>
-        <div className="finance-notice">Sistema inicial: 3,72 kWp · produtos R$ 5.212,43 · frete R$ 500,00. Todos os valores podem ser alterados.</div>
+        <div className="belenus-quotes">
+          {KITS_INVERSOR.map((kit) => (
+            <button
+              type="button"
+              key={kit.placas}
+              className={numero(form.placas) === kit.placas ? 'active' : ''}
+              onClick={() => selecionarKit(kit)}
+            >
+              <div className="belenus-quote-top">
+                <span>{kit.placas} placas</span>
+                <small>{(kit.placas * kit.potenciaPlaca / 1000).toFixed(2).replace('.', ',')} kWp</small>
+              </div>
+              <strong>{moeda.format(kit.valorTotalDistribuidora)}</strong>
+              <small>Valor total da distribuidora</small>
+              <b>{kit.inversor}</b>
+            </button>
+          ))}
+        </div>
+        <div className="finance-notice">
+          Selecionado: {form.placas} placas · {resultado.potenciaSistema.toFixed(2).replace('.', ',')} kWp · {inversorSelecionado} · {referencia}.
+        </div>
       </section>
 
       <section className="finance-panel">
@@ -98,11 +190,11 @@ export default function InversorStringPage() {
       </section>
 
       <ProposalGenerator
-        key={`${form.placas}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}`}
+        key={`${form.placas}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}-${inversorSelecionado}`}
         quantidadePlacas={numero(form.placas)}
         precoRecomendado={resultado.valorProposta}
-        modulo="TCL Solar bifacial N-Type 620 W"
-        inversor="Deye monofásico 5 kW, 2 MPPT, 220 V"
+        modulo="Módulo fotovoltaico bifacial Tier 1 620 W"
+        inversor={inversorSelecionado}
         potenciaSistemaKw={resultado.potenciaSistema}
       />
     </FinanceLayout>
