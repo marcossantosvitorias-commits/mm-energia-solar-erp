@@ -13,49 +13,49 @@ const KITS_INVERSOR = [
     placas: 4,
     potenciaPlaca: 620,
     valorTotalDistribuidora: 4443.55,
-    inversor: 'Inversor monofásico 3 kW',
+    inversor: 'Auxsol monofásico 3 kW',
     referencia: 'Orçamento enviado em 06/08/2026',
   },
   {
     placas: 5,
     potenciaPlaca: 620,
     valorTotalDistribuidora: 5114.23,
-    inversor: 'Inversor monofásico 5 kW',
+    inversor: 'Auxsol monofásico 5 kW',
     referencia: 'Orçamento enviado em 06/08/2026',
   },
   {
     placas: 6,
     potenciaPlaca: 620,
     valorTotalDistribuidora: 5712.43,
-    inversor: 'Deye monofásico 5 kW, 2 MPPT, 220 V',
+    inversor: 'Auxsol monofásico 5 kW',
     referencia: 'Orçamento WEB-006496328',
   },
   {
     placas: 7,
     potenciaPlaca: 620,
     valorTotalDistribuidora: 6377.43,
-    inversor: 'Inversor monofásico 5 kW',
+    inversor: 'Auxsol monofásico 5 kW',
     referencia: 'Orçamento enviado em 06/08/2026',
   },
   {
     placas: 8,
     potenciaPlaca: 620,
     valorTotalDistribuidora: 6989.63,
-    inversor: 'Inversor monofásico 5 kW',
+    inversor: 'Auxsol monofásico 5 kW',
     referencia: 'Orçamento enviado em 06/08/2026',
   },
   {
     placas: 9,
     potenciaPlaca: 620,
     valorTotalDistribuidora: 7654.62,
-    inversor: 'Inversor monofásico 5 kW',
+    inversor: 'Auxsol monofásico 5 kW',
     referencia: 'Orçamento enviado em 06/08/2026',
   },
   {
     placas: 10,
     potenciaPlaca: 620,
     valorTotalDistribuidora: 8337.49,
-    inversor: 'Inversor monofásico 6,6 kW',
+    inversor: 'Deye monofásico 6,6 kW',
     referencia: 'Orçamento enviado em 06/08/2026',
   },
 ];
@@ -78,7 +78,7 @@ const FORM_PADRAO = {
 
 export default function InversorStringPage() {
   const [form, setForm] = useState(FORM_PADRAO);
-  const [inversorSelecionado, setInversorSelecionado] = useState('Deye monofásico 5 kW, 2 MPPT, 220 V');
+  const [inversorSelecionado, setInversorSelecionado] = useState('Auxsol monofásico 5 kW');
   const [referencia, setReferencia] = useState('Orçamento WEB-006496328');
   const [formaPagamento, setFormaPagamento] = useState('avista');
 
