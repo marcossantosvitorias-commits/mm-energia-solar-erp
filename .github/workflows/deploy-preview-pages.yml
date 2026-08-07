@@ -16,6 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 # ERP 2.0 é a única versão usada e publicada nesta branch.
+# Publicação forçada após liberar edição manual da conta Maira.
 jobs:
   build:
     name: Gerar Preview
