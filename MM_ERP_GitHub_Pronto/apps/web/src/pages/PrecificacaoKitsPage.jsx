@@ -7,6 +7,16 @@ import ProposalGenerator from './ProposalGenerator.jsx';
 const presets = [4, 6, 7, 8, 10, 12, 14, 16, 20];
 const TAXA_CARTAO_12X = 11.69;
 
+const microinversorPresets = {
+  12: {
+    custoEquipamentosDistribuidora: 10430.60,
+    frete: 642.12,
+    modulo: 'TCL Solar bifacial N-Type 620 W - MFTC-1.2-BF-132-620W',
+    inversor: '3 microinversores Growatt monofásicos 2,5 kW, 4 MPPT, 220 V - MINVGR-MO-220V-2.5KW',
+    aviso: 'Cotação WEB-006511686: 12 módulos TCL Solar de 620 W + 3 microinversores Growatt de 2,5 kW, sistema de 7,44 kWp, produtos por R$ 10.430,60 e frete de R$ 642,12.',
+  },
+};
+
 const configuracoes = {
   microinversor: {
     titulo: 'Proposta com microinversor',
@@ -58,6 +68,9 @@ export default function PrecificacaoKitsPage() {
 
   const quantidadePlacas = quantidades[tipoSistema];
   const form = forms[tipoSistema];
+  const presetMicro = tipoSistema === 'microinversor' ? microinversorPresets[quantidadePlacas] : null;
+  const moduloProposta = presetMicro?.modulo || config.modulo;
+  const inversorProposta = presetMicro?.inversor || config.inversor;
 
   const selecionarTipo = (tipo) => {
     setTipoSistema(tipo);
@@ -66,6 +79,19 @@ export default function PrecificacaoKitsPage() {
 
   const selecionarKit = (quantidade) => {
     setQuantidades((atual) => ({ ...atual, [tipoSistema]: quantidade }));
+
+    if (tipoSistema === 'microinversor') {
+      const preset = microinversorPresets[quantidade];
+      setForms((atual) => ({
+        ...atual,
+        microinversor: {
+          ...atual.microinversor,
+          custoEquipamentosDistribuidora: preset?.custoEquipamentosDistribuidora || 0,
+          frete: preset?.frete || configuracoes.microinversor.frete,
+        },
+      }));
+    }
+
     setFormaPagamento('avista');
   };
 
@@ -123,6 +149,7 @@ export default function PrecificacaoKitsPage() {
             Modelo carregado do orçamento WEB-006496328: 6 módulos TCL Solar de 620 W, inversor Deye 5 kW, sistema de 3,72 kWp, produtos por R$ 5.212,43 e frete de R$ 500,00.
           </div>
         )}
+        {presetMicro && <div className="tax-warning">{presetMicro.aviso}</div>}
         <div className="kit-preset-grid">
           {presets.map((quantidade) => (
             <button key={quantidade} className={`kit-preset ${quantidadePlacas === quantidade ? 'active' : ''}`} onClick={() => selecionarKit(quantidade)}>
@@ -137,7 +164,7 @@ export default function PrecificacaoKitsPage() {
         <article className="finance-panel">
           <h2>Custos do kit</h2>
           <div className="finance-form">
-            {tipoSistema === 'inversor' && <label className="finance-field"><span>Total dos produtos da distribuidora</span><input type="number" step="0.01" name="custoEquipamentosDistribuidora" value={form.custoEquipamentosDistribuidora} onChange={atualizar} /></label>}
+            <label className="finance-field"><span>Total dos produtos da distribuidora</span><input type="number" step="0.01" name="custoEquipamentosDistribuidora" value={form.custoEquipamentosDistribuidora} onChange={atualizar} /></label>
             <label className="finance-field"><span>Custo de cada placa</span><input type="number" step="0.01" name="custoPlaca" value={form.custoPlaca} onChange={atualizar} disabled={numero(form.custoEquipamentosDistribuidora) > 0} /></label>
             <label className="finance-field"><span>{tipoSistema === 'microinversor' ? 'Custo dos microinversores' : 'Custo do inversor'}</span><input type="number" step="0.01" name="custoInversor" value={form.custoInversor} onChange={atualizar} disabled={numero(form.custoEquipamentosDistribuidora) > 0} /></label>
             <label className="finance-field"><span>Estrutura</span><input type="number" step="0.01" name="custoEstrutura" value={form.custoEstrutura} onChange={atualizar} disabled={numero(form.custoEquipamentosDistribuidora) > 0} /></label>
@@ -162,7 +189,7 @@ export default function PrecificacaoKitsPage() {
       </section>
 
       <section className="finance-grid">
-        <StatCard label="Custo dos equipamentos" value={formatarMoeda(resultado.custoEquipamentos)} helper={tipoSistema === 'inversor' ? 'Produtos do orçamento da distribuidora' : `${quantidadePlacas} placas, estrutura e microinversores`} tone="negative" />
+        <StatCard label="Custo dos equipamentos" value={formatarMoeda(resultado.custoEquipamentos)} helper={numero(form.custoEquipamentosDistribuidora) > 0 ? 'Produtos da cotação da distribuidora' : `${quantidadePlacas} placas, estrutura e ${tipoSistema === 'microinversor' ? 'microinversores' : 'inversor'}`} tone="negative" />
         <StatCard label="Custo total instalado" value={formatarMoeda(resultado.custoTotal)} helper="Equipamentos e custos operacionais" tone="negative" />
         <StatCard label="Preço à vista" value={formatarMoeda(resultado.precoVenda)} helper={`Imposto de ${form.impostoVenda}% incluído`} tone="primary" />
         <StatCard label="Lucro estimado" value={formatarMoeda(resultado.lucro)} helper={`Margem real de ${resultado.margemReal.toFixed(2)}%`} tone="positive" />
@@ -181,8 +208,8 @@ export default function PrecificacaoKitsPage() {
         key={`${tipoSistema}-${quantidadePlacas}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}`}
         quantidadePlacas={quantidadePlacas}
         precoRecomendado={resultado.valorProposta}
-        modulo={config.modulo}
-        inversor={config.inversor}
+        modulo={moduloProposta}
+        inversor={inversorProposta}
         potenciaSistemaKw={(quantidadePlacas * 620) / 1000}
       />
     </FinanceLayout>
