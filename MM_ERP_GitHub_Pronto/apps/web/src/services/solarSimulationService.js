@@ -10,6 +10,46 @@ const DEFAULTS = {
   source: 'site',
 };
 
+const round = (value, digits = 2) => Number(Number(value).toFixed(digits));
+
+function calculateSolarSimulationLocally(input) {
+  const monthlyBill = Number(input.monthlyBill);
+  const tariffPerKwh = Number(input.tariffPerKwh || DEFAULTS.tariffPerKwh);
+  const panelPowerW = Number(input.panelPowerW || DEFAULTS.panelPowerW);
+  const irradiation = Number(input.irradiation || DEFAULTS.irradiation);
+  const performanceRatio = Number(input.performanceRatio || DEFAULTS.performanceRatio);
+  const targetOffsetPercent = Number(input.targetOffsetPercent || DEFAULTS.targetOffsetPercent);
+
+  const estimatedConsumptionKwh = round(monthlyBill / tariffPerKwh, 2);
+  const requiredGeneration = estimatedConsumptionKwh * (targetOffsetPercent / 100);
+  const requiredKwp = requiredGeneration / (irradiation * 30 * performanceRatio);
+  const panelCount = Math.max(1, Math.ceil((requiredKwp * 1000) / panelPowerW));
+  const systemPowerKw = round((panelCount * panelPowerW) / 1000, 3);
+  const monthlyGenerationKwh = round(systemPowerKw * irradiation * 30 * performanceRatio, 2);
+  const estimatedMonthlySavings = round(Math.min(monthlyGenerationKwh, estimatedConsumptionKwh) * tariffPerKwh, 2);
+  const estimatedAnnualSavings = round(estimatedMonthlySavings * 12, 2);
+
+  return {
+    simulation_id: null,
+    proposal_id: null,
+    estimated_consumption_kwh: estimatedConsumptionKwh,
+    panel_count: panelCount,
+    panel_power_w: panelPowerW,
+    system_power_kw: systemPowerKw,
+    monthly_generation_kwh: monthlyGenerationKwh,
+    estimated_monthly_savings: estimatedMonthlySavings,
+    estimated_annual_savings: estimatedAnnualSavings,
+    estimated_investment_min: round(systemPowerKw * 3300, 2),
+    estimated_investment_max: round(systemPowerKw * 4300, 2),
+    persistence_warning: 'O cálculo foi concluído, mas o banco de dados recusou salvar esta simulação. A proposta automática não foi gravada.',
+  };
+}
+
+function isNumericOverflow(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('numeric field overflow') || message.includes('numeric overflow');
+}
+
 export async function submitSolarSimulation(input) {
   const supabase = requireSupabase();
   const params = new URLSearchParams(window.location.search);
@@ -41,7 +81,10 @@ export async function submitSolarSimulation(input) {
   }
 
   const { data, error } = await supabase.rpc('submit_solar_simulation', payload);
-  if (error) throw new Error(error.message || 'Não foi possível calcular a simulação.');
+  if (error) {
+    if (isNumericOverflow(error)) return calculateSolarSimulationLocally(input);
+    throw new Error(error.message || 'Não foi possível calcular a simulação.');
+  }
   return data;
 }
 
