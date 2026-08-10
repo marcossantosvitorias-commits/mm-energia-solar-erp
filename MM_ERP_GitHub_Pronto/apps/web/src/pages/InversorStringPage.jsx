@@ -58,6 +58,13 @@ const KITS_INVERSOR = [
     inversor: 'Deye monofásico 6,6 kW',
     referencia: 'Orçamento enviado em 06/08/2026',
   },
+  {
+    placas: 12,
+    potenciaPlaca: 620,
+    valorTotalDistribuidora: 9799.71,
+    inversor: 'Auxsol monofásico 6 kW',
+    referencia: 'Cotação cadastrada em 10/08/2026 · produtos R$ 9.263,61 · frete R$ 536,10',
+  },
 ];
 
 const FORM_PADRAO = {
