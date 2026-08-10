@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { BatteryCharging, Calculator, Zap } from 'lucide-react';
 import ProposalGenerator from './ProposalGenerator.jsx';
+import HybridCalculatorWizard from '../components/solar/HybridCalculatorWizard.jsx';
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const numero = (valor) => Number(valor || 0);
@@ -69,6 +70,8 @@ export function HybridKitsContent() {
 
   return (
     <div className="hybrid-kits-content">
+      <HybridCalculatorWizard />
+
       <section className="finance-panel">
         <div className="finance-panel-header">
           <div>
