@@ -19,6 +19,24 @@ const KIT_7_PLACAS = {
   kitComercial: true,
 };
 
+const KIT_12_PLACAS_MICRO = {
+  id: 'WEB-006511686',
+  placas: 12,
+  potencia: 7.44,
+  modulo: 'TCL Solar bifacial N-Type 620 W - MFTC-1.2-BF-132-620W',
+  inversores: 3,
+  inversor: 'Microinversor Growatt monofásico 2,5 kW, 4 MPPT, 220 V - MINVGR-MO-220V-2.5KW',
+  produtos: 10430.60,
+  frete: 642.12,
+  total: 11072.72,
+  precoAvista: 0,
+  estrutura: 'Fibrocimento - haste de aço inox 200 mm para madeira, 2 linhas de 6 módulos em retrato',
+  emissao: '2026-08-10',
+  validade: '2026-08-13',
+  status: 'Ativo',
+  kitComercial: true,
+};
+
 function ensureDatabase() {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('O Supabase não está configurado nesta publicação.');
@@ -51,8 +69,8 @@ async function listQuotes() {
     .eq('supplier', 'Belenus')
     .order('panels_count', { ascending: true });
   if (error) throw error;
-  const quotes = (data || []).map(mapQuote).filter((item) => item.placas !== 7);
-  return [...quotes, KIT_7_PLACAS].sort((a, b) => a.placas - b.placas);
+  const quotes = (data || []).map(mapQuote).filter((item) => item.placas !== 7 && item.id !== KIT_12_PLACAS_MICRO.id);
+  return [...quotes, KIT_7_PLACAS, KIT_12_PLACAS_MICRO].sort((a, b) => a.placas - b.placas);
 }
 
 async function getSettings() {
