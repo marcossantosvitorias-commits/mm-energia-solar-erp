@@ -12,7 +12,7 @@ const DEFAULTS = {
 
 const round = (value, digits = 2) => Number(Number(value).toFixed(digits));
 
-function calculateSolarSimulationLocally(input) {
+function calculateSolarSimulationLocally(input, persistenceWarning = '') {
   const monthlyBill = Number(input.monthlyBill);
   const tariffPerKwh = Number(input.tariffPerKwh || DEFAULTS.tariffPerKwh);
   const panelPowerW = Number(input.panelPowerW || DEFAULTS.panelPowerW);
@@ -41,7 +41,7 @@ function calculateSolarSimulationLocally(input) {
     estimated_annual_savings: estimatedAnnualSavings,
     estimated_investment_min: round(systemPowerKw * 3300, 2),
     estimated_investment_max: round(systemPowerKw * 4300, 2),
-    persistence_warning: 'O cálculo foi concluído, mas o banco de dados recusou salvar esta simulação. A proposta automática não foi gravada.',
+    ...(persistenceWarning ? { persistence_warning: persistenceWarning } : {}),
   };
 }
 
@@ -80,12 +80,23 @@ export async function submitSolarSimulation(input) {
     throw new Error('Informe um valor válido para a conta de energia.');
   }
 
-  const { data, error } = await supabase.rpc('submit_solar_simulation', payload);
-  if (error) {
-    if (isNumericOverflow(error)) return calculateSolarSimulationLocally(input);
-    throw new Error(error.message || 'Não foi possível calcular a simulação.');
+  const localResult = calculateSolarSimulationLocally(input);
+
+  try {
+    const { data, error } = await supabase.rpc('submit_solar_simulation', payload);
+    if (error) {
+      if (isNumericOverflow(error)) {
+        return calculateSolarSimulationLocally(input, 'Cálculo concluído. O banco ainda precisa da atualização de estrutura para gravar esta simulação automaticamente.');
+      }
+      throw error;
+    }
+    return data || localResult;
+  } catch (error) {
+    if (isNumericOverflow(error)) {
+      return calculateSolarSimulationLocally(input, 'Cálculo concluído. O banco ainda precisa da atualização de estrutura para gravar esta simulação automaticamente.');
+    }
+    throw new Error(error?.message || 'Não foi possível calcular a simulação.');
   }
-  return data;
 }
 
 export async function listSolarSimulations({ search = '', status = '', limit = 100 } = {}) {
@@ -103,7 +114,10 @@ export async function listSolarSimulations({ search = '', status = '', limit = 1
   }
 
   const { data, error } = await query;
-  if (error) throw new Error(error.message || 'Não foi possível carregar as simulações.');
+  if (error) {
+    if (isNumericOverflow(error)) return [];
+    throw new Error(error.message || 'Não foi possível carregar as simulações.');
+  }
   return data || [];
 }
 
