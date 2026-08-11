@@ -27,6 +27,11 @@ function latest(values: Array<string | undefined | null>) {
   return values.filter(Boolean).sort().at(-1) || null;
 }
 
+function friendlyAutentiqueError(message: string) {
+  if (/Cannot query field/i.test(message)) return 'A integração solicitou um campo que a API do Autentique não disponibiliza. A consulta precisa ser atualizada.';
+  return message || 'O Autentique recusou a solicitação.';
+}
+
 async function autentiqueRequest(token: string, query: string, variables: Record<string, unknown> = {}) {
   const response = await fetch('https://api.autentique.com.br/v2/graphql', {
     method: 'POST',
@@ -35,9 +40,8 @@ async function autentiqueRequest(token: string, query: string, variables: Record
   });
   const result = await response.json();
   if (!response.ok || result.errors?.length) {
-    const message = result.errors?.map((item: { message?: string }) => item.message).filter(Boolean).join(' | ')
-      || 'O Autentique recusou a solicitação.';
-    throw new Error(message);
+    const raw = result.errors?.map((item: { message?: string }) => item.message).filter(Boolean).join(' | ') || '';
+    throw new Error(friendlyAutentiqueError(raw));
   }
   return result.data;
 }
@@ -110,11 +114,7 @@ function documentStatus(signatures: Array<Record<string, any>>) {
   };
 }
 
-async function saveAutentiqueDocument(
-  supabase: ReturnType<typeof createClient>,
-  document: Record<string, any>,
-  userId: string,
-) {
+async function saveAutentiqueDocument(supabase: ReturnType<typeof createClient>, document: Record<string, any>, userId: string) {
   const signatures = document.signatures || [];
   const signer = signatures[0] || {};
   const client = await saveClient(supabase, signer, userId);
@@ -129,7 +129,7 @@ async function saveAutentiqueDocument(
     client_id: client?.id || null,
     client_name: client?.name || signer.name || document.name || 'Cliente',
     client_document: client?.document || null,
-    client_phone: client?.phone || normalizePhone(signer.phone || signer.user?.phone || ''),
+    client_phone: client?.phone || null,
     client_email: client?.email || signer.email || signer.user?.email || null,
     title: document.name || 'Contrato do Autentique',
     signed_date: state.signedAt ? String(state.signedAt).slice(0, 10) : null,
@@ -157,11 +157,7 @@ async function saveAutentiqueDocument(
     created_by: userId,
   };
 
-  const { data, error } = await supabase
-    .from('contracts')
-    .upsert(payload, { onConflict: 'external_id' })
-    .select('*')
-    .single();
+  const { data, error } = await supabase.from('contracts').upsert(payload, { onConflict: 'external_id' }).select('*').single();
   if (error) throw new Error(`Contrato ${document.name || document.id}: ${error.message}`);
   return data;
 }
@@ -176,7 +172,7 @@ Deno.serve(async (request) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const autentiqueToken = Deno.env.get('AUTENTIQUE_API_TOKEN') || '';
-    if (!autentiqueToken) return json({ error: 'AUTENTIQUE_API_TOKEN não configurado no Supabase.' }, 500);
+    if (!autentiqueToken) return json({ error: 'A integração com o Autentique ainda não possui a chave de acesso configurada.' }, 500);
 
     const authClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -206,12 +202,12 @@ Deno.serve(async (request) => {
             data {
               id name created_at
               signatures {
-                public_id name email phone created_at
+                public_id name email created_at
                 link { short_link }
                 viewed { created_at }
                 signed { created_at }
                 rejected { created_at }
-                user { id name email phone }
+                user { id name email }
               }
               files { original signed }
             }
@@ -238,10 +234,7 @@ Deno.serve(async (request) => {
         }
       }
 
-      const { data: contracts, error: listError } = await database
-        .from('contracts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data: contracts, error: listError } = await database.from('contracts').select('*').order('created_at', { ascending: false });
       if (listError) throw listError;
 
       return json({ ok: true, total, imported: saved.length, failed: errors.length, errors, contracts: contracts || [] });
@@ -269,7 +262,7 @@ Deno.serve(async (request) => {
       mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) {
         createDocument(document: $document, signers: $signers, file: $file) {
           id name created_at
-          signatures { public_id name email phone link { short_link } }
+          signatures { public_id name email link { short_link } }
         }
       }
     `;
@@ -284,9 +277,8 @@ Deno.serve(async (request) => {
     });
     const result = await response.json();
     if (!response.ok || result.errors?.length) {
-      const message = result.errors?.map((item: { message?: string }) => item.message).filter(Boolean).join(' | ')
-        || 'O Autentique recusou o envio do documento.';
-      return json({ error: message, details: result.errors || result }, 422);
+      const raw = result.errors?.map((item: { message?: string }) => item.message).filter(Boolean).join(' | ') || '';
+      return json({ error: friendlyAutentiqueError(raw), details: result.errors || result }, 422);
     }
 
     const document = result.data?.createDocument;
