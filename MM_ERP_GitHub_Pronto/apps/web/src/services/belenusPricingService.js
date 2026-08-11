@@ -75,6 +75,7 @@ function mapQuote(row) {
     emissao: row.issue_date,
     validade: row.valid_until,
     status: row.status,
+    payload: row.payload || {},
   };
 }
 
@@ -88,6 +89,68 @@ async function listQuotes() {
   if (error) throw error;
   const quotes = (data || []).map(mapQuote).filter((item) => item.placas !== 7 && item.id !== KIT_12_PLACAS_MICRO.id);
   return [...quotes, KIT_7_PLACAS, KIT_12_PLACAS_MICRO].sort((a, b) => a.placas - b.placas);
+}
+
+async function listPublishedCatalogKits() {
+  ensureDatabase();
+  const { data, error } = await supabase
+    .from('supplier_quotes')
+    .select('*')
+    .eq('supplier', 'Belenus')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || [])
+    .filter((row) => row.payload?.source === 'belenus_catalog_builder')
+    .map(mapQuote);
+}
+
+async function publishCatalogKit(input) {
+  ensureDatabase();
+  const now = new Date();
+  const stamp = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  const quoteNumber = `BEL-CALC-${input.panelsCount}-${stamp}`;
+  const issueDate = now.toISOString().slice(0, 10);
+
+  const payload = {
+    source: 'belenus_catalog_builder',
+    name: input.name || `${input.panelsCount} placas - cálculo Belenus`,
+    discountPercent: BELENUS_DISCOUNT_PERCENT,
+    items: (input.items || []).map((item) => ({
+      sku: item.sku,
+      category: item.category,
+      brand: item.brand,
+      model: item.model,
+      unit: item.unit,
+      quantity: Number(item.quantidade || 0),
+      tablePrice: Number(item.tablePrice || 0),
+      unitPrice: Number(item.price || 0),
+      subtotal: money(Number(item.price || 0) * Number(item.quantidade || 0)),
+    })),
+  };
+
+  const { data, error } = await supabase
+    .from('supplier_quotes')
+    .insert({
+      quote_number: quoteNumber,
+      supplier: 'Belenus',
+      issue_date: issueDate,
+      valid_until: null,
+      panels_count: Number(input.panelsCount || 0),
+      system_power_kwp: money(input.systemPowerKwp),
+      panel_model: input.panelModel || '',
+      inverters_count: Number(input.invertersCount || 0),
+      inverter_model: input.inverterModel || '',
+      structure_description: 'Kit calculado manualmente no acervo Belenus com preços líquidos de 12% de desconto.',
+      products_total: money(input.productsTotal),
+      freight: money(input.freight),
+      total: money(input.total),
+      status: 'ativa',
+      payload,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 function listCatalog({ category = '', search = '' } = {}) {
@@ -137,6 +200,8 @@ async function saveSettings(value) {
 export const belenusPricingService = {
   discountPercent: BELENUS_DISCOUNT_PERCENT,
   listQuotes,
+  listPublishedCatalogKits,
+  publishCatalogKit,
   listCatalog,
   getCatalogItem,
   getCatalogCategories,
