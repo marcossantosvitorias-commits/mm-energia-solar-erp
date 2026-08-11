@@ -3,14 +3,11 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const AuthContext = createContext(null);
 
-const LOGIN_ALIASES = {
-  vendedor: 'vendedor@mmenergiasolar.com.br',
-};
-
 function normalizeLoginIdentifier(value) {
   const identifier = value?.trim().toLowerCase();
   if (!identifier) return '';
-  return LOGIN_ALIASES[identifier] || identifier;
+  if (identifier.includes('@')) return identifier;
+  return `${identifier}@mmenergiasolar.com.br`;
 }
 
 async function normalizeUser(authUser) {
@@ -18,7 +15,7 @@ async function normalizeUser(authUser) {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('name, role, active')
+    .select('name, username, role, active, permissions')
     .eq('id', authUser.id)
     .maybeSingle();
 
@@ -27,9 +24,11 @@ async function normalizeUser(authUser) {
   return {
     id: authUser.id,
     name: profile?.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuário',
+    username: profile?.username || authUser.user_metadata?.username || authUser.email?.split('@')[0] || '',
     email: authUser.email,
     role: profile?.role || 'comercial',
     active: profile?.active !== false,
+    permissions: Array.isArray(profile?.permissions) ? profile.permissions : null,
     avatar: authUser.user_metadata?.avatar_url || null,
   };
 }
@@ -120,6 +119,14 @@ export function AuthProvider({ children }) {
   };
 
   const hasRole = (...roles) => Boolean(user && roles.includes(user.role));
+  const hasPermission = (permission) => {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (!permission) return true;
+    if (!Array.isArray(user.permissions)) return true;
+    return user.permissions.includes(permission);
+  };
+
   const value = useMemo(() => ({
     user,
     loading,
@@ -128,6 +135,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     hasRole,
+    hasPermission,
     databaseConfigured: isSupabaseConfigured,
     temporaryAccess: false,
   }), [user, loading]);
