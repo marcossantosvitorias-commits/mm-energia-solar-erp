@@ -23,13 +23,14 @@ export default function ProtectedRoute({ children, roles }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (roles?.length && !hasRole(...roles)) {
+  const hasCustomPermissions = Array.isArray(user?.permissions);
+  if (!hasCustomPermissions && roles?.length && !hasRole(...roles)) {
     const home = user?.role === 'comercial' ? '/app/precos' : '/app/dashboard';
     return <Navigate to={home} replace />;
   }
 
   const permissionKey = accessKeyForPath(location.pathname);
-  if (permissionKey && !hasPermission(permissionKey)) {
+  if (hasCustomPermissions && permissionKey && !hasPermission(permissionKey)) {
     const firstAllowed = [
       ['precos', '/app/precos'],
       ['clientes', '/app/clientes'],
@@ -37,6 +38,9 @@ export default function ProtectedRoute({ children, roles }) {
       ['propostas', '/app/propostas'],
       ['agenda', '/app/agenda'],
       ['contratos', '/app/contratos'],
+      ['cotacoes_belenus', '/app/cotacoes-belenus'],
+      ['dashboard', '/app/dashboard'],
+      ['financeiro', '/app'],
     ].find(([key]) => hasPermission(key));
     return <Navigate to={firstAllowed?.[1] || '/login'} replace />;
   }
