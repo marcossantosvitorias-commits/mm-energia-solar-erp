@@ -13,6 +13,39 @@ function endpoint() {
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/autentique-contract`;
 }
 
+const VALIDATION_MESSAGES = {
+  field_required: 'campo obrigatório',
+  must_be_a_valid_email_address: 'e-mail inválido',
+  format_is_invalid: 'formato inválido',
+  unavailable_credits: 'créditos/documentos do plano do Autentique indisponíveis',
+  unavailable_verifications_credits: 'créditos de verificação insuficientes',
+  without_permission: 'usuário sem permissão na organização do Autentique',
+};
+
+function autentiqueError(payload, fallback) {
+  if (!payload) return fallback;
+  if (payload.error && payload.error !== 'validation') return payload.error;
+
+  const details = Array.isArray(payload.details) ? payload.details : [];
+  const messages = [];
+  details.forEach((item) => {
+    const validation = item?.extensions?.validation || {};
+    Object.entries(validation).forEach(([field, errors]) => {
+      const list = Array.isArray(errors) ? errors : [errors];
+      list.forEach((code) => {
+        const translated = VALIDATION_MESSAGES[code] || String(code || '').replaceAll('_', ' ');
+        messages.push(`${field}: ${translated}`);
+      });
+    });
+  });
+
+  if (messages.length) return `Autentique recusou o envio: ${messages.join('; ')}.`;
+  if (payload.error === 'validation') {
+    return 'Autentique recusou algum dado do envio. Confira e-mail, WhatsApp e disponibilidade do plano e tente novamente.';
+  }
+  return payload.error || fallback;
+}
+
 export async function sendContractToAutentique({ blob, fileName, contract, deliveryMethod }) {
   const session = await getSession();
   const form = new FormData();
@@ -34,7 +67,7 @@ export async function sendContractToAutentique({ blob, fileName, contract, deliv
   });
 
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Não foi possível enviar o contrato ao Autentique.');
+  if (!response.ok) throw new Error(autentiqueError(payload, 'Não foi possível enviar o contrato ao Autentique.'));
   return payload;
 }
 
@@ -51,7 +84,7 @@ export async function syncAutentiqueContracts({ limit = 60, pages = 20 } = {}) {
   });
 
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Não foi possível buscar os contratos no Autentique.');
+  if (!response.ok) throw new Error(autentiqueError(payload, 'Não foi possível buscar os contratos no Autentique.'));
   return payload;
 }
 
@@ -95,5 +128,5 @@ export async function saveLocalContract(contract) {
     .select('*')
     .single();
   if (error) throw error;
-  return data;
+  return data || null;
 }
