@@ -29,7 +29,18 @@ async function loadLogo() {
         reader.onerror = () => resolve(null);
         reader.readAsDataURL(blob);
       });
-      if (dataUrl) return dataUrl;
+      if (!dataUrl) continue;
+
+      const dimensions = await new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => resolve({ width: image.naturalWidth || image.width, height: image.naturalHeight || image.height });
+        image.onerror = () => resolve(null);
+        image.src = dataUrl;
+      });
+
+      if (dimensions?.width && dimensions?.height) {
+        return { dataUrl, ...dimensions };
+      }
     } catch {
       // tenta o próximo caminho
     }
@@ -52,8 +63,15 @@ export async function generateContractPdf(contract) {
   const logo = await loadLogo();
   if (logo) {
     try {
-      doc.addImage(logo, 'PNG', 72, 8, 66, 29, undefined, 'FAST');
-      y = 43;
+      const maxWidth = 66;
+      const maxHeight = 32;
+      const scale = Math.min(maxWidth / logo.width, maxHeight / logo.height);
+      const logoWidth = logo.width * scale;
+      const logoHeight = logo.height * scale;
+      const logoX = (210 - logoWidth) / 2;
+      const logoY = 8;
+      doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight, undefined, 'FAST');
+      y = logoY + logoHeight + 7;
     } catch {
       y = 20;
     }
