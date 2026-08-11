@@ -9,7 +9,7 @@ import './ContratosPage.css';
 
 const EMPTY_FORM = {
   clientId: '', clientName: '', clientDocument: '', clientPhone: '', clientEmail: '', clientAddress: '',
-  installationAddress: '', totalValue: '', paymentTerms: '',
+  installationAddress: '', totalValue: '', paymentTerms: '', executionTerm: '69 dias corridos',
   panelQuantity: '', panelModel: '', panelPowerW: '',
   inverterType: 'Inversor', inverterQuantity: '1', inverterModel: '', inverterPowerKw: '',
   roofStructure: 'Telha cerâmica', roofStructureOther: '',
@@ -82,6 +82,7 @@ export default function ContratosPage() {
   const validar = (deliveryMethod = null) => {
     if (!form.clientName || !form.clientDocument || !form.installationAddress) { setMensagem('Selecione um cliente com nome, CPF/CNPJ e endereço da instalação.'); return false; }
     if (Number(form.totalValue) <= 0 || !form.paymentTerms.trim()) { setMensagem('Informe o valor do contrato e a forma de pagamento.'); return false; }
+    if (!form.executionTerm.trim()) { setMensagem('Informe o prazo de execução.'); return false; }
     if (Number(form.panelQuantity) <= 0 || Number(form.panelPowerW) <= 0) { setMensagem('Informe a quantidade e a potência das placas fotovoltaicas.'); return false; }
     if (!form.inverterType || Number(form.inverterQuantity) <= 0 || Number(form.inverterPowerKw) <= 0) { setMensagem('Informe o tipo, quantidade e potência do inversor ou microinversor.'); return false; }
     if (deliveryMethod === 'email' && !form.clientEmail) { setMensagem('O cliente selecionado não possui e-mail cadastrado.'); return false; }
@@ -155,7 +156,7 @@ export default function ContratosPage() {
 
       <div className="contract-form-grid" style={{ marginTop:18 }}>
         <label className="finance-field"><span>Valor total</span><input type="number" min="0" step="0.01" name="totalValue" value={form.totalValue} onChange={atualizar} /></label>
-        <label className="finance-field"><span>Prazo de execução</span><input value="69 dias corridos" readOnly /></label>
+        <label className="finance-field"><span>Prazo de execução</span><input name="executionTerm" value={form.executionTerm} onChange={atualizar} placeholder="Ex.: 30 dias corridos" /></label>
         <label className="finance-field finance-field-wide"><span>Forma de pagamento</span><textarea name="paymentTerms" value={form.paymentTerms} onChange={atualizar} rows="3" /></label>
       </div>
 
