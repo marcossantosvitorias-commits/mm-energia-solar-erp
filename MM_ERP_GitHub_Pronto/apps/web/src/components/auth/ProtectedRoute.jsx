@@ -23,8 +23,13 @@ export default function ProtectedRoute({ children, roles }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
+  const adminOnly = roles?.length === 1 && roles[0] === 'admin';
+  if (adminOnly && !hasRole('admin')) {
+    return <Navigate to="/app/precos" replace />;
+  }
+
   const hasCustomPermissions = Array.isArray(user?.permissions);
-  if (!hasCustomPermissions && roles?.length && !hasRole(...roles)) {
+  if (!adminOnly && !hasCustomPermissions && roles?.length && !hasRole(...roles)) {
     const home = user?.role === 'comercial' ? '/app/precos' : '/app/dashboard';
     return <Navigate to={home} replace />;
   }
