@@ -3,6 +3,16 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const AuthContext = createContext(null);
 
+const LOGIN_ALIASES = {
+  vendedor: 'vendedor@mmenergiasolar.com.br',
+};
+
+function normalizeLoginIdentifier(value) {
+  const identifier = value?.trim().toLowerCase();
+  if (!identifier) return '';
+  return LOGIN_ALIASES[identifier] || identifier;
+}
+
 async function normalizeUser(authUser) {
   if (!authUser) return null;
 
@@ -64,10 +74,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async ({ email, password }) => {
-    const normalizedEmail = email?.trim().toLowerCase();
+    const normalizedEmail = normalizeLoginIdentifier(email);
 
     if (!normalizedEmail || !password) {
-      return { ok: false, message: 'Informe e-mail e senha.' };
+      return { ok: false, message: 'Informe usuário/e-mail e senha.' };
     }
 
     if (!isSupabaseConfigured || !supabase) {
@@ -92,12 +102,12 @@ export function AuthProvider({ children }) {
       }
 
       setUser(current);
-      return { ok: true };
+      return { ok: true, user: current };
     } catch (error) {
       const invalid = error?.message?.toLowerCase().includes('invalid login credentials');
       return {
         ok: false,
-        message: invalid ? 'E-mail ou senha inválidos.' : 'Não foi possível acessar o Supabase.',
+        message: invalid ? 'Usuário/e-mail ou senha inválidos.' : 'Não foi possível acessar o Supabase.',
       };
     }
   };
