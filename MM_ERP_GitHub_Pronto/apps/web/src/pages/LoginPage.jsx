@@ -94,20 +94,20 @@ export default function LoginPage() {
 
             <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#c99b12]">Área restrita</p>
             <h2 className="mt-2 font-[Manrope] text-3xl font-extrabold tracking-tight text-[#0f2c52] sm:text-4xl">Entrar no sistema</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-500">Use seu e-mail corporativo e sua senha para acessar a ERP.</p>
+            <p className="mt-3 text-sm leading-6 text-slate-500">Use seu usuário ou e-mail e sua senha para acessar a ERP.</p>
 
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
               <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">E-mail</span>
+                <span className="mb-2 block text-sm font-bold text-slate-700">Usuário ou e-mail</span>
                 <div className="flex min-h-12 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm transition focus-within:border-[#2563a8] focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100/70">
                   <Mail size={18} className="shrink-0 text-slate-400" />
                   <input
                     className="w-full bg-transparent px-3 py-3 text-[15px] text-slate-800 outline-none placeholder:text-slate-400"
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="voce@mmenergiasolar.com.br"
-                    autoComplete="email"
+                    placeholder="vendedor ou voce@mmenergiasolar.com.br"
+                    autoComplete="username"
                     required
                   />
                 </div>
