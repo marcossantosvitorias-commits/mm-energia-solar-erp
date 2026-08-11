@@ -2,6 +2,22 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import { BELENUS_CATALOG } from '../data/belenusCatalog.js';
 
 const SETTINGS_KEY = 'belenus_pricing';
+const BELENUS_DISCOUNT_PERCENT = 12;
+const BELENUS_DISCOUNT_FACTOR = 1 - (BELENUS_DISCOUNT_PERCENT / 100);
+const money = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+
+function withBelenusDiscount(item) {
+  if (!item) return null;
+  const tablePrice = money(item.price);
+  return {
+    ...item,
+    tablePrice,
+    discountPercent: BELENUS_DISCOUNT_PERCENT,
+    price: money(tablePrice * BELENUS_DISCOUNT_FACTOR),
+    priceSource: 'BelEnergy app - preço com 12% de desconto',
+  };
+}
+
 const KIT_7_PLACAS = {
   id: 'MM-7-PLACAS',
   placas: 7,
@@ -77,6 +93,7 @@ async function listQuotes() {
 function listCatalog({ category = '', search = '' } = {}) {
   const normalizedSearch = String(search || '').trim().toLowerCase();
   return BELENUS_CATALOG
+    .map(withBelenusDiscount)
     .filter((item) => !category || item.category === category)
     .filter((item) => !normalizedSearch || [item.sku, item.category, item.brand, item.model]
       .join(' ').toLowerCase().includes(normalizedSearch))
@@ -84,7 +101,7 @@ function listCatalog({ category = '', search = '' } = {}) {
 }
 
 function getCatalogItem(sku) {
-  return BELENUS_CATALOG.find((item) => item.sku === sku) || null;
+  return withBelenusDiscount(BELENUS_CATALOG.find((item) => item.sku === sku) || null);
 }
 
 function getCatalogCategories() {
@@ -118,6 +135,7 @@ async function saveSettings(value) {
 }
 
 export const belenusPricingService = {
+  discountPercent: BELENUS_DISCOUNT_PERCENT,
   listQuotes,
   listCatalog,
   getCatalogItem,
