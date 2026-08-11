@@ -4,6 +4,7 @@ import App from '@/App';
 import '@/index.css';
 import './erp-mobile-fixes.css';
 import './monitoramento-import.css';
+import './erp-theme.css';
 import { APP_VERSION } from './version.js';
 import { startErpReminderChecks } from './services/notificationService.js';
 
