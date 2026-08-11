@@ -15,60 +15,39 @@ import './auth-layout.css';
 import '../crm/crm.css';
 
 const precosItem = {
-  to: '/app/precos',
-  label: 'Preços dos kits',
-  icon: Calculator,
+  to: '/app/precos', label: 'Preços dos kits', icon: Calculator,
   roles: ['admin', 'financeiro', 'comercial'],
 };
-
 const dashboardItem = {
-  to: '/app/dashboard',
-  label: 'Dashboard',
-  icon: LayoutDashboard,
+  to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard,
   roles: ['admin', 'financeiro', 'engenharia'],
 };
-
 const menuSections = [
-  {
-    title: 'Comercial',
-    items: [
-      { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'engenharia'] },
-      { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro'] },
-      { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/propostas', label: 'Propostas comerciais', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro'] },
-    ],
-  },
-  {
-    title: 'Operacional',
-    items: [
-      { to: '/app/ordens-servico', label: 'Ordens de serviço', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
-      { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower, roles: ['admin', 'engenharia'] },
-      { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch, roles: ['admin', 'engenharia'] },
-      { to: '/app/bling', label: 'Integração Bling', icon: PlugZap, roles: ['admin', 'financeiro'] },
-      { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup, roles: ['admin'] },
-    ],
-  },
-  {
-    title: 'Financeiro',
-    items: [
-      { to: '/app', label: 'Financeiro', icon: WalletCards, end: true, roles: ['admin', 'financeiro'] },
-      { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro'] },
-      { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
-      { to: '/app/marcos-finance', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },
-    ],
-  },
+  { title: 'Comercial', items: [
+    { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'engenharia'] },
+    { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro'] },
+    { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/propostas', label: 'Propostas comerciais', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro'] },
+  ]},
+  { title: 'Operacional', items: [
+    { to: '/app/ordens-servico', label: 'Ordens de serviço', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
+    { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower, roles: ['admin', 'engenharia'] },
+    { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch, roles: ['admin', 'engenharia'] },
+    { to: '/app/bling', label: 'Integração Bling', icon: PlugZap, roles: ['admin', 'financeiro'] },
+    { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup, roles: ['admin'] },
+  ]},
+  { title: 'Financeiro', items: [
+    { to: '/app', label: 'Financeiro', icon: WalletCards, end: true, roles: ['admin', 'financeiro'] },
+    { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro'] },
+    { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
+    { to: '/app/marcos-finance', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },
+  ]},
 ];
-
-const roleLabels = {
-  admin: 'Administrador',
-  financeiro: 'Financeiro',
-  comercial: 'Vendedor',
-  engenharia: 'Engenharia',
-};
+const roleLabels = { admin: 'Administrador', financeiro: 'Financeiro', comercial: 'Vendedor', engenharia: 'Engenharia' };
 
 function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
   const [menuAberto, setMenuAberto] = useState(false);
@@ -77,95 +56,52 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
   const navigate = useNavigate();
   const pessoal = theme === 'marcos';
   const logoUrl = `${import.meta.env.BASE_URL}logo-mm.png`;
-  const financeSections = [
-    ['dashboard', 'Visão geral'], ['fluxo', 'Fluxo de caixa'], ['pagar', 'Contas a pagar'],
-    ['receber', 'Contas a receber'], ['relatorios', 'Relatórios'],
-  ];
+  const financeSections = [['dashboard', 'Visão geral'], ['fluxo', 'Fluxo de caixa'], ['pagar', 'Contas a pagar'], ['receber', 'Contas a receber'], ['relatorios', 'Relatórios']];
 
   useEffect(() => {
     const prepararInstalacao = (event) => { event.preventDefault(); setInstallPrompt(event); };
     const instalado = () => setInstallPrompt(null);
     window.addEventListener('beforeinstallprompt', prepararInstalacao);
     window.addEventListener('appinstalled', instalado);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', prepararInstalacao);
-      window.removeEventListener('appinstalled', instalado);
-    };
+    return () => { window.removeEventListener('beforeinstallprompt', prepararInstalacao); window.removeEventListener('appinstalled', instalado); };
   }, []);
 
-  const instalarAplicativo = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
-  };
-
+  const instalarAplicativo = async () => { if (!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); };
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
   const displayName = pessoal ? 'Marcos Santos' : (user?.name || 'MM Energia Solar');
   const displayRole = pessoal ? 'Pessoa Física' : (roleLabels[user?.role] || 'Usuário');
   const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const canAccess = (roles) => !roles?.length || hasRole(...roles);
-  const renderNavItem = ({ to, label, icon: Icon, end }) => (
-    <NavLink key={to} to={to} end={end} onClick={() => setMenuAberto(false)}><Icon size={18} /><span>{label}</span></NavLink>
-  );
-  const visibleSections = menuSections
-    .map((section) => ({ ...section, items: section.items.filter((item) => canAccess(item.roles)) }))
-    .filter((section) => section.items.length > 0);
+  const renderNavItem = ({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={() => setMenuAberto(false)}><Icon size={18} /><span>{label}</span></NavLink>;
+  const visibleSections = menuSections.map((section) => ({ ...section, items: section.items.filter((item) => canAccess(item.roles)) })).filter((section) => section.items.length > 0);
 
   return (
     <div className={`finance-shell ${pessoal ? 'theme-marcos' : 'theme-empresa'}`}>
-      <button className="finance-mobile-toggle" onClick={() => setMenuAberto((v) => !v)} aria-label="Abrir menu">
-        {menuAberto ? <X size={22} /> : <Menu size={22} />}
-      </button>
-      <aside
-        className={`finance-sidebar ${menuAberto ? 'open' : ''}`}
-        style={{
-          overflowY: 'auto',
-          height: '100dvh',
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain',
-          paddingBottom: 'calc(42px + env(safe-area-inset-bottom))',
-        }}
-      >
-        <div className="finance-brand">
-          <div className="finance-logo-box"><img src={logoUrl} alt="MM Energia Solar" /></div>
-          <div><strong>MM ERP <small style={{ color: '#f5c400', fontSize: '0.58em', marginLeft: 6 }}>v{APP_VERSION}</small></strong><span>MM Energia Solar</span></div>
-        </div>
+      <button className="finance-mobile-toggle" onClick={() => setMenuAberto((v) => !v)} aria-label="Abrir menu">{menuAberto ? <X size={22} /> : <Menu size={22} />}</button>
+      <aside className={`finance-sidebar ${menuAberto ? 'open' : ''}`} style={{ overflowY:'auto', height:'100dvh', WebkitOverflowScrolling:'touch', overscrollBehavior:'contain', paddingBottom:'calc(42px + env(safe-area-inset-bottom))' }}>
+        <div className="finance-brand"><div className="finance-logo-box"><img src={logoUrl} alt="MM Energia Solar" /></div><div><strong>MM ERP <small style={{ color:'#f5c400', fontSize:'0.58em', marginLeft:6 }}>v{APP_VERSION}</small></strong><span>MM Energia Solar</span></div></div>
         <nav className="erp-main-nav">
           {canAccess(precosItem.roles) && renderNavItem(precosItem)}
           {canAccess(dashboardItem.roles) && renderNavItem(dashboardItem)}
-          {visibleSections.map(({ title: sectionTitle, className = '', items }) => (
-            <div key={sectionTitle} className={`erp-nav-section ${className}`.trim()}>
-              <span className="nav-section-label">{sectionTitle}</span>
-              {items.map(renderNavItem)}
-            </div>
-          ))}
+          {visibleSections.map(({ title: sectionTitle, className = '', items }) => <div key={sectionTitle} className={`erp-nav-section ${className}`.trim()}><span className="nav-section-label">{sectionTitle}</span>{items.map(renderNavItem)}</div>)}
         </nav>
-        {!pessoal && activeSection && hasRole('admin', 'financeiro') && (
-          <nav className="finance-section-nav compact">
-            <span className="nav-section-label">Dentro do financeiro</span>
-            {financeSections.map(([id, label]) => (
-              <button key={id} className={activeSection === id ? 'active' : ''} onClick={() => { onSectionChange(id); setMenuAberto(false); }}>{label}</button>
-            ))}
-          </nav>
-        )}
+        {!pessoal && activeSection && hasRole('admin', 'financeiro') && <nav className="finance-section-nav compact"><span className="nav-section-label">Dentro do financeiro</span>{financeSections.map(([id, label]) => <button key={id} className={activeSection === id ? 'active' : ''} onClick={() => { onSectionChange(id); setMenuAberto(false); }}>{label}</button>)}</nav>}
         <nav className="finance-account-nav">
           {installPrompt && <button type="button" onClick={instalarAplicativo}><Download size={17} /> <span>Instalar MM ERP</span></button>}
           <a href="https://mmenergiasolar.com.br"><Globe2 size={17} /> <span>Voltar ao site comercial</span></a>
           <button type="button" onClick={handleLogout}><LogOut size={17} /> <span>Sair do sistema</span></button>
         </nav>
-        <div className="finance-user" style={{ flexShrink: 0, marginTop: 18, marginBottom: 24 }}>
-          <div className="finance-avatar">{initials || 'MM'}</div>
-          <div><strong>{displayName}</strong><span>{displayRole}</span></div>
-        </div>
+        <div className="finance-user" style={{ flexShrink:0, marginTop:18, marginBottom:24 }}><div className="finance-avatar">{initials || 'MM'}</div><div><strong>{displayName}</strong><span>{displayRole}</span></div></div>
       </aside>
       {menuAberto && <button className="finance-overlay" aria-label="Fechar menu" onClick={() => setMenuAberto(false)} />}
       <main className="finance-main">
-        <header className="finance-header"><span className="finance-eyebrow">{pessoal ? 'Controle pessoal' : 'Gestão empresarial'}</span><h1>{title}</h1><p>{subtitle}</p></header>
+        <header className="finance-header">
+          {!pessoal && <div className="erp-page-logo" style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}><img src={logoUrl} alt="MM Energia Solar" style={{ width:64, height:46, objectFit:'contain', objectPosition:'left center' }} /><span style={{ fontWeight:900, color:'#0f2c52' }}>MM Energia Solar</span></div>}
+          <span className="finance-eyebrow">{pessoal ? 'Controle pessoal' : 'Gestão empresarial'}</span><h1>{title}</h1><p>{subtitle}</p>
+        </header>
         <div className="finance-content-scroll">{children}</div>
       </main>
     </div>
   );
 }
-
 export default FinanceLayout;
