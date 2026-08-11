@@ -41,6 +41,7 @@ import ProspeccaoSolarPage from './pages/ProspeccaoSolarPage.jsx';
 import PrecosKitsPage from './pages/PrecosKitsPage.jsx';
 import InversorStringPage from './pages/InversorStringPage.jsx';
 import HybridKitsPage from './pages/HybridKitsPage.jsx';
+import UserAccessPage from './pages/UserAccessPage.jsx';
 
 const ROLES = {
   DASHBOARD: ['admin', 'financeiro', 'engenharia'],
@@ -104,6 +105,7 @@ function App() {
           <Route path="/app/migracao" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
           <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
           <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/usuarios" element={privateRoute(<UserAccessPage />, ROLES.ADMIN)} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
