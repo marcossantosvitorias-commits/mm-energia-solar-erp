@@ -5,6 +5,7 @@ const SETTINGS_KEY = 'belenus_pricing';
 const BELENUS_DISCOUNT_PERCENT = 12;
 const BELENUS_DISCOUNT_FACTOR = 1 - (BELENUS_DISCOUNT_PERCENT / 100);
 const money = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+const effectiveQuotePrice = (item) => Number(item?.precoAvista || item?.total || item?.produtos || 0);
 
 function withBelenusDiscount(item) {
   if (!item) return null;
@@ -71,6 +72,7 @@ function mapQuote(row) {
     produtos: Number(row.products_total || 0),
     frete: Number(row.freight || 0),
     total: Number(row.total || 0),
+    precoAvista: Number(row.sale_price || 0),
     estrutura: row.structure_description || '',
     emissao: row.issue_date,
     validade: row.valid_until,
@@ -84,11 +86,15 @@ async function listQuotes() {
   const { data, error } = await supabase
     .from('supplier_quotes')
     .select('*')
-    .eq('supplier', 'Belenus')
-    .order('panels_count', { ascending: true });
+    .eq('supplier', 'Belenus');
   if (error) throw error;
-  const quotes = (data || []).map(mapQuote).filter((item) => item.placas !== 7 && item.id !== KIT_12_PLACAS_MICRO.id);
-  return [...quotes, KIT_7_PLACAS, KIT_12_PLACAS_MICRO].sort((a, b) => a.placas - b.placas);
+
+  const quotes = (data || [])
+    .map(mapQuote)
+    .filter((item) => item.placas !== 7 && item.id !== KIT_12_PLACAS_MICRO.id);
+
+  return [...quotes, KIT_7_PLACAS, KIT_12_PLACAS_MICRO]
+    .sort((a, b) => effectiveQuotePrice(a) - effectiveQuotePrice(b) || a.placas - b.placas);
 }
 
 async function listPublishedCatalogKits() {
@@ -96,12 +102,13 @@ async function listPublishedCatalogKits() {
   const { data, error } = await supabase
     .from('supplier_quotes')
     .select('*')
-    .eq('supplier', 'Belenus')
-    .order('created_at', { ascending: false });
+    .eq('supplier', 'Belenus');
   if (error) throw error;
+
   return (data || [])
     .filter((row) => row.payload?.source === 'belenus_catalog_builder')
-    .map(mapQuote);
+    .map(mapQuote)
+    .sort((a, b) => effectiveQuotePrice(a) - effectiveQuotePrice(b) || a.placas - b.placas);
 }
 
 async function publishCatalogKit(input) {
@@ -160,7 +167,10 @@ function listCatalog({ category = '', search = '' } = {}) {
     .filter((item) => !category || item.category === category)
     .filter((item) => !normalizedSearch || [item.sku, item.category, item.brand, item.model]
       .join(' ').toLowerCase().includes(normalizedSearch))
-    .sort((a, b) => a.category.localeCompare(b.category, 'pt-BR') || a.price - b.price);
+    .sort((a, b) => a.price - b.price
+      || a.category.localeCompare(b.category, 'pt-BR')
+      || a.brand.localeCompare(b.brand, 'pt-BR')
+      || a.model.localeCompare(b.model, 'pt-BR'));
 }
 
 function getCatalogItem(sku) {
@@ -168,7 +178,8 @@ function getCatalogItem(sku) {
 }
 
 function getCatalogCategories() {
-  return [...new Set(BELENUS_CATALOG.map((item) => item.category))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  return [...new Set(BELENUS_CATALOG.map((item) => item.category))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 async function getSettings() {
