@@ -4,7 +4,7 @@ import { LoaderCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
 export default function ProtectedRoute({ children, roles }) {
-  const { isAuthenticated, loading, hasRole } = useAuth();
+  const { user, isAuthenticated, loading, hasRole } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -23,7 +23,8 @@ export default function ProtectedRoute({ children, roles }) {
   }
 
   if (roles?.length && !hasRole(...roles)) {
-    return <Navigate to="/app/dashboard" replace />;
+    const home = user?.role === 'comercial' ? '/app/precos' : '/app/dashboard';
+    return <Navigate to={home} replace />;
   }
 
   return children;
