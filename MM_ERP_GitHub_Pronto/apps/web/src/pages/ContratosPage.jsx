@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, ExternalLink, FileCheck2, Mail, MessageCircle, RefreshCw, Search, UserRound } from 'lucide-react';
+import { Download, ExternalLink, FileCheck2, Mail, MessageCircle, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { formatarData, formatarMoeda } from '../components/finance/storage.js';
-import { listClients } from '../services/clientService.js';
+import { createClient, listClients } from '../services/clientService.js';
 import { downloadContractPdf, generateContractPdf } from '../services/contractPdfService.js';
 import { listStoredContracts, saveLocalContract, sendContractToAutentique, syncAutentiqueContracts } from '../services/autentiqueService.js';
 import './ContratosPage.css';
@@ -15,6 +15,11 @@ const EMPTY_FORM = {
   roofStructure: 'Telha cerâmica', roofStructureOther: '',
   systemDescription: 'Sistema solar fotovoltaico conforme proposta comercial aprovada.',
   components: '',
+};
+
+const EMPTY_CLIENT = {
+  name: '', document: '', phone: '', email: '', address: '', zipCode: '', city: '', state: 'SP',
+  customerType: 'residencial', status: 'cliente', monthlyBill: 0, notes: 'Cliente cadastrado diretamente pela tela de contratos.',
 };
 
 const ROOF_OPTIONS = ['Telha cerâmica', 'Fibrocimento', 'Telha metálica/trapezoidal', 'Telha zipada', 'Laje', 'Solo', 'Outro'];
@@ -60,6 +65,9 @@ export default function ContratosPage() {
   const [enviando, setEnviando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [mostrarCadastroCliente, setMostrarCadastroCliente] = useState(false);
+  const [novoCliente, setNovoCliente] = useState(EMPTY_CLIENT);
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
 
   async function carregarTudo() {
     setCarregando(true);
@@ -73,11 +81,43 @@ export default function ContratosPage() {
 
   const selecionarCliente = (id) => {
     const client = clientes.find((item) => item.id === id);
-    if (!client) return setForm(EMPTY_FORM);
+    if (!client) return setForm((current) => ({ ...EMPTY_FORM, executionTerm: current.executionTerm || EMPTY_FORM.executionTerm }));
     const address = fullAddress(client);
     setForm((current) => ({ ...current, clientId: client.id, clientName: client.name || '', clientDocument: client.document || '', clientPhone: client.phone || '', clientEmail: client.email || '', clientAddress: address, installationAddress: address }));
   };
+
   const atualizar = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+  const atualizarNovoCliente = (event) => setNovoCliente((current) => ({ ...current, [event.target.name]: event.target.value }));
+
+  const cadastrarClienteAqui = async () => {
+    if (!novoCliente.name.trim()) return setMensagem('Informe o nome do novo cliente.');
+    if (!novoCliente.phone.trim()) return setMensagem('Informe o WhatsApp do novo cliente.');
+    setSalvandoCliente(true);
+    setMensagem('Salvando cliente...');
+    try {
+      const created = await createClient({ ...novoCliente, status: 'cliente' });
+      const updatedClients = await listClients();
+      setClientes(updatedClients);
+      const address = fullAddress(created);
+      setForm((current) => ({
+        ...current,
+        clientId: created.id,
+        clientName: created.name || '',
+        clientDocument: created.document || '',
+        clientPhone: created.phone || '',
+        clientEmail: created.email || '',
+        clientAddress: address,
+        installationAddress: address,
+      }));
+      setNovoCliente(EMPTY_CLIENT);
+      setMostrarCadastroCliente(false);
+      setMensagem('Cliente cadastrado e selecionado no contrato.');
+    } catch (error) {
+      setMensagem(error.message || 'Não foi possível cadastrar o cliente.');
+    } finally {
+      setSalvandoCliente(false);
+    }
+  };
 
   const validar = (deliveryMethod = null) => {
     if (!form.clientName || !form.clientDocument || !form.installationAddress) { setMensagem('Selecione um cliente com nome, CPF/CNPJ e endereço da instalação.'); return false; }
@@ -115,7 +155,7 @@ export default function ContratosPage() {
   };
 
   const sincronizarAutentique = async () => {
-    setSincronizando(true); setMensagem('Buscando contratos, clientes, telefones e e-mails no Autentique...');
+    setSincronizando(true); setMensagem('Buscando contratos no Autentique...');
     try {
       const result = await syncAutentiqueContracts({ limit: 60, pages: 20 });
       await carregarTudo(); setMensagem(`${result.imported || 0} contrato(s) gravado(s) no banco e ${result.failed || 0} com pendência.`);
@@ -130,6 +170,31 @@ export default function ContratosPage() {
       <div className="finance-panel-header"><div><h2>Novo contrato</h2><p>Selecione o cliente, informe os equipamentos e envie para assinatura.</p></div><FileCheck2 size={24} /></div>
       <div className="contract-form-grid">
         <label className="finance-field finance-field-wide"><span>Cliente cadastrado</span><select value={form.clientId} onChange={(event) => selecionarCliente(event.target.value)}><option value="">Selecione o cliente</option>{clientes.map((client) => <option key={client.id} value={client.id}>{client.name} - {client.document || 'sem CPF/CNPJ'}</option>)}</select></label>
+
+        <div className="finance-field finance-field-wide">
+          <button className="finance-secondary-button" type="button" onClick={() => setMostrarCadastroCliente((value) => !value)} style={{ width:'100%', justifyContent:'center' }}>
+            <Plus size={17} /> {mostrarCadastroCliente ? 'Fechar cadastro' : 'Cadastrar novo cliente'}
+          </button>
+        </div>
+
+        {mostrarCadastroCliente && <div className="finance-field-wide" style={{ padding:16, border:'1px solid #dfe5ec', borderRadius:16, background:'#f8fbff' }}>
+          <h3 style={{ margin:'0 0 14px', color:'#0f2c52' }}>Novo cliente</h3>
+          <div className="contract-form-grid">
+            <label className="finance-field"><span>Nome *</span><input name="name" value={novoCliente.name} onChange={atualizarNovoCliente} placeholder="Nome completo" /></label>
+            <label className="finance-field"><span>CPF/CNPJ</span><input name="document" value={novoCliente.document} onChange={atualizarNovoCliente} placeholder="CPF ou CNPJ" /></label>
+            <label className="finance-field"><span>WhatsApp *</span><input name="phone" value={novoCliente.phone} onChange={atualizarNovoCliente} placeholder="(14) 99999-9999" /></label>
+            <label className="finance-field"><span>E-mail</span><input name="email" value={novoCliente.email} onChange={atualizarNovoCliente} placeholder="cliente@email.com" /></label>
+            <label className="finance-field finance-field-wide"><span>Endereço</span><input name="address" value={novoCliente.address} onChange={atualizarNovoCliente} placeholder="Rua, número e bairro" /></label>
+            <label className="finance-field"><span>Cidade</span><input name="city" value={novoCliente.city} onChange={atualizarNovoCliente} /></label>
+            <label className="finance-field"><span>UF</span><input name="state" maxLength="2" value={novoCliente.state} onChange={atualizarNovoCliente} /></label>
+            <label className="finance-field"><span>CEP</span><input name="zipCode" value={novoCliente.zipCode} onChange={atualizarNovoCliente} /></label>
+            <label className="finance-field"><span>Tipo</span><select name="customerType" value={novoCliente.customerType} onChange={atualizarNovoCliente}><option value="residencial">Residencial</option><option value="comercial">Comercial</option><option value="rural">Rural</option><option value="industrial">Industrial</option></select></label>
+          </div>
+          <button className="finance-button" type="button" disabled={salvandoCliente} onClick={cadastrarClienteAqui} style={{ width:'100%', justifyContent:'center', marginTop:14 }}>
+            {salvandoCliente ? 'Salvando...' : 'Salvar cliente e usar neste contrato'}
+          </button>
+        </div>}
+
         <label className="finance-field"><span>Nome</span><input value={form.clientName} readOnly /></label>
         <label className="finance-field"><span>CPF/CNPJ</span><input value={form.clientDocument} readOnly /></label>
         <label className="finance-field"><span>WhatsApp</span><input value={form.clientPhone} readOnly /></label>
