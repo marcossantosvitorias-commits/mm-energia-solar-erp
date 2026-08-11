@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "./?pwa=mm-energia-solar-v4",
   "name": "MM ERP - MM Energia Solar",
   "short_name": "MM ERP",
   "description": "Gestão comercial, financeira e operacional da MM Energia Solar.",
   "lang": "pt-BR",
-  "start_url": "./app/precos?source=pwa&manifest=v3",
+  "start_url": "./app/precos?source=pwa&manifest=v4",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -12,16 +12,16 @@
   "theme_color": "#0F2C52",
   "icons": [
     {
-      "src": "./mm-erp-icon.svg?v=20260810-1",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./logo-mm.png?v=20260810-2",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./mm-erp-icon.svg?v=20260810-1",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "src": "./logo-mm.png?v=20260810-2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
