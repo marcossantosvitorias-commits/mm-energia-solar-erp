@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
+import { BELENUS_CATALOG } from '../data/belenusCatalog.js';
 
 const SETTINGS_KEY = 'belenus_pricing';
 const KIT_7_PLACAS = {
@@ -73,6 +74,23 @@ async function listQuotes() {
   return [...quotes, KIT_7_PLACAS, KIT_12_PLACAS_MICRO].sort((a, b) => a.placas - b.placas);
 }
 
+function listCatalog({ category = '', search = '' } = {}) {
+  const normalizedSearch = String(search || '').trim().toLowerCase();
+  return BELENUS_CATALOG
+    .filter((item) => !category || item.category === category)
+    .filter((item) => !normalizedSearch || [item.sku, item.category, item.brand, item.model]
+      .join(' ').toLowerCase().includes(normalizedSearch))
+    .sort((a, b) => a.category.localeCompare(b.category, 'pt-BR') || a.price - b.price);
+}
+
+function getCatalogItem(sku) {
+  return BELENUS_CATALOG.find((item) => item.sku === sku) || null;
+}
+
+function getCatalogCategories() {
+  return [...new Set(BELENUS_CATALOG.map((item) => item.category))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
 async function getSettings() {
   ensureDatabase();
   const { data, error } = await supabase
@@ -99,4 +117,11 @@ async function saveSettings(value) {
   return data;
 }
 
-export const belenusPricingService = { listQuotes, getSettings, saveSettings };
+export const belenusPricingService = {
+  listQuotes,
+  listCatalog,
+  getCatalogItem,
+  getCatalogCategories,
+  getSettings,
+  saveSettings,
+};
