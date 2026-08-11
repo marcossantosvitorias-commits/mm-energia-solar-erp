@@ -4,41 +4,41 @@
   "short_name": "MM ERP",
   "description": "Gestão comercial, financeira e operacional da MM Energia Solar.",
   "lang": "pt-BR",
-  "start_url": "./?source=pwa&manifest=v2",
+  "start_url": "./app/precos?source=pwa&manifest=v3",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#020617",
-  "theme_color": "#0b2f55",
+  "background_color": "#F5F7FB",
+  "theme_color": "#0F2C52",
   "icons": [
     {
-      "src": "./logo-mm.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "./mm-erp-icon.svg?v=20260810-1",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "./logo-mm.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "./mm-erp-icon.svg?v=20260810-1",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "url": "./app/dashboard"
-    },
-    {
-      "name": "Preço dos kits",
+      "name": "Preços dos kits",
       "short_name": "Kits",
       "url": "./app/precos"
     },
     {
-      "name": "Financeiro",
-      "short_name": "Financeiro",
-      "url": "./app"
+      "name": "Clientes e leads",
+      "short_name": "Clientes",
+      "url": "./app/clientes"
+    },
+    {
+      "name": "Calculadora Solar",
+      "short_name": "Calculadora",
+      "url": "./app/calculadora-solar"
     }
   ]
 }
