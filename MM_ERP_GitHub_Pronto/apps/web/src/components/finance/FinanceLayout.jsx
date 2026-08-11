@@ -4,9 +4,10 @@ import {
   LayoutDashboard, LayoutPanelTop, WalletCards, Calculator, SunMedium,
   BadgeDollarSign, FileSpreadsheet, FileSignature, FileText, PackageSearch, Scale,
   UserRound, UsersRound, CalendarDays, DatabaseBackup, PlugZap, RadioTower,
-  ClipboardCheck, Globe2, LogOut, Menu, Download, X,
+  ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { accessKeyForPath } from '../../config/accessControl.js';
 import { APP_VERSION } from '../../version.js';
 import './finance.css';
 import './erp-compact.css';
@@ -46,13 +47,16 @@ const menuSections = [
     { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
     { to: '/app/marcos-finance', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },
   ]},
+  { title: 'Administração', items: [
+    { to: '/app/usuarios', label: 'Usuários e acessos', icon: UserCog, roles: ['admin'], adminOnly: true },
+  ]},
 ];
-const roleLabels = { admin: 'Administrador', financeiro: 'Financeiro', comercial: 'Vendedor', engenharia: 'Engenharia' };
+const roleLabels = { admin: 'Administrador', financeiro: 'Financeiro', comercial: 'Vendedor', engenharia: 'Engenharia', instalador: 'Instalador' };
 
 function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole, hasPermission } = useAuth();
   const navigate = useNavigate();
   const pessoal = theme === 'marcos';
   const logoUrl = `${import.meta.env.BASE_URL}logo-mm.png`;
@@ -71,9 +75,17 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
   const displayName = pessoal ? 'Marcos Santos' : (user?.name || 'MM Energia Solar');
   const displayRole = pessoal ? 'Pessoa Física' : (roleLabels[user?.role] || 'Usuário');
   const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-  const canAccess = (roles) => !roles?.length || hasRole(...roles);
+  const hasCustomPermissions = Array.isArray(user?.permissions);
+  const canAccessItem = (item) => {
+    if (item.adminOnly) return hasRole('admin');
+    if (hasCustomPermissions) {
+      const key = accessKeyForPath(item.to);
+      return key ? hasPermission(key) : false;
+    }
+    return !item.roles?.length || hasRole(...item.roles);
+  };
   const renderNavItem = ({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={() => setMenuAberto(false)}><Icon size={18} /><span>{label}</span></NavLink>;
-  const visibleSections = menuSections.map((section) => ({ ...section, items: section.items.filter((item) => canAccess(item.roles)) })).filter((section) => section.items.length > 0);
+  const visibleSections = menuSections.map((section) => ({ ...section, items: section.items.filter(canAccessItem) })).filter((section) => section.items.length > 0);
 
   return (
     <div className={`finance-shell ${pessoal ? 'theme-marcos' : 'theme-empresa'}`}>
@@ -81,11 +93,11 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
       <aside className={`finance-sidebar ${menuAberto ? 'open' : ''}`} style={{ overflowY:'auto', height:'100dvh', WebkitOverflowScrolling:'touch', overscrollBehavior:'contain', paddingBottom:'calc(42px + env(safe-area-inset-bottom))' }}>
         <div className="finance-brand"><div className="finance-logo-box"><img src={logoUrl} alt="MM Energia Solar" /></div><div><strong>MM ERP <small style={{ color:'#f5c400', fontSize:'0.58em', marginLeft:6 }}>v{APP_VERSION}</small></strong><span>MM Energia Solar</span></div></div>
         <nav className="erp-main-nav">
-          {canAccess(precosItem.roles) && renderNavItem(precosItem)}
-          {canAccess(dashboardItem.roles) && renderNavItem(dashboardItem)}
+          {canAccessItem(precosItem) && renderNavItem(precosItem)}
+          {canAccessItem(dashboardItem) && renderNavItem(dashboardItem)}
           {visibleSections.map(({ title: sectionTitle, className = '', items }) => <div key={sectionTitle} className={`erp-nav-section ${className}`.trim()}><span className="nav-section-label">{sectionTitle}</span>{items.map(renderNavItem)}</div>)}
         </nav>
-        {!pessoal && activeSection && hasRole('admin', 'financeiro') && <nav className="finance-section-nav compact"><span className="nav-section-label">Dentro do financeiro</span>{financeSections.map(([id, label]) => <button key={id} className={activeSection === id ? 'active' : ''} onClick={() => { onSectionChange(id); setMenuAberto(false); }}>{label}</button>)}</nav>}
+        {!pessoal && activeSection && (hasRole('admin', 'financeiro') || hasPermission('financeiro')) && <nav className="finance-section-nav compact"><span className="nav-section-label">Dentro do financeiro</span>{financeSections.map(([id, label]) => <button key={id} className={activeSection === id ? 'active' : ''} onClick={() => { onSectionChange(id); setMenuAberto(false); }}>{label}</button>)}</nav>}
         <nav className="finance-account-nav">
           {installPrompt && <button type="button" onClick={instalarAplicativo}><Download size={17} /> <span>Instalar MM ERP</span></button>}
           <a href="https://mmenergiasolar.com.br"><Globe2 size={17} /> <span>Voltar ao site comercial</span></a>
