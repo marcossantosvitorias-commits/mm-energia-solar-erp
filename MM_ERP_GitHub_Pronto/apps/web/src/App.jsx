@@ -42,14 +42,15 @@ import InversorStringPage from './pages/InversorStringPage.jsx';
 import HybridKitsPage from './pages/HybridKitsPage.jsx';
 
 const ROLES = {
-  ALL: ['admin', 'financeiro', 'comercial', 'engenharia'],
-  COMMERCIAL: ['admin', 'financeiro', 'comercial'],
-  FINANCIAL: ['admin', 'financeiro'],
+  DASHBOARD: ['admin', 'financeiro', 'engenharia'],
+  SALES: ['admin', 'financeiro', 'comercial'],
+  MANAGEMENT: ['admin', 'financeiro'],
+  INTERNAL: ['admin', 'financeiro', 'engenharia'],
   OPERATIONAL: ['admin', 'engenharia'],
   ADMIN: ['admin'],
 };
 
-const privateRoute = (element, roles = ROLES.ALL) => (
+const privateRoute = (element, roles) => (
   <ProtectedRoute roles={roles}>{element}</ProtectedRoute>
 );
 
@@ -68,39 +69,40 @@ function App() {
           <Route path="/simulacao-solar" element={<CalculadoraSolarPublicaPage />} />
           <Route path="/proposta/:token" element={<PropostaPublicaPage />} />
 
-          <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
-          <Route path="/app/fluxos" element={privateRoute(<FluxosKanbanPage />)} />
-          <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/prospeccao-solar" element={privateRoute(<ProspeccaoSolarPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/calculadora-solar" element={privateRoute(<CalculadoraSolarErpPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/propostas" element={privateRoute(<PropostasPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/propostas/:id/pdf" element={privateRoute(<PropostaPdfPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.ALL)} />
-          <Route path="/app/ordens-servico/:id/preparacao" element={privateRoute(<PreparacaoInstalacaoPage />, ROLES.ALL)} />
-          <Route path="/app/ordens-servico/:id/campo" element={privateRoute(<ExecucaoInstalacaoMobilePage />, ROLES.ALL)} />
-          <Route path="/app/ordens-servico/:id/finalizacao" element={privateRoute(<FinalizacaoInstalacaoMobilePage />, ROLES.ALL)} />
-          <Route path="/app/pos-venda" element={privateRoute(<PosVendaPage />, ROLES.ALL)} />
+          <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />, ROLES.DASHBOARD)} />
+          <Route path="/app/fluxos" element={privateRoute(<FluxosKanbanPage />, ROLES.INTERNAL)} />
+          <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.SALES)} />
+          <Route path="/app/prospeccao-solar" element={privateRoute(<ProspeccaoSolarPage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/calculadora-solar" element={privateRoute(<CalculadoraSolarErpPage />, ROLES.SALES)} />
+          <Route path="/app/propostas" element={privateRoute(<PropostasPage />, ROLES.SALES)} />
+          <Route path="/app/propostas/:id/pdf" element={privateRoute(<PropostaPdfPage />, ROLES.SALES)} />
+          <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.SALES)} />
+          <Route path="/app/contratos" element={privateRoute(<ContratosPage />, ROLES.SALES)} />
+
+          <Route path="/app/precos" element={privateRoute(<PrecosKitsPage />, ROLES.SALES)} />
+          <Route path="/app/precos/microinversor" element={privateRoute(<CotacoesBelenusPage />, ROLES.SALES)} />
+          <Route path="/app/precos/inversor" element={privateRoute(<InversorStringPage />, ROLES.SALES)} />
+          <Route path="/app/precos/hibrido" element={privateRoute(<HybridKitsPage />, ROLES.SALES)} />
+          <Route path="/app/kits-hibridos" element={privateRoute(<Navigate to="/app/precos/hibrido" replace />, ROLES.SALES)} />
+
+          <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.INTERNAL)} />
+          <Route path="/app/ordens-servico/:id/preparacao" element={privateRoute(<PreparacaoInstalacaoPage />, ROLES.INTERNAL)} />
+          <Route path="/app/ordens-servico/:id/campo" element={privateRoute(<ExecucaoInstalacaoMobilePage />, ROLES.INTERNAL)} />
+          <Route path="/app/ordens-servico/:id/finalizacao" element={privateRoute(<FinalizacaoInstalacaoMobilePage />, ROLES.INTERNAL)} />
+          <Route path="/app/pos-venda" element={privateRoute(<PosVendaPage />, ROLES.INTERNAL)} />
           <Route path="/app/monitoramento" element={privateRoute(<MonitoramentoSolarPage />, ROLES.OPERATIONAL)} />
-          <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.FINANCIAL)} />
-
-          <Route path="/app/precos" element={privateRoute(<PrecosKitsPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/precos/microinversor" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/precos/inversor" element={privateRoute(<InversorStringPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/precos/hibrido" element={privateRoute(<HybridKitsPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/kits-hibridos" element={privateRoute(<Navigate to="/app/precos/hibrido" replace />, ROLES.COMMERCIAL)} />
-
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />, ROLES.OPERATIONAL)} />
-          <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.FINANCIAL)} />
-          <Route path="/app/marcos-finance" element={privateRoute(<MarcosFinancePage />, ROLES.FINANCIAL)} />
-          <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />, ROLES.FINANCIAL)} />
-          <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />, ROLES.COMMERCIAL)} />
-          <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.FINANCIAL)} />
+
+          <Route path="/app" element={privateRoute(<FinanceiroPage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/cotacoes-belenus" element={privateRoute(<CotacoesBelenusPage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/tributos" element={privateRoute(<TributosPage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/marcos-finance" element={privateRoute(<MarcosFinancePage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/marcos" element={privateRoute(<MarcosFinancePage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/belcred" element={privateRoute(<BelCredSimuladorPage />, ROLES.MANAGEMENT)} />
+          <Route path="/app/taxas-cartao" element={privateRoute(<CardFeesPage />, ROLES.MANAGEMENT)} />
           <Route path="/app/migracao" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
           <Route path="/app/migracao-dados" element={privateRoute(<MigracaoDadosPage />, ROLES.ADMIN)} />
-          <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />, ROLES.FINANCIAL)} />
-          <Route path="/app/contratos" element={privateRoute(<ContratosPage />, ROLES.COMMERCIAL)} />
+          <Route path="/app/bling" element={privateRoute(<BlingIntegracaoPage />, ROLES.MANAGEMENT)} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
