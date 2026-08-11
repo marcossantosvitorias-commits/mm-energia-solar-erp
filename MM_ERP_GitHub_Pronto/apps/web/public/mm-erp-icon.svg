@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F2C52"/>
+      <stop offset="1" stop-color="#1C4F8A"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="180" y1="110" x2="350" y2="290" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2A6"/>
+      <stop offset="1" stop-color="#E8BD26"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <circle cx="356" cy="152" r="64" fill="url(#sun)"/>
+  <g stroke="#F6D861" stroke-width="14" stroke-linecap="round">
+    <path d="M356 60v-26"/><path d="M356 270v-26"/><path d="M264 152h-26"/><path d="M474 152h-26"/>
+    <path d="M292 88l-19-19"/><path d="M420 216l19 19"/><path d="M420 88l19-19"/><path d="M292 216l-19 19"/>
+  </g>
+  <path d="M84 322c74-72 156-106 248-102-36 30-72 68-99 116 58-28 119-40 183-31-61 49-132 87-212 112-52 16-104-11-120-63-4-12-4-23 0-32Z" fill="#FFFFFF" opacity="0.96"/>
+  <path d="M107 343c55-38 112-65 172-80-27 24-50 51-69 82 41-17 84-27 128-30-42 28-89 51-140 67-37 11-75-5-91-39Z" fill="#E8BD26" opacity="0.95"/>
+  <text x="256" y="454" text-anchor="middle" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="800" letter-spacing="4">MM</text>
+</svg>
