@@ -1,5 +1,5 @@
-const CACHE_NAME = 'mm-erp-assets-v1.2.4';
-const STATIC_FILES = ['/logo-mm.png'];
+const CACHE_NAME = 'mm-erp-assets-v1.4.2';
+const STATIC_FILES = ['/logo-mm.png', '/mm-erp-icon.svg'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -31,17 +31,17 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(self.registration.showNotification(payload.title || 'MM ERP', {
     body: payload.body || 'Você tem um novo lembrete.',
-    icon: '/logo-mm.png',
-    badge: '/logo-mm.png',
+    icon: '/mm-erp-icon.svg',
+    badge: '/mm-erp-icon.svg',
     tag: payload.tag || `mm-erp-${Date.now()}`,
-    data: { url: payload.url || '/app/dashboard' },
+    data: { url: payload.url || '/app/precos' },
     vibrate: [200, 100, 200],
   }));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || '/app/dashboard', self.location.origin).href;
+  const targetUrl = new URL(event.notification.data?.url || '/app/precos', self.location.origin).href;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
@@ -68,13 +68,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.pathname.startsWith('/assets/')) {
-    event.respondWith(
-      fetch(request, { cache: 'no-store' }).catch(() => caches.match(request))
-    );
+    event.respondWith(fetch(request, { cache: 'no-store' }).catch(() => caches.match(request)));
     return;
   }
 
-  if (url.pathname === '/logo-mm.png') {
+  if (url.pathname === '/logo-mm.png' || url.pathname === '/mm-erp-icon.svg') {
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request).then((response) => {
         if (response.ok) {
