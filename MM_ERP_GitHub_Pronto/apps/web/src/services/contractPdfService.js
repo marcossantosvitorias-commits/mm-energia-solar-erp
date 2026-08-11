@@ -44,7 +44,11 @@ async function loadLogo() {
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(image, 0, 0, width, height);
-        return canvas.toDataURL('image/jpeg', 0.68);
+        return {
+          dataUrl: canvas.toDataURL('image/jpeg', 0.68),
+          width,
+          height,
+        };
       } finally {
         URL.revokeObjectURL(objectUrl);
       }
@@ -65,8 +69,15 @@ export async function generateContractPdf(contract) {
   const logo = await loadLogo();
   if (logo) {
     try {
-      doc.addImage(logo, 'JPEG', 77, 9, 56, 24, 'mm-logo', 'FAST');
-      y = 40;
+      const maxLogoWidth = 56;
+      const maxLogoHeight = 24;
+      const scale = Math.min(maxLogoWidth / logo.width, maxLogoHeight / logo.height);
+      const logoWidth = logo.width * scale;
+      const logoHeight = logo.height * scale;
+      const logoX = (210 - logoWidth) / 2;
+      const logoY = 9;
+      doc.addImage(logo.dataUrl, 'JPEG', logoX, logoY, logoWidth, logoHeight, 'mm-logo', 'FAST');
+      y = logoY + logoHeight + 7;
     } catch {
       y = 20;
     }
