@@ -13,19 +13,29 @@ function brDate(value = new Date()) {
 }
 
 async function loadLogo() {
-  try {
-    const response = await fetch('/logo-mm.png');
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
+  const candidates = [
+    `${import.meta.env.BASE_URL || '/'}logo-mm.png`,
+    '/logo-mm.png',
+  ];
+
+  for (const src of candidates) {
+    try {
+      const response = await fetch(src, { cache: 'no-store' });
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      const dataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+      if (dataUrl) return dataUrl;
+    } catch {
+      // tenta o próximo caminho
+    }
   }
+
+  return null;
 }
 
 function normalize(value) {
@@ -41,8 +51,12 @@ export async function generateContractPdf(contract) {
 
   const logo = await loadLogo();
   if (logo) {
-    try { doc.addImage(logo, 'PNG', 75, 9, 60, 27, undefined, 'FAST'); } catch { /* mantém PDF sem logo */ }
-    y = 42;
+    try {
+      doc.addImage(logo, 'PNG', 72, 8, 66, 29, undefined, 'FAST');
+      y = 43;
+    } catch {
+      y = 20;
+    }
   }
 
   const addPage = () => {
@@ -83,6 +97,7 @@ export async function generateContractPdf(contract) {
   };
 
   const field = (label, value) => paragraph(`${label}: ${normalize(value) || '-'}`, { after: 1.5 });
+  const executionTerm = normalize(contract.executionTerm) || '69 dias corridos';
 
   title('CONTRATO DE FORNECIMENTO DE MATERIAIS E INSTALAÇÃO DE SISTEMA DE GERADOR FOTOVOLTAICO');
 
@@ -109,7 +124,7 @@ export async function generateContractPdf(contract) {
   paragraph(contract.components || 'Módulos fotovoltaicos, inversor ou microinversores, estrutura de fixação, dispositivos de proteção, cabos, projeto fotovoltaico, ART de projeto e execução, acompanhamento junto à distribuidora e monitoramento via web.');
 
   heading('4. PRAZO PARA EXECUÇÃO');
-  paragraph('A conclusão da obra ocorrerá em até 69 (sessenta e nove) dias corridos, contados a partir da assinatura deste contrato e da disponibilização, pela CONTRATANTE, de todos os documentos, acessos e condições técnicas necessários. O prazo poderá ser prorrogado mediante justificativa por motivo técnico, força maior, atraso da distribuidora, indisponibilidade de equipamentos ou necessidade de adequações no imóvel.');
+  paragraph(`A conclusão da obra ocorrerá no prazo de ${executionTerm}, contado a partir da assinatura deste contrato e da disponibilização, pela CONTRATANTE, de todos os documentos, acessos e condições técnicas necessários. O prazo poderá ser prorrogado mediante justificativa por motivo técnico, força maior, atraso da distribuidora, indisponibilidade de equipamentos ou necessidade de adequações no imóvel.`);
 
   heading('CLÁUSULA PRIMEIRA - LOCAL DA INSTALAÇÃO');
   paragraph(`O sistema solar fotovoltaico será instalado no seguinte endereço: ${normalize(contract.installationAddress)}.`);
