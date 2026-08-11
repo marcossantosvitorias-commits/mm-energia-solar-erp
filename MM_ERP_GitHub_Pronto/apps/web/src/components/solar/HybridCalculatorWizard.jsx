@@ -26,6 +26,7 @@ export const HYBRID_BATTERIES=[
 
 const initial={systemType:'hybrid',mode:'quick',irradiationMode:'minimum',irradiation:3.653,voltage:'127/220 V',phase:'Bifásico',monthlyConsumption:399,autonomyHours:24,efficiency:75,shading:0,batteryId:'saj-b3-5',panelPowerW:620};
 const labels=['Sistema','Parâmetros','Bateria','Módulo','Resultado'];
+const batteryShortLabel=b=>`${b.brand} · ${String(b.model).split(' ')[0]} · ${decimal.format(b.capacityKwh)} kWh · ${decimal.format(b.voltage)} V`;
 
 export default function HybridCalculatorWizard({onResult}){
   const[form,setForm]=useState(initial);
@@ -54,6 +55,7 @@ export default function HybridCalculatorWizard({onResult}){
   return <section className="hybrid-wizard" style={s.shell}>
     <style>{`
       .hybrid-wizard *{box-sizing:border-box}
+      .hybrid-battery-select,.hybrid-battery-select option{font-size:13px}
       @media(max-width:720px){
         .hybrid-wizard{padding:14px!important;border-radius:18px!important}
         .hybrid-hero{grid-template-columns:1fr!important;padding:16px!important;border-radius:18px!important}
@@ -66,6 +68,8 @@ export default function HybridCalculatorWizard({onResult}){
         .hybrid-detail{flex-direction:column!important;align-items:flex-start!important}
         .hybrid-actions{flex-direction:column!important}
         .hybrid-actions button{width:100%!important;margin-left:0!important;justify-content:center!important}
+        .hybrid-battery-select,.hybrid-battery-select option{font-size:11px!important}
+        .hybrid-battery-select{padding:9px 10px!important}
       }
       @media(max-width:430px){
         .hybrid-hero-stats{grid-template-columns:1fr!important}
@@ -118,8 +122,8 @@ export default function HybridCalculatorWizard({onResult}){
 
     {step===3&&<Card title="Selecione a bateria" subtitle="Escolha um modelo do acervo para dimensionar o banco.">
       <label style={s.label}>Bateria
-        <select style={s.input} value={form.batteryId} onChange={e=>update('batteryId',e.target.value)}>
-          {[...HYBRID_BATTERIES].sort((a,b)=>a.capacityKwh-b.capacityKwh).map(b=><option key={b.id} value={b.id}>{b.brand} · {b.model} · {decimal.format(b.capacityKwh)} kWh · {decimal.format(b.voltage)} V</option>)}
+        <select className="hybrid-battery-select" style={s.input} value={form.batteryId} onChange={e=>update('batteryId',e.target.value)}>
+          {[...HYBRID_BATTERIES].sort((a,b)=>a.capacityKwh-b.capacityKwh).map(b=><option key={b.id} value={b.id}>{batteryShortLabel(b)}</option>)}
         </select>
       </label>
       <div style={s.specGrid}>
