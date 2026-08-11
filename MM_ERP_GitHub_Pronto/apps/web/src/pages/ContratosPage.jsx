@@ -189,7 +189,7 @@ export default function ContratosPage() {
         <label className="finance-field"><span>E-mail</span><input value={form.clientEmail} readOnly /></label>
         <label className="finance-field finance-field-wide"><span>Local da instalação</span><input name="installationAddress" value={form.installationAddress} onChange={atualizar} /></label>
         <label className="finance-field"><span>Valor total</span><input type="number" min="0" step="0.01" name="totalValue" value={form.totalValue} onChange={atualizar} /></label>
-        <label className="finance-field"><span>Prazo de execução</span><input value="69 dias corridos" readOnly /></label>
+        <label className="finance-field"><span>Prazo de execução</span><input value="60 dias corridos" readOnly /></label>
         <label className="finance-field finance-field-wide"><span>Forma de pagamento</span><textarea name="paymentTerms" value={form.paymentTerms} onChange={atualizar} rows="3" /></label>
         <label className="finance-field finance-field-wide"><span>Descrição do sistema</span><textarea name="systemDescription" value={form.systemDescription} onChange={atualizar} rows="2" /></label>
         <label className="finance-field finance-field-wide"><span>Componentes e serviços inclusos</span><textarea name="components" value={form.components} onChange={atualizar} rows="3" /></label>
