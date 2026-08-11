@@ -17,12 +17,33 @@ async function loadLogo() {
     const response = await fetch('/logo-mm.png');
     if (!response.ok) return null;
     const blob = await response.blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = objectUrl;
+      });
+
+      const maxWidth = 720;
+      const maxHeight = 320;
+      const ratio = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+      const width = Math.max(1, Math.round(image.width * ratio));
+      const height = Math.max(1, Math.round(image.height * ratio));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(image, 0, 0, width, height);
+      return canvas.toDataURL('image/jpeg', 0.82);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   } catch {
     return null;
   }
@@ -33,7 +54,7 @@ function normalize(value) {
 }
 
 export async function generateContractPdf(contract) {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   const margin = 18;
   const width = 210 - (margin * 2);
   const bottom = 278;
@@ -41,7 +62,7 @@ export async function generateContractPdf(contract) {
 
   const logo = await loadLogo();
   if (logo) {
-    try { doc.addImage(logo, 'PNG', 75, 9, 60, 27, undefined, 'FAST'); } catch { /* mantém PDF sem logo */ }
+    try { doc.addImage(logo, 'JPEG', 75, 9, 60, 27, undefined, 'FAST'); } catch { /* mantém PDF sem logo */ }
     y = 42;
   }
 
