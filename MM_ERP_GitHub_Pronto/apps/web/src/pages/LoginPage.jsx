@@ -15,7 +15,7 @@ export default function LoginPage() {
   const logoUrl = `${import.meta.env.BASE_URL}logo-mm.png`;
 
   if (!loading && isAuthenticated) {
-    return <Navigate to="/app/dashboard" replace />;
+    return <Navigate to="/app/precos" replace />;
   }
 
   const handleSubmit = async (event) => {
@@ -31,7 +31,7 @@ export default function LoginPage() {
       return;
     }
 
-    const destination = location.state?.from || '/app/dashboard';
+    const destination = location.state?.from || '/app/precos';
     navigate(destination, { replace: true });
   };
 
