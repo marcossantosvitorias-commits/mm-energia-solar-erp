@@ -14,45 +14,61 @@ import './engineering-label-fix.css';
 import './auth-layout.css';
 import '../crm/crm.css';
 
-const dashboardItem = { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard };
+const precosItem = {
+  to: '/app/precos',
+  label: 'Preços dos kits',
+  icon: Calculator,
+  roles: ['admin', 'financeiro', 'comercial'],
+};
+
+const dashboardItem = {
+  to: '/app/dashboard',
+  label: 'Dashboard',
+  icon: LayoutDashboard,
+  roles: ['admin', 'financeiro', 'engenharia'],
+};
 
 const menuSections = [
   {
     title: 'Comercial',
     items: [
-      { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'comercial', 'engenharia'] },
+      { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'engenharia'] },
       { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro', 'comercial'] },
+      { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro'] },
       { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/propostas', label: 'Propostas comerciais', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
       { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro', 'comercial'] },
-    ],
-  },
-  {
-    title: 'Financeiro',
-    items: [
-      { to: '/app', label: 'Financeiro', icon: WalletCards, end: true, roles: ['admin', 'financeiro'] },
-      { to: '/app/precos', label: 'Preços dos kits', icon: Calculator, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro', 'comercial'] },
-      { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
-      { to: '/app/marcos-finance', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },
+      { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro'] },
     ],
   },
   {
     title: 'Operacional',
     items: [
-      { to: '/app/ordens-servico', label: 'Ordens de serviço', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'comercial', 'engenharia'] },
+      { to: '/app/ordens-servico', label: 'Ordens de serviço', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
       { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower, roles: ['admin', 'engenharia'] },
       { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch, roles: ['admin', 'engenharia'] },
       { to: '/app/bling', label: 'Integração Bling', icon: PlugZap, roles: ['admin', 'financeiro'] },
       { to: '/app/migracao-dados', label: 'Backup e migração', icon: DatabaseBackup, roles: ['admin'] },
     ],
   },
+  {
+    title: 'Financeiro',
+    items: [
+      { to: '/app', label: 'Financeiro', icon: WalletCards, end: true, roles: ['admin', 'financeiro'] },
+      { to: '/app/belcred', label: 'Simulador BelCred', icon: BadgeDollarSign, roles: ['admin', 'financeiro'] },
+      { to: '/app/tributos', label: 'Tributação', icon: Scale, roles: ['admin', 'financeiro'] },
+      { to: '/app/marcos-finance', label: 'Pessoa Física', icon: UserRound, roles: ['admin'] },
+    ],
+  },
 ];
 
-const roleLabels = { admin: 'Administrador', financeiro: 'Financeiro', comercial: 'Comercial', engenharia: 'Engenharia' };
+const roleLabels = {
+  admin: 'Administrador',
+  financeiro: 'Financeiro',
+  comercial: 'Vendedor',
+  engenharia: 'Engenharia',
+};
 
 function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
   const [menuAberto, setMenuAberto] = useState(false);
@@ -116,7 +132,8 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
           <div><strong>MM ERP <small style={{ color: '#f5c400', fontSize: '0.58em', marginLeft: 6 }}>v{APP_VERSION}</small></strong><span>MM Energia Solar</span></div>
         </div>
         <nav className="erp-main-nav">
-          {renderNavItem(dashboardItem)}
+          {canAccess(precosItem.roles) && renderNavItem(precosItem)}
+          {canAccess(dashboardItem.roles) && renderNavItem(dashboardItem)}
           {visibleSections.map(({ title: sectionTitle, className = '', items }) => (
             <div key={sectionTitle} className={`erp-nav-section ${className}`.trim()}>
               <span className="nav-section-label">{sectionTitle}</span>
