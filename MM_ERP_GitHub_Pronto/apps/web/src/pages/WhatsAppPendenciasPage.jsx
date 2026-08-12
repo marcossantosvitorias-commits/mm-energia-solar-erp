@@ -1,11 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Clock3, ExternalLink,
-  MessageCircle, Phone, RefreshCw, Search, UserRound,
+  ArrowLeft, CheckCircle2, Clock3, ExternalLink, Flame, MessageCircle,
+  RefreshCw, Save, Search, Send, UserRound,
 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import './WhatsAppPendenciasPage.css';
+
+const STAGES = [
+  ['new', 'Novo lead'], ['qualifying', 'Qualificando'], ['qualified', 'Qualificado'],
+  ['proposal', 'Proposta enviada'], ['follow_up', 'Follow-up'], ['won', 'Vendido'],
+  ['lost', 'Perdido'], ['not_lead', 'Não é lead'],
+];
+const TEMPERATURES = [['cold', 'Frio'], ['warm', 'Morno'], ['hot', 'Quente']];
+const PRIORITIES = [['low', 'Baixa'], ['normal', 'Normal'], ['high', 'Alta'], ['urgent', 'Urgente']];
 
 const formatPhone = (phone = '') => {
   const digits = String(phone).replace(/\D/g, '');
@@ -13,59 +21,57 @@ const formatPhone = (phone = '') => {
   if (digits.length === 12 && digits.startsWith('55')) return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
   return phone || 'Sem telefone';
 };
-
-const formatTime = (value) => value ? new Date(value).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
-const formatDate = (value) => value ? new Date(value).toLocaleDateString('pt-BR') : '';
-
-const waitingLabel = (hours) => {
-  const h = Number(hours || 0);
-  if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
-  if (h < 24) return `${Math.round(h)} h`;
-  const days = Math.floor(h / 24);
-  const rest = Math.round(h % 24);
-  return `${days} d${rest ? ` ${rest} h` : ''}`;
+const formatDateTime = (value) => value ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '';
+const waitingLabel = (value) => {
+  if (!value) return 'agora';
+  const hours = Math.max(0, (Date.now() - new Date(value).getTime()) / 3600000);
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))} min`;
+  if (hours < 24) return `${Math.round(hours)} h`;
+  return `${Math.floor(hours / 24)} d`;
 };
-
 const openWhatsAppBusiness = (phone) => {
   const digits = String(phone || '').replace(/\D/g, '');
   if (!digits) return;
-  const isAndroid = /Android/i.test(navigator.userAgent || '');
-  if (isAndroid) {
+  if (/Android/i.test(navigator.userAgent || '')) {
     window.location.href = `intent://send?phone=${digits}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end`;
     return;
   }
   window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
 };
 
-const initials = (name, phone) => {
-  const source = (name || formatPhone(phone) || '?').trim();
-  const words = source.split(/\s+/).filter(Boolean);
-  return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : source.slice(0, 2).toUpperCase();
-};
-
 function WhatsAppPendenciasPage() {
   const [items, setItems] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [filter, setFilter] = useState('pending');
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [qualification, setQualification] = useState({});
+  const messagesEndRef = useRef(null);
 
-  const load = useCallback(async () => {
+  const selected = useMemo(() => items.find((item) => item.id === selectedId) || null, [items, selectedId]);
+
+  const loadConversations = useCallback(async ({ keepSelection = true } = {}) => {
     setLoading(true);
     setError('');
     try {
       if (!isSupabaseConfigured || !supabase) throw new Error('Supabase não configurado.');
-      const source = filter === 'pending' ? 'whatsapp_pending_replies' : 'whatsapp_conversations';
-      let query = supabase.from(source).select('*').order('last_message_at', { ascending: false }).limit(200);
+      let query = supabase.from('whatsapp_conversations').select('*').order('last_message_at', { ascending: false }).limit(300);
+      if (filter === 'pending') query = query.eq('needs_reply', true);
       if (filter === 'waiting_customer') query = query.eq('status', 'waiting_customer');
+      if (filter === 'qualified') query = query.in('lead_stage', ['qualified', 'proposal', 'follow_up']);
       const { data, error: queryError } = await query;
       if (queryError) throw queryError;
-      const rows = data || [];
-      setItems(rows);
-      setSelected((current) => rows.find((row) => row.id === current?.id) || current || rows[0] || null);
+      const next = data || [];
+      setItems(next);
+      setSelectedId((current) => keepSelection && current && next.some((item) => item.id === current) ? current : (next[0]?.id || null));
     } catch (err) {
       setError(err.message || 'Não foi possível carregar as conversas.');
     } finally {
@@ -73,156 +79,108 @@ function WhatsAppPendenciasPage() {
     }
   }, [filter]);
 
-  const loadMessages = useCallback(async (conversation) => {
-    if (!conversation?.id || !supabase) return;
-    setMessagesLoading(true);
-    try {
-      const { data, error: queryError } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
-        .eq('conversation_id', conversation.id)
-        .order('occurred_at', { ascending: true })
-        .limit(500);
-      if (queryError) throw queryError;
-      setMessages(data || []);
-    } catch (err) {
-      setError(err.message || 'Não foi possível carregar o histórico da conversa.');
-      setMessages([]);
-    } finally {
-      setMessagesLoading(false);
-    }
+  const loadMessages = useCallback(async (conversationId) => {
+    if (!conversationId || !supabase) return;
+    setLoadingMessages(true);
+    const { data, error: queryError } = await supabase.from('whatsapp_messages').select('*').eq('conversation_id', conversationId).order('occurred_at', { ascending: true }).limit(500);
+    if (queryError) setError(queryError.message); else setMessages(data || []);
+    setLoadingMessages(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (selected) loadMessages(selected); else setMessages([]); }, [selected?.id, loadMessages]);
+  useEffect(() => { loadConversations({ keepSelection: false }); }, [loadConversations]);
+  useEffect(() => { if (selectedId) loadMessages(selectedId); else setMessages([]); }, [selectedId, loadMessages]);
+  useEffect(() => {
+    if (!selected) return;
+    setQualification({
+      lead_stage: selected.lead_stage || 'new', lead_temperature: selected.lead_temperature || 'warm', priority: selected.priority || 'normal',
+      estimated_monthly_bill: selected.estimated_monthly_bill ?? '', qualification_notes: selected.qualification_notes || '',
+    });
+  }, [selected]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return items;
-    return items.filter((item) => [item.contact_name, item.phone, item.last_message_preview]
-      .filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
+    return items.filter((item) => [item.contact_name, item.phone, item.last_message_preview].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
   }, [items, search]);
 
-  const selectConversation = (item) => setSelected(item);
-
-  const markAnswered = async (item) => {
+  const saveQualification = async () => {
+    if (!selected) return;
+    setSaving(true); setError(''); setNotice('');
+    const bill = qualification.estimated_monthly_bill === '' ? null : Number(String(qualification.estimated_monthly_bill).replace(',', '.'));
     const { error: updateError } = await supabase.from('whatsapp_conversations').update({
-      needs_reply: false,
-      status: 'waiting_customer',
-      unread_count: 0,
+      lead_stage: qualification.lead_stage, lead_temperature: qualification.lead_temperature, priority: qualification.priority,
+      estimated_monthly_bill: Number.isFinite(bill) ? bill : null, qualification_notes: qualification.qualification_notes?.trim() || null,
       updated_at: new Date().toISOString(),
-    }).eq('id', item.id);
-    if (updateError) return setError(updateError.message);
-    await load();
+    }).eq('id', selected.id);
+    if (updateError) setError(updateError.message); else { setNotice('Qualificação salva.'); await loadConversations(); }
+    setSaving(false);
   };
 
-  const markPriority = async (item, priority) => {
-    const { error: updateError } = await supabase
-      .from('whatsapp_conversations')
-      .update({ priority, updated_at: new Date().toISOString() })
-      .eq('id', item.id);
-    if (updateError) return setError(updateError.message);
-    setSelected((current) => current?.id === item.id ? { ...current, priority } : current);
-    await load();
+  const markAnswered = async () => {
+    if (!selected) return;
+    const { error: updateError } = await supabase.from('whatsapp_conversations').update({ needs_reply: false, status: 'waiting_customer', unread_count: 0, updated_at: new Date().toISOString() }).eq('id', selected.id);
+    if (updateError) setError(updateError.message); else await loadConversations();
   };
 
-  const selectedHours = selected?.waiting_hours ?? (selected?.last_inbound_at ? (Date.now() - new Date(selected.last_inbound_at).getTime()) / 3600000 : 0);
+  const sendReply = async () => {
+    const body = reply.trim();
+    if (!selected || !body || sending) return;
+    setSending(true); setError(''); setNotice('');
+    const { data, error: invokeError } = await supabase.functions.invoke('whatsapp-send', { body: { conversation_id: selected.id, body } });
+    if (invokeError || data?.error) {
+      if (data?.error === 'meta_token_missing') setError('O envio pelo ERP está pronto, mas falta cadastrar o token permanente da Meta no servidor.');
+      else setError(data?.details?.error?.message || data?.message || invokeError?.message || 'Não foi possível enviar a mensagem.');
+    } else {
+      setReply(''); setNotice('Mensagem enviada pelo ERP.');
+      await Promise.all([loadMessages(selected.id), loadConversations()]);
+    }
+    setSending(false);
+  };
 
   return (
-    <FinanceLayout title="WhatsApp / Atendimento" subtitle="Central profissional para acompanhar conversas, prioridades e clientes aguardando resposta.">
-      {error && <p className="finance-notice">{error}</p>}
-
-      <div className={`wa-inbox ${selected ? 'chat-open' : ''}`}>
+    <FinanceLayout title="Central WhatsApp" subtitle="Atendimento, histórico e qualificação comercial em um só lugar.">
+      {error && <div className="wa-error">{error}</div>}
+      {notice && <div className="wa-success-note">{notice}</div>}
+      <div className={`wa-inbox ${mobileChatOpen ? 'chat-open' : ''}`}>
         <aside className="wa-sidebar">
           <div className="wa-toolbar">
-            <div className="wa-toolbar-top">
-              <div className="wa-title"><MessageCircle size={20} /> Conversas <span className="wa-count">{visible.length}</span></div>
-              <button className="wa-icon-btn" type="button" onClick={load} title="Atualizar"><RefreshCw size={17} /></button>
-            </div>
-            <div className="wa-search"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." /></div>
+            <div className="wa-toolbar-top"><div className="wa-title"><MessageCircle size={19} /> Conversas <span className="wa-count">{visible.length}</span></div><button className="wa-icon-btn" type="button" onClick={() => loadConversations()} title="Atualizar"><RefreshCw size={16} /></button></div>
+            <div className="wa-search"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contato ou mensagem" /></div>
             <div className="wa-filters">
-              <button className={`wa-filter ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')}>Aguardando você</button>
-              <button className={`wa-filter ${filter === 'waiting_customer' ? 'active' : ''}`} onClick={() => setFilter('waiting_customer')}>Aguardando cliente</button>
-              <button className={`wa-filter ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>Todas</button>
+              <button className={`wa-filter ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')} type="button">Aguardando você</button>
+              <button className={`wa-filter ${filter === 'waiting_customer' ? 'active' : ''}`} onClick={() => setFilter('waiting_customer')} type="button">Aguardando cliente</button>
+              <button className={`wa-filter ${filter === 'qualified' ? 'active' : ''}`} onClick={() => setFilter('qualified')} type="button">Qualificados</button>
+              <button className={`wa-filter ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')} type="button">Todas</button>
             </div>
           </div>
-
           <div className="wa-list">
-            {loading && <div className="wa-loading">Carregando conversas...</div>}
-            {!loading && !visible.length && <div className="wa-loading">Nenhuma conversa nessa fila.</div>}
-            {!loading && visible.map((item) => {
-              const hours = item.waiting_hours ?? (item.last_inbound_at ? (Date.now() - new Date(item.last_inbound_at).getTime()) / 3600000 : 0);
-              return (
-                <button key={item.id} className={`wa-conversation ${selected?.id === item.id ? 'active' : ''}`} type="button" onClick={() => selectConversation(item)}>
-                  <div className="wa-avatar">{initials(item.contact_name, item.phone)}</div>
-                  <div className="wa-conv-body">
-                    <div className="wa-conv-row"><span className="wa-name">{item.contact_name || formatPhone(item.phone)}</span><span className="wa-time">{formatTime(item.last_message_at)}</span></div>
-                    <div className="wa-preview">{item.last_message_preview || 'Mensagem sem texto'}</div>
-                    {item.needs_reply && <div className="wa-attention"><Clock3 size={12} /> Aguardando {waitingLabel(hours)}</div>}
-                  </div>
-                </button>
-              );
-            })}
+            {loading && <div className="wa-loading">Carregando...</div>}
+            {!loading && !visible.length && <div className="wa-loading">Nenhuma conversa nesta fila.</div>}
+            {visible.map((item) => <button type="button" key={item.id} className={`wa-conversation ${selectedId === item.id ? 'active' : ''}`} onClick={() => { setSelectedId(item.id); setMobileChatOpen(true); setNotice(''); }}>
+              <div className="wa-avatar">{(item.contact_name || item.phone || '?').trim().charAt(0).toUpperCase()}</div>
+              <div className="wa-conv-body"><div className="wa-conv-row"><span className="wa-name">{item.contact_name || formatPhone(item.phone)}</span><span className="wa-time">{formatDateTime(item.last_message_at)}</span></div><div className="wa-preview">{item.last_message_preview || 'Mensagem sem texto'}</div><div className="wa-conv-tags"><span className={`wa-temp ${item.lead_temperature || 'warm'}`}>{item.lead_temperature === 'hot' ? 'Quente' : item.lead_temperature === 'cold' ? 'Frio' : 'Morno'}</span>{item.needs_reply && <span className="wa-attention"><Clock3 size={12} /> {waitingLabel(item.last_inbound_at)}</span>}</div></div>
+            </button>)}
           </div>
         </aside>
 
         <main className="wa-chat">
-          {!selected ? (
-            <div className="wa-chat-empty"><div><MessageCircle size={46} /><h3>Selecione uma conversa</h3><p>O histórico completo aparecerá aqui.</p></div></div>
-          ) : (
-            <>
-              <header className="wa-chat-header">
-                <div className="wa-contact">
-                  <button className="wa-icon-btn wa-mobile-back" type="button" onClick={() => setSelected(null)}><ArrowLeft size={18} /></button>
-                  <div className="wa-avatar">{initials(selected.contact_name, selected.phone)}</div>
-                  <div className="wa-contact-meta"><strong>{selected.contact_name || formatPhone(selected.phone)}</strong><span>{formatPhone(selected.phone)}</span></div>
-                </div>
-                <div className="wa-header-actions">
-                  <button className="wa-primary-btn" type="button" onClick={() => openWhatsAppBusiness(selected.phone)}><ExternalLink size={16} /><span>Abrir no Business</span></button>
-                </div>
-              </header>
-
-              <div className="wa-messages">
-                {messagesLoading && <div className="wa-loading">Carregando histórico...</div>}
-                {!messagesLoading && !messages.length && <div className="wa-loading">Ainda não há mensagens salvas desta conversa.</div>}
-                {!messagesLoading && messages.map((message, index) => {
-                  const previous = messages[index - 1];
-                  const showDay = !previous || formatDate(previous.occurred_at) !== formatDate(message.occurred_at);
-                  return (
-                    <React.Fragment key={message.id}>
-                      {showDay && <div className="wa-day"><span>{formatDate(message.occurred_at)}</span></div>}
-                      <div className={`wa-msg-row ${message.direction === 'outbound' ? 'outbound' : 'inbound'}`}>
-                        <div className="wa-bubble">
-                          {message.body || `[${message.message_type || 'mensagem'}]`}
-                          <div className="wa-msg-meta"><span>{message.sender_type === 'agent' ? 'Atendente' : message.sender_type === 'bot' ? 'Bot' : 'Cliente'}</span><span>{formatTime(message.occurred_at)}</span></div>
-                        </div>
-                      </div>
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          {!selected ? <div className="wa-chat-empty"><div><MessageCircle size={38} /><p>Selecione uma conversa para abrir o atendimento.</p></div></div> : <>
+            <header className="wa-chat-header"><div className="wa-contact"><button type="button" className="wa-icon-btn wa-mobile-back" onClick={() => setMobileChatOpen(false)}><ArrowLeft size={17} /></button><div className="wa-avatar">{(selected.contact_name || selected.phone || '?').trim().charAt(0).toUpperCase()}</div><div className="wa-contact-meta"><strong>{selected.contact_name || formatPhone(selected.phone)}</strong><span>{formatPhone(selected.phone)}</span></div></div><div className="wa-header-actions"><button type="button" className="wa-secondary-btn" onClick={() => openWhatsAppBusiness(selected.phone)}><ExternalLink size={15} /><span>Business</span></button>{selected.needs_reply && <button type="button" className="wa-primary-btn" onClick={markAnswered}><CheckCircle2 size={15} /><span>Respondido</span></button>}</div></header>
+            <div className="wa-messages">{loadingMessages && <div className="wa-loading">Carregando histórico...</div>}{!loadingMessages && !messages.length && <div className="wa-chat-empty"><div><MessageCircle size={34} /><p>Ainda não há mensagens armazenadas para este contato.</p></div></div>}{messages.map((message) => <div key={message.id} className={`wa-msg-row ${message.direction === 'outbound' ? 'outbound' : 'inbound'}`}><div className="wa-bubble">{message.body || `[${message.message_type || 'mensagem'}]`}<div className="wa-msg-meta"><span>{message.direction === 'outbound' ? 'Você' : 'Cliente'}</span><span>{formatDateTime(message.occurred_at)}</span></div></div></div>)}<div ref={messagesEndRef} /></div>
+            <div className="wa-composer"><textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Digite sua resposta para o cliente..." onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); } }} /><div className="wa-composer-row"><span>Enter envia • Shift+Enter quebra linha</span><button type="button" className="wa-send-btn" disabled={!reply.trim() || sending} onClick={sendReply}><Send size={16} /> {sending ? 'Enviando...' : 'Enviar pelo ERP'}</button></div></div>
+          </>}
         </main>
 
         <aside className="wa-details">
-          {selected && (
-            <>
-              <h3>Detalhes do atendimento</h3>
-              <div className="wa-detail-card"><div className="wa-detail-label">Cliente</div><div className="wa-detail-value">{selected.contact_name || 'Nome não identificado'}</div><div className="wa-detail-value" style={{ fontWeight: 500 }}>{formatPhone(selected.phone)}</div></div>
-              <div className="wa-detail-card">
-                <div className="wa-detail-label">Situação</div>
-                <div className={`wa-status ${selected.needs_reply ? 'pending' : 'ok'}`}>{selected.needs_reply ? <><AlertTriangle size={15} /> Aguardando sua resposta</> : <><CheckCircle2 size={15} /> Em acompanhamento</>}</div>
-                {selected.needs_reply && <div className="wa-detail-value">Há {waitingLabel(selectedHours)}</div>}
-              </div>
-              <div className="wa-detail-card"><div className="wa-detail-label">Prioridade</div><select className="wa-select" value={selected.priority || 'normal'} onChange={(e) => markPriority(selected, e.target.value)}><option value="low">Baixa</option><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>
-              <div className="wa-detail-card"><div className="wa-detail-label">Origem</div><div className="wa-detail-value">{selected.source === 'meta_cloud_api' ? 'WhatsApp Business / Meta' : selected.source || 'WhatsApp'}</div></div>
-              <div className="wa-detail-actions">
-                <button className="wa-primary-btn" type="button" onClick={() => openWhatsAppBusiness(selected.phone)}><Phone size={16} /> Abrir WhatsApp Business</button>
-                {selected.needs_reply && <button className="wa-secondary-btn" type="button" onClick={() => markAnswered(selected)}><CheckCircle2 size={16} /> Marcar como respondido</button>}
-              </div>
-            </>
-          )}
+          {!selected ? <div className="wa-loading">Selecione um contato.</div> : <><div className="wa-detail-title"><UserRound size={18} /> Qualificação do lead</div>
+            <div className="wa-detail-card"><div className="wa-detail-label">Etapa comercial</div><select className="wa-select" value={qualification.lead_stage || 'new'} onChange={(e) => setQualification((q) => ({ ...q, lead_stage: e.target.value }))}>{STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+            <div className="wa-detail-card"><div className="wa-detail-label">Temperatura</div><div className="wa-temperature-grid">{TEMPERATURES.map(([value, label]) => <button type="button" key={value} className={`wa-temperature ${value} ${qualification.lead_temperature === value ? 'active' : ''}`} onClick={() => setQualification((q) => ({ ...q, lead_temperature: value }))}>{value === 'hot' && <Flame size={14} />}{label}</button>)}</div></div>
+            <div className="wa-detail-card"><div className="wa-detail-label">Prioridade</div><select className="wa-select" value={qualification.priority || 'normal'} onChange={(e) => setQualification((q) => ({ ...q, priority: e.target.value }))}>{PRIORITIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+            <div className="wa-detail-card"><div className="wa-detail-label">Conta de energia aproximada</div><div className="wa-money"><span>R$</span><input inputMode="decimal" value={qualification.estimated_monthly_bill ?? ''} onChange={(e) => setQualification((q) => ({ ...q, estimated_monthly_bill: e.target.value }))} placeholder="0,00" /></div></div>
+            <div className="wa-detail-card"><div className="wa-detail-label">Observações comerciais</div><textarea className="wa-notes" value={qualification.qualification_notes || ''} onChange={(e) => setQualification((q) => ({ ...q, qualification_notes: e.target.value }))} placeholder="Ex.: imóvel próprio, financiamento, visita marcada..." /></div>
+            <button type="button" className="wa-save-btn" disabled={saving} onClick={saveQualification}><Save size={16} /> {saving ? 'Salvando...' : 'Salvar qualificação'}</button>
+          </>}
         </aside>
       </div>
     </FinanceLayout>
