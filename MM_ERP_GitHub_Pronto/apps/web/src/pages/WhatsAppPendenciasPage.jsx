@@ -18,6 +18,20 @@ const waitingLabel = (hours) => {
   return `${days} d${rest ? ` ${rest} h` : ''}`;
 };
 
+const openWhatsAppBusiness = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return;
+
+  const isAndroid = /Android/i.test(navigator.userAgent || '');
+  if (isAndroid) {
+    const intentUrl = `intent://send?phone=${digits}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end`;
+    window.location.href = intentUrl;
+    return;
+  }
+
+  window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
+};
+
 function WhatsAppPendenciasPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +109,6 @@ function WhatsAppPendenciasPage() {
         <h2>{filter === 'pending' ? `${visible.length} cliente(s) aguardando resposta` : `${visible.length} conversa(s)`}</h2>
         {!visible.length && <div className="finance-empty">Nenhuma conversa nessa fila ainda. Assim que o webhook da agência começar a enviar mensagens, elas aparecerão aqui.</div>}
         {visible.map((item) => {
-          const url = `https://wa.me/${String(item.phone || '').replace(/\D/g, '')}`;
           const hours = item.waiting_hours ?? (item.last_inbound_at ? (Date.now() - new Date(item.last_inbound_at).getTime()) / 3600000 : 0);
           return <div className="finance-list-item" key={item.id} style={{ alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
             <div style={{ minWidth: 220, flex: '1 1 360px' }}>
@@ -106,7 +119,7 @@ function WhatsAppPendenciasPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <span className={`finance-badge ${item.priority === 'urgent' || item.priority === 'high' ? 'vencida' : 'pendente'}`}>{item.priority === 'urgent' ? 'Urgente' : item.priority === 'high' ? 'Alta' : 'Normal'}</span>
-              <a className="finance-button inline-button" href={url} target="_blank" rel="noreferrer">Abrir WhatsApp</a>
+              <button className="finance-button inline-button" type="button" onClick={() => openWhatsAppBusiness(item.phone)}>Abrir WhatsApp Business</button>
               {item.needs_reply && <button className="finance-button secondary" type="button" onClick={() => markAnswered(item)}>Marcar respondido</button>}
               <select value={item.priority || 'normal'} onChange={(event) => markPriority(item, event.target.value)} style={{ minHeight: 38, borderRadius: 9, border: '1px solid #d8e0e8', padding: '0 8px' }}>
                 <option value="low">Baixa</option><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option>
