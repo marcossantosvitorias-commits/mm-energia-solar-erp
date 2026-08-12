@@ -3,8 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const metaToken = Deno.env.get("META_WHATSAPP_TOKEN") ?? Deno.env.get("WHATSAPP_ACCESS_TOKEN") ?? "";
-const graphVersion = Deno.env.get("META_GRAPH_VERSION") ?? "v23.0";
+const metaToken = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN") || "";
+const graphVersion = Deno.env.get("META_GRAPH_VERSION") || "v26.0";
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
 function json(data: unknown, status = 200) {
