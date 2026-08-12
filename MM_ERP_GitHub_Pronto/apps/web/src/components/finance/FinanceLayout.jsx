@@ -4,7 +4,7 @@ import {
   LayoutDashboard, LayoutPanelTop, WalletCards, Calculator, SunMedium,
   BadgeDollarSign, FileSpreadsheet, FileSignature, FileText, PackageSearch, Scale,
   UserRound, UsersRound, CalendarDays, DatabaseBackup, PlugZap, RadioTower,
-  ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog,
+  ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog, MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { accessKeyForPath } from '../../config/accessControl.js';
@@ -27,6 +27,7 @@ const menuSections = [
   { title: 'Comercial', items: [
     { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'engenharia'] },
     { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/whatsapp', label: 'WhatsApp / Pendências', icon: MessageCircle, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro'] },
     { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/propostas', label: 'Propostas comerciais', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
