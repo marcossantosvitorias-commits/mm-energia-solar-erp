@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, CheckCircle2, Clock3, ExternalLink, Flame, MessageCircle,
-  RefreshCw, Save, Search, Send, UserRound,
+  ArrowLeft, CheckCircle2, Clock3, Download, ExternalLink, FileText, Flame,
+  Image as ImageIcon, MessageCircle, Mic, RefreshCw, Save, Search, Send, UserRound, Video,
 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
@@ -38,6 +38,74 @@ const openWhatsAppBusiness = (phone) => {
   }
   window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
 };
+
+function WhatsAppMedia({ message }) {
+  const [src, setSrc] = useState(message.media_url || '');
+  const [loading, setLoading] = useState(Boolean(message.media_id && !message.media_url));
+  const [failed, setFailed] = useState(false);
+  const objectUrlRef = useRef('');
+  const type = String(message.message_type || '').toLowerCase();
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (message.media_url || !message.media_id || !supabase) return;
+      setLoading(true);
+      setFailed(false);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        const base = import.meta.env.VITE_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        if (!token || !base) throw new Error('Sessão indisponível');
+        const response = await fetch(`${base}/functions/v1/whatsapp-media?message_id=${encodeURIComponent(message.id)}`, {
+          headers: { Authorization: `Bearer ${token}`, ...(anonKey ? { apikey: anonKey } : {}) },
+        });
+        if (!response.ok) throw new Error('Mídia indisponível');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        objectUrlRef.current = url;
+        if (!cancelled) setSrc(url);
+      } catch {
+        if (!cancelled) setFailed(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = '';
+    };
+  }, [message.id, message.media_id, message.media_url]);
+
+  const caption = message.media_caption || (message.body && type !== 'text' ? message.body : '');
+  if (loading) return <div className="wa-media-loading">Carregando mídia...</div>;
+
+  if (src && ['image', 'sticker'].includes(type)) {
+    return <div className="wa-media-wrap"><img className="wa-media-image" src={src} alt={caption || 'Imagem recebida'} loading="lazy" />{caption && <div className="wa-media-caption">{caption}</div>}</div>;
+  }
+  if (src && ['audio', 'voice'].includes(type)) {
+    return <div className="wa-media-wrap wa-audio-wrap"><div className="wa-media-label"><Mic size={16} /> Áudio</div><audio className="wa-media-audio" controls preload="metadata" src={src} /></div>;
+  }
+  if (src && type === 'video') {
+    return <div className="wa-media-wrap"><video className="wa-media-video" controls preload="metadata" src={src} />{caption && <div className="wa-media-caption">{caption}</div>}</div>;
+  }
+  if (src && ['document', 'file'].includes(type)) {
+    return <a className="wa-document" href={src} target="_blank" rel="noreferrer" download={message.media_filename || undefined}><FileText size={20} /><span>{message.media_filename || 'Abrir documento'}</span><Download size={16} /></a>;
+  }
+
+  const Icon = ['audio', 'voice'].includes(type) ? Mic : type === 'video' ? Video : ['image', 'sticker'].includes(type) ? ImageIcon : FileText;
+  return <div className={`wa-media-placeholder ${failed ? 'failed' : ''}`}><Icon size={18} /><span>{failed ? 'Não foi possível carregar esta mídia' : message.media_filename || `Mensagem ${type || 'multimídia'}`}</span></div>;
+}
+
+function MessageContent({ message }) {
+  const type = String(message.message_type || 'text').toLowerCase();
+  const hasMedia = Boolean(message.media_id || message.media_url || ['image', 'audio', 'voice', 'video', 'document', 'file', 'sticker'].includes(type));
+  if (hasMedia) return <WhatsAppMedia message={message} />;
+  return <>{message.body || `[${message.message_type || 'mensagem'}]`}</>;
+}
 
 function WhatsAppPendenciasPage() {
   const [items, setItems] = useState([]);
@@ -129,7 +197,7 @@ function WhatsAppPendenciasPage() {
     setSending(true); setError(''); setNotice('');
     const { data, error: invokeError } = await supabase.functions.invoke('whatsapp-send', { body: { conversation_id: selected.id, body } });
     if (invokeError || data?.error) {
-      if (data?.error === 'meta_token_missing') setError('O envio pelo ERP está pronto, mas falta cadastrar o token permanente da Meta no servidor.');
+      if (data?.error === 'meta_token_missing') setError('O envio pelo ERP está pronto, mas falta cadastrar o token permanente e o Phone Number ID da Meta no servidor.');
       else setError(data?.details?.error?.message || data?.message || invokeError?.message || 'Não foi possível enviar a mensagem.');
     } else {
       setReply(''); setNotice('Mensagem enviada pelo ERP.');
@@ -167,7 +235,12 @@ function WhatsAppPendenciasPage() {
         <main className="wa-chat">
           {!selected ? <div className="wa-chat-empty"><div><MessageCircle size={38} /><p>Selecione uma conversa para abrir o atendimento.</p></div></div> : <>
             <header className="wa-chat-header"><div className="wa-contact"><button type="button" className="wa-icon-btn wa-mobile-back" onClick={() => setMobileChatOpen(false)}><ArrowLeft size={17} /></button><div className="wa-avatar">{(selected.contact_name || selected.phone || '?').trim().charAt(0).toUpperCase()}</div><div className="wa-contact-meta"><strong>{selected.contact_name || formatPhone(selected.phone)}</strong><span>{formatPhone(selected.phone)}</span></div></div><div className="wa-header-actions"><button type="button" className="wa-secondary-btn" onClick={() => openWhatsAppBusiness(selected.phone)}><ExternalLink size={15} /><span>Business</span></button>{selected.needs_reply && <button type="button" className="wa-primary-btn" onClick={markAnswered}><CheckCircle2 size={15} /><span>Respondido</span></button>}</div></header>
-            <div className="wa-messages">{loadingMessages && <div className="wa-loading">Carregando histórico...</div>}{!loadingMessages && !messages.length && <div className="wa-chat-empty"><div><MessageCircle size={34} /><p>Ainda não há mensagens armazenadas para este contato.</p></div></div>}{messages.map((message) => <div key={message.id} className={`wa-msg-row ${message.direction === 'outbound' ? 'outbound' : 'inbound'}`}><div className="wa-bubble">{message.body || `[${message.message_type || 'mensagem'}]`}<div className="wa-msg-meta"><span>{message.direction === 'outbound' ? 'Você' : 'Cliente'}</span><span>{formatDateTime(message.occurred_at)}</span></div></div></div>)}<div ref={messagesEndRef} /></div>
+            <div className="wa-messages">
+              {loadingMessages && <div className="wa-loading">Carregando histórico...</div>}
+              {!loadingMessages && !messages.length && <div className="wa-chat-empty"><div><MessageCircle size={34} /><p>Ainda não há mensagens armazenadas para este contato.</p></div></div>}
+              {messages.map((message) => <div key={message.id} className={`wa-msg-row ${message.direction === 'outbound' ? 'outbound' : 'inbound'}`}><div className={`wa-bubble ${message.message_type !== 'text' ? 'has-media' : ''}`}><MessageContent message={message} /><div className="wa-msg-meta"><span>{message.direction === 'outbound' ? 'Você' : 'Cliente'}</span><span>{formatDateTime(message.occurred_at)}</span></div></div></div>)}
+              <div ref={messagesEndRef} />
+            </div>
             <div className="wa-composer"><textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Digite sua resposta para o cliente..." onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); } }} /><div className="wa-composer-row"><span>Enter envia • Shift+Enter quebra linha</span><button type="button" className="wa-send-btn" disabled={!reply.trim() || sending} onClick={sendReply}><Send size={16} /> {sending ? 'Enviando...' : 'Enviar pelo ERP'}</button></div></div>
           </>}
         </main>
