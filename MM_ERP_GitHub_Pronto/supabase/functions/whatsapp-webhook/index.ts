@@ -69,17 +69,52 @@ function metaMedia(msg: any) {
   const media = msg?.[type] ?? {};
   return {
     mediaId: firstText(media?.id),
-    mediaUrl: "",
+    mediaUrl: firstText(media?.url, media?.link),
     mediaMimeType: firstText(media?.mime_type),
     mediaFilename: firstText(media?.filename),
     mediaCaption: firstText(media?.caption),
   };
 }
+function metaBody(msg: any, mediaCaption = "") {
+  return firstText(
+    msg?.text?.body,
+    msg?.button?.text,
+    msg?.interactive?.button_reply?.title,
+    msg?.interactive?.list_reply?.title,
+    msg?.reaction?.emoji,
+    mediaCaption,
+  );
+}
 function normalizeMeta(payload: any) {
   const out: any[] = [];
   for (const entry of payload.entry ?? []) for (const change of entry.changes ?? []) {
     const value = change.value ?? {};
+    const field = String(change.field ?? "");
     const contacts = new Map((value.contacts ?? []).map((c: any) => [c.wa_id, c]));
+
+    if (field === "smb_message_echoes") {
+      for (const msg of value.message_echoes ?? []) {
+        const media = metaMedia(msg);
+        const customerPhone = normalizePhone(msg.to);
+        if (!customerPhone) continue;
+        out.push({
+          externalConversationId: customerPhone,
+          externalMessageId: firstText(msg.id),
+          phone: customerPhone,
+          contactName: "",
+          direction: "outbound",
+          senderType: "agent",
+          messageType: msg.type ?? "text",
+          body: metaBody(msg, media.mediaCaption),
+          occurredAt: msg.timestamp ? new Date(Number(msg.timestamp) * 1000).toISOString() : new Date().toISOString(),
+          source: "whatsapp_business_app",
+          raw: payload,
+          ...media,
+        });
+      }
+      continue;
+    }
+
     for (const msg of value.messages ?? []) {
       const c: any = contacts.get(msg.from);
       const media = metaMedia(msg);
@@ -91,7 +126,7 @@ function normalizeMeta(payload: any) {
         direction: "inbound",
         senderType: "customer",
         messageType: msg.type ?? "text",
-        body: firstText(msg.text?.body, msg.button?.text, msg.interactive?.button_reply?.title, msg.interactive?.list_reply?.title, media.mediaCaption),
+        body: metaBody(msg, media.mediaCaption),
         occurredAt: msg.timestamp ? new Date(Number(msg.timestamp) * 1000).toISOString() : new Date().toISOString(),
         source: "meta_cloud_api",
         raw: payload,
