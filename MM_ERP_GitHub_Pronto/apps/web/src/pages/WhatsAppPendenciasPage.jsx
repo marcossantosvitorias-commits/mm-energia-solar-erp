@@ -14,6 +14,19 @@ const STAGES = [
 ];
 const TEMPERATURES = [['cold', 'Frio'], ['warm', 'Morno'], ['hot', 'Quente']];
 const PRIORITIES = [['low', 'Baixa'], ['normal', 'Normal'], ['high', 'Alta'], ['urgent', 'Urgente']];
+const CUSTOMER_PROFILES = [
+  ['', 'Não informado'], ['residential', 'Residencial'], ['commercial', 'Comercial'],
+  ['rural', 'Rural'], ['condominium', 'Condomínio'], ['other', 'Outro'],
+];
+const CREDIT_STATUSES = [
+  ['', 'Não verificado'], ['approved', 'Crédito aprovado'], ['pending', 'Em análise'],
+  ['no_credit', 'Sem crédito'], ['cash', 'Pagamento à vista'], ['not_interested', 'Não quer financiamento'],
+];
+const LEAD_SOURCES = [
+  ['', 'Não informado'], ['meta_ads', 'Anúncio Meta'], ['google_ads', 'Google Ads'], ['organic', 'Orgânico'],
+  ['referral', 'Indicação'], ['prospecting', 'Prospecção'], ['existing_client', 'Cliente existente'], ['other', 'Outro'],
+];
+const YES_NO_UNKNOWN = [['', 'Não informado'], ['yes', 'Sim'], ['no', 'Não']];
 
 const formatPhone = (phone = '') => {
   const digits = String(phone).replace(/\D/g, '');
@@ -22,6 +35,12 @@ const formatPhone = (phone = '') => {
   return phone || 'Sem telefone';
 };
 const formatDateTime = (value) => value ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '';
+const toLocalInput = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
 const waitingLabel = (value) => {
   if (!value) return 'agora';
   const hours = Math.max(0, (Date.now() - new Date(value).getTime()) / 3600000);
@@ -82,20 +101,10 @@ function WhatsAppMedia({ message }) {
 
   const caption = message.media_caption || (message.body && type !== 'text' ? message.body : '');
   if (loading) return <div className="wa-media-loading">Carregando mídia...</div>;
-
-  if (src && ['image', 'sticker'].includes(type)) {
-    return <div className="wa-media-wrap"><img className="wa-media-image" src={src} alt={caption || 'Imagem recebida'} loading="lazy" />{caption && <div className="wa-media-caption">{caption}</div>}</div>;
-  }
-  if (src && ['audio', 'voice'].includes(type)) {
-    return <div className="wa-media-wrap wa-audio-wrap"><div className="wa-media-label"><Mic size={16} /> Áudio</div><audio className="wa-media-audio" controls preload="metadata" src={src} /></div>;
-  }
-  if (src && type === 'video') {
-    return <div className="wa-media-wrap"><video className="wa-media-video" controls preload="metadata" src={src} />{caption && <div className="wa-media-caption">{caption}</div>}</div>;
-  }
-  if (src && ['document', 'file'].includes(type)) {
-    return <a className="wa-document" href={src} target="_blank" rel="noreferrer" download={message.media_filename || undefined}><FileText size={20} /><span>{message.media_filename || 'Abrir documento'}</span><Download size={16} /></a>;
-  }
-
+  if (src && ['image', 'sticker'].includes(type)) return <div className="wa-media-wrap"><img className="wa-media-image" src={src} alt={caption || 'Imagem recebida'} loading="lazy" />{caption && <div className="wa-media-caption">{caption}</div>}</div>;
+  if (src && ['audio', 'voice'].includes(type)) return <div className="wa-media-wrap wa-audio-wrap"><div className="wa-media-label"><Mic size={16} /> Áudio</div><audio className="wa-media-audio" controls preload="metadata" src={src} /></div>;
+  if (src && type === 'video') return <div className="wa-media-wrap"><video className="wa-media-video" controls preload="metadata" src={src} />{caption && <div className="wa-media-caption">{caption}</div>}</div>;
+  if (src && ['document', 'file'].includes(type)) return <a className="wa-document" href={src} target="_blank" rel="noreferrer" download={message.media_filename || undefined}><FileText size={20} /><span>{message.media_filename || 'Abrir documento'}</span><Download size={16} /></a>;
   const Icon = ['audio', 'voice'].includes(type) ? Mic : type === 'video' ? Video : ['image', 'sticker'].includes(type) ? ImageIcon : FileText;
   return <div className={`wa-media-placeholder ${failed ? 'failed' : ''}`}><Icon size={18} /><span>{failed ? 'Não foi possível carregar esta mídia' : message.media_filename || `Mensagem ${type || 'multimídia'}`}</span></div>;
 }
@@ -105,6 +114,10 @@ function MessageContent({ message }) {
   const hasMedia = Boolean(message.media_id || message.media_url || ['image', 'audio', 'voice', 'video', 'document', 'file', 'sticker'].includes(type));
   if (hasMedia) return <WhatsAppMedia message={message} />;
   return <>{message.body || `[${message.message_type || 'mensagem'}]`}</>;
+}
+
+function SelectField({ label, value, onChange, options }) {
+  return <div className="wa-detail-card"><div className="wa-detail-label">{label}</div><select className="wa-select" value={value ?? ''} onChange={(e) => onChange(e.target.value)}>{options.map(([optionValue, optionLabel]) => <option key={optionValue || 'blank'} value={optionValue}>{optionLabel}</option>)}</select></div>;
 }
 
 function WhatsAppPendenciasPage() {
@@ -160,8 +173,19 @@ function WhatsAppPendenciasPage() {
   useEffect(() => {
     if (!selected) return;
     setQualification({
-      lead_stage: selected.lead_stage || 'new', lead_temperature: selected.lead_temperature || 'warm', priority: selected.priority || 'normal',
-      estimated_monthly_bill: selected.estimated_monthly_bill ?? '', qualification_notes: selected.qualification_notes || '',
+      lead_stage: selected.lead_stage || 'new',
+      lead_temperature: selected.lead_temperature || 'warm',
+      priority: selected.priority || 'normal',
+      estimated_monthly_bill: selected.estimated_monthly_bill ?? '',
+      city: selected.city || '',
+      customer_profile: selected.customer_profile || '',
+      property_owned: selected.property_owned === true ? 'yes' : selected.property_owned === false ? 'no' : '',
+      financing_interest: selected.financing_interest === true ? 'yes' : selected.financing_interest === false ? 'no' : '',
+      credit_status: selected.credit_status || '',
+      lead_source: selected.lead_source || '',
+      next_action: selected.next_action || '',
+      follow_up_at: toLocalInput(selected.follow_up_at),
+      qualification_notes: selected.qualification_notes || '',
     });
   }, [selected]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -169,7 +193,7 @@ function WhatsAppPendenciasPage() {
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return items;
-    return items.filter((item) => [item.contact_name, item.phone, item.last_message_preview].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
+    return items.filter((item) => [item.contact_name, item.phone, item.last_message_preview, item.city].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
   }, [items, search]);
 
   const saveQualification = async () => {
@@ -177,8 +201,19 @@ function WhatsAppPendenciasPage() {
     setSaving(true); setError(''); setNotice('');
     const bill = qualification.estimated_monthly_bill === '' ? null : Number(String(qualification.estimated_monthly_bill).replace(',', '.'));
     const { error: updateError } = await supabase.from('whatsapp_conversations').update({
-      lead_stage: qualification.lead_stage, lead_temperature: qualification.lead_temperature, priority: qualification.priority,
-      estimated_monthly_bill: Number.isFinite(bill) ? bill : null, qualification_notes: qualification.qualification_notes?.trim() || null,
+      lead_stage: qualification.lead_stage,
+      lead_temperature: qualification.lead_temperature,
+      priority: qualification.priority,
+      estimated_monthly_bill: Number.isFinite(bill) ? bill : null,
+      city: qualification.city?.trim() || null,
+      customer_profile: qualification.customer_profile || null,
+      property_owned: qualification.property_owned === 'yes' ? true : qualification.property_owned === 'no' ? false : null,
+      financing_interest: qualification.financing_interest === 'yes' ? true : qualification.financing_interest === 'no' ? false : null,
+      credit_status: qualification.credit_status || null,
+      lead_source: qualification.lead_source || null,
+      next_action: qualification.next_action?.trim() || null,
+      follow_up_at: qualification.follow_up_at ? new Date(qualification.follow_up_at).toISOString() : null,
+      qualification_notes: qualification.qualification_notes?.trim() || null,
       updated_at: new Date().toISOString(),
     }).eq('id', selected.id);
     if (updateError) setError(updateError.message); else { setNotice('Qualificação salva.'); await loadConversations(); }
@@ -234,7 +269,7 @@ function WhatsAppPendenciasPage() {
 
         <main className="wa-chat">
           {!selected ? <div className="wa-chat-empty"><div><MessageCircle size={38} /><p>Selecione uma conversa para abrir o atendimento.</p></div></div> : <>
-            <header className="wa-chat-header"><div className="wa-contact"><button type="button" className="wa-icon-btn wa-mobile-back" onClick={() => setMobileChatOpen(false)}><ArrowLeft size={17} /></button><div className="wa-avatar">{(selected.contact_name || selected.phone || '?').trim().charAt(0).toUpperCase()}</div><div className="wa-contact-meta"><strong>{selected.contact_name || formatPhone(selected.phone)}</strong><span>{formatPhone(selected.phone)}</span></div></div><div className="wa-header-actions"><button type="button" className="wa-secondary-btn" onClick={() => openWhatsAppBusiness(selected.phone)}><ExternalLink size={15} /><span>Business</span></button>{selected.needs_reply && <button type="button" className="wa-primary-btn" onClick={markAnswered}><CheckCircle2 size={15} /><span>Respondido</span></button>}</div></header>
+            <header className="wa-chat-header"><div className="wa-contact"><button type="button" className="wa-icon-btn wa-mobile-back" onClick={() => setMobileChatOpen(false)}><ArrowLeft size={17} /></button><div className="wa-avatar">{(selected.contact_name || selected.phone || '?').trim().charAt(0).toUpperCase()}</div><div className="wa-contact-meta"><strong>{selected.contact_name || formatPhone(selected.phone)}</strong><span>{formatPhone(selected.phone)}{selected.city ? ` • ${selected.city}` : ''}</span></div></div><div className="wa-header-actions"><button type="button" className="wa-secondary-btn" onClick={() => openWhatsAppBusiness(selected.phone)}><ExternalLink size={15} /><span>Business</span></button>{selected.needs_reply && <button type="button" className="wa-primary-btn" onClick={markAnswered}><CheckCircle2 size={15} /><span>Respondido</span></button>}</div></header>
             <div className="wa-messages">
               {loadingMessages && <div className="wa-loading">Carregando histórico...</div>}
               {!loadingMessages && !messages.length && <div className="wa-chat-empty"><div><MessageCircle size={34} /><p>Ainda não há mensagens armazenadas para este contato.</p></div></div>}
@@ -246,12 +281,18 @@ function WhatsAppPendenciasPage() {
         </main>
 
         <aside className="wa-details">
-          {!selected ? <div className="wa-loading">Selecione um contato.</div> : <><div className="wa-detail-title"><UserRound size={18} /> Qualificação do lead</div>
-            <div className="wa-detail-card"><div className="wa-detail-label">Etapa comercial</div><select className="wa-select" value={qualification.lead_stage || 'new'} onChange={(e) => setQualification((q) => ({ ...q, lead_stage: e.target.value }))}>{STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+          {!selected ? <div className="wa-loading">Selecione um contato.</div> : <>
+            <div className="wa-detail-title"><UserRound size={18} /> Qualificação do lead</div>
+            <SelectField label="Etapa comercial" value={qualification.lead_stage || 'new'} onChange={(value) => setQualification((q) => ({ ...q, lead_stage: value }))} options={STAGES} />
             <div className="wa-detail-card"><div className="wa-detail-label">Temperatura</div><div className="wa-temperature-grid">{TEMPERATURES.map(([value, label]) => <button type="button" key={value} className={`wa-temperature ${value} ${qualification.lead_temperature === value ? 'active' : ''}`} onClick={() => setQualification((q) => ({ ...q, lead_temperature: value }))}>{value === 'hot' && <Flame size={14} />}{label}</button>)}</div></div>
-            <div className="wa-detail-card"><div className="wa-detail-label">Prioridade</div><select className="wa-select" value={qualification.priority || 'normal'} onChange={(e) => setQualification((q) => ({ ...q, priority: e.target.value }))}>{PRIORITIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+            <SelectField label="Prioridade" value={qualification.priority || 'normal'} onChange={(value) => setQualification((q) => ({ ...q, priority: value }))} options={PRIORITIES} />
             <div className="wa-detail-card"><div className="wa-detail-label">Conta de energia aproximada</div><div className="wa-money"><span>R$</span><input inputMode="decimal" value={qualification.estimated_monthly_bill ?? ''} onChange={(e) => setQualification((q) => ({ ...q, estimated_monthly_bill: e.target.value }))} placeholder="0,00" /></div></div>
-            <div className="wa-detail-card"><div className="wa-detail-label">Observações comerciais</div><textarea className="wa-notes" value={qualification.qualification_notes || ''} onChange={(e) => setQualification((q) => ({ ...q, qualification_notes: e.target.value }))} placeholder="Ex.: imóvel próprio, financiamento, visita marcada..." /></div>
+            <div className="wa-detail-card"><div className="wa-field-grid"><label><span className="wa-detail-label">Cidade</span><input className="wa-input" value={qualification.city || ''} onChange={(e) => setQualification((q) => ({ ...q, city: e.target.value }))} placeholder="Ex.: Bauru" /></label><label><span className="wa-detail-label">Perfil</span><select className="wa-select" value={qualification.customer_profile || ''} onChange={(e) => setQualification((q) => ({ ...q, customer_profile: e.target.value }))}>{CUSTOMER_PROFILES.map(([v,l]) => <option key={v || 'blank'} value={v}>{l}</option>)}</select></label></div></div>
+            <div className="wa-detail-card"><div className="wa-field-grid"><label><span className="wa-detail-label">Imóvel próprio</span><select className="wa-select" value={qualification.property_owned || ''} onChange={(e) => setQualification((q) => ({ ...q, property_owned: e.target.value }))}>{YES_NO_UNKNOWN.map(([v,l]) => <option key={v || 'blank'} value={v}>{l}</option>)}</select></label><label><span className="wa-detail-label">Quer financiamento</span><select className="wa-select" value={qualification.financing_interest || ''} onChange={(e) => setQualification((q) => ({ ...q, financing_interest: e.target.value }))}>{YES_NO_UNKNOWN.map(([v,l]) => <option key={v || 'blank'} value={v}>{l}</option>)}</select></label></div></div>
+            <SelectField label="Situação do crédito" value={qualification.credit_status || ''} onChange={(value) => setQualification((q) => ({ ...q, credit_status: value }))} options={CREDIT_STATUSES} />
+            <SelectField label="Origem do lead" value={qualification.lead_source || ''} onChange={(value) => setQualification((q) => ({ ...q, lead_source: value }))} options={LEAD_SOURCES} />
+            <div className="wa-detail-card"><div className="wa-detail-label">Próxima ação</div><input className="wa-input" value={qualification.next_action || ''} onChange={(e) => setQualification((q) => ({ ...q, next_action: e.target.value }))} placeholder="Ex.: ligar, enviar proposta, pedir fatura" /><div className="wa-detail-label wa-label-spaced">Follow-up</div><input className="wa-input" type="datetime-local" value={qualification.follow_up_at || ''} onChange={(e) => setQualification((q) => ({ ...q, follow_up_at: e.target.value }))} /></div>
+            <div className="wa-detail-card"><div className="wa-detail-label">Observações comerciais</div><textarea className="wa-notes" value={qualification.qualification_notes || ''} onChange={(e) => setQualification((q) => ({ ...q, qualification_notes: e.target.value }))} placeholder="Ex.: consumo alto, telhado bom, cliente quer financiar, visita marcada..." /></div>
             <button type="button" className="wa-save-btn" disabled={saving} onClick={saveQualification}><Save size={16} /> {saving ? 'Salvando...' : 'Salvar qualificação'}</button>
           </>}
         </aside>
