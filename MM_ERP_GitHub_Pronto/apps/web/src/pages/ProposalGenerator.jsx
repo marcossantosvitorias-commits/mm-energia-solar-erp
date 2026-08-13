@@ -33,6 +33,12 @@ const numeroComPais = (valor = '') => {
 };
 const calcularGeracaoPorPainel = (potenciaW) => (Number(potenciaW || 0) * IRRADIACAO_MEDIA * FATOR_DESEMPENHO * DIAS_MES) / 1000;
 
+const separarCidadeUf = (cidadeUf = '') => {
+  const partes = String(cidadeUf || '').split('/').map((parte) => parte.trim()).filter(Boolean);
+  if (partes.length >= 2) return { city: partes.slice(0, -1).join('/'), state: partes.at(-1).toUpperCase() };
+  return { city: String(cidadeUf || '').trim() || null, state: null };
+};
+
 export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw }) {
   const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadePlacas) || 620;
   const [dados, setDados] = useState({
@@ -88,7 +94,52 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     return true;
   };
 
-  const payload = (status = 'Gerada') => ({
+  const garantirCliente = async () => {
+    const telefone = somenteNumeros(dados.telefone);
+    const nome = dados.cliente.trim();
+    const { city, state } = separarCidadeUf(dados.cidade);
+
+    const { data: existentes, error: buscaError } = await supabase
+      .from('clients')
+      .select('id,name,phone,city,state,status')
+      .limit(1)
+      .or(`phone.eq.${telefone},phone.eq.${dados.telefone.trim()}`);
+
+    if (buscaError) throw buscaError;
+
+    const existente = existentes?.[0];
+    if (existente) {
+      const atualizacoes = {};
+      if (nome && nome !== existente.name) atualizacoes.name = nome;
+      if (telefone && telefone !== somenteNumeros(existente.phone || '')) atualizacoes.phone = telefone;
+      if (city && city !== existente.city) atualizacoes.city = city;
+      if (state && state !== existente.state) atualizacoes.state = state;
+      if (existente.status === 'lead') atualizacoes.status = 'proposta';
+
+      if (Object.keys(atualizacoes).length) {
+        const { error: updateError } = await supabase.from('clients').update(atualizacoes).eq('id', existente.id);
+        if (updateError) throw updateError;
+      }
+      return existente.id;
+    }
+
+    const { data: criado, error: createError } = await supabase.from('clients').insert({
+      name: nome,
+      phone: telefone,
+      city,
+      state,
+      customer_type: 'residencial',
+      status: 'proposta',
+      monthly_bill: 0,
+      notes: 'Cliente cadastrado automaticamente ao gerar proposta manual.',
+    }).select('id').single();
+
+    if (createError) throw createError;
+    return criado.id;
+  };
+
+  const payload = (status = 'Gerada', clientId = null) => ({
+    client_id: clientId,
     client_name: dados.cliente.trim(), phone: somenteNumeros(dados.telefone), city: dados.cidade || null,
     status, total_amount: valor, panel_count: Number(quantidadePlacas || 0), panel_power_w: Number(dados.potenciaPlaca || 0),
     system_power_kw: potenciaSistema, monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada),
@@ -103,13 +154,24 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
       window.alert('O Supabase não está configurado. A proposta não será enviada para evitar perda de dados.');
       return null;
     }
-    setSalvando(true); setMensagem('Salvando proposta no banco de dados...');
-    const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
-    setSalvando(false);
-    if (error) { setMensagem(`Erro ao salvar proposta: ${error.message}`); return null; }
-    setMensagem(status === 'Enviada' ? 'Proposta salva e registrada como enviada.' : 'Proposta salva no histórico.');
-    await carregarHistorico();
-    return data;
+
+    setSalvando(true);
+    setMensagem('Cadastrando cliente e salvando proposta no Supabase...');
+    try {
+      const clientId = await garantirCliente();
+      const { data, error } = await supabase.from('sales_proposals').insert(payload(status, clientId)).select('*').single();
+      if (error) throw error;
+      setMensagem(status === 'Enviada'
+        ? 'Cliente cadastrado/atualizado e proposta registrada como enviada.'
+        : 'Cliente cadastrado/atualizado e proposta salva no histórico.');
+      await carregarHistorico();
+      return data;
+    } catch (error) {
+      setMensagem(`Erro ao salvar cliente/proposta: ${error.message}`);
+      return null;
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const abrirPdf = (proposta = dados) => {
@@ -148,6 +210,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const reenviar = async (item) => {
     const texto = `Olá, ${item.client_name}!\nSegue sua proposta personalizada da MM Energia Solar.\nFico à disposição para esclarecer qualquer dúvida.`;
     await supabase.from('sales_proposals').update({ status: 'Enviada', sent_at: new Date().toISOString() }).eq('id', item.id);
+    await carregarHistorico();
     window.open(`https://wa.me/${numeroComPais(item.phone)}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
   };
 
@@ -157,11 +220,11 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     if (error) setMensagem(`Erro ao excluir: ${error.message}`); else carregarHistorico();
   };
 
-  const filtrado = historico.filter((item) => `${item.client_name} ${item.phone}`.toLowerCase().includes(busca.toLowerCase()));
+  const filtrado = historico.filter((item) => `${item.client_name} ${item.phone} ${item.status}`.toLowerCase().includes(busca.toLowerCase()));
   const exemplo12 = cartao.find((item) => item.parcelas === 12);
 
   return <section className="finance-panel">
-    <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Preencha os dados, salve no banco e envie pelo WhatsApp Business.</p></div></div>
+    <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Preencha os dados. Ao gerar ou enviar, o cliente e a proposta são registrados no Supabase.</p></div></div>
     <div className="finance-form">
       <label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar} placeholder="Nome completo" /></label>
       <label className="finance-field"><span>WhatsApp do cliente *</span><input name="telefone" value={dados.telefone} onChange={atualizar} placeholder="(14) 99999-9999" inputMode="tel" /></label>
@@ -186,14 +249,14 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
         <button type="button" disabled={salvando} onClick={gerarESalvar} style={{ minHeight: 58, border: 0, borderRadius: 16, background: '#08274d', color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><FileDown size={21} />Salvar e gerar PDF</button>
         <button type="button" disabled={salvando} onClick={enviarWhatsApp} style={{ minHeight: 58, border: 0, borderRadius: 16, background: '#1f9d55', color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><MessageCircle size={21} />Enviar para WhatsApp Business</button>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Os dados são salvos no Supabase antes do envio</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, color: '#667085', fontSize: 12 }}><ShieldCheck size={15} /> Cliente e proposta são salvos no Supabase antes do PDF ou envio</div>
     </div>
 
     <div style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}>
-      <div className="finance-panel-header"><div><h2>Histórico de propostas enviadas</h2><p>Consulte, gere novamente o PDF ou reenvie pelo WhatsApp.</p></div><button type="button" onClick={carregarHistorico} title="Atualizar" style={{ border: 0, background: 'transparent' }}><RefreshCw size={20} /></button></div>
-      <label className="finance-field" style={{ maxWidth: 420 }}><span>Pesquisar cliente ou telefone</span><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Search size={18} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Digite para pesquisar" /></div></label>
+      <div className="finance-panel-header"><div><h2>Histórico de propostas geradas ou enviadas</h2><p>Ficam aqui as propostas salvas no Supabase, com status Gerada ou Enviada.</p></div><button type="button" onClick={carregarHistorico} title="Atualizar" style={{ border: 0, background: 'transparent' }}><RefreshCw size={20} /></button></div>
+      <label className="finance-field" style={{ maxWidth: 420 }}><span>Pesquisar cliente, telefone ou status</span><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Search size={18} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Digite para pesquisar" /></div></label>
       <div style={{ overflowX: 'auto', marginTop: 14 }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={{ textAlign: 'left', padding: 10 }}>Data</th><th style={{ textAlign: 'left', padding: 10 }}>Cliente</th><th style={{ textAlign: 'left', padding: 10 }}>WhatsApp</th><th style={{ textAlign: 'left', padding: 10 }}>Valor</th><th style={{ textAlign: 'left', padding: 10 }}>Status</th><th style={{ textAlign: 'left', padding: 10 }}>Ações</th></tr></thead><tbody>
-        {filtrado.map((item) => <tr key={item.id} style={{ borderTop: '1px solid #e5e9ef' }}><td style={{ padding: 10 }}>{new Date(item.created_at).toLocaleDateString('pt-BR')}</td><td style={{ padding: 10 }}><strong>{item.client_name}</strong></td><td style={{ padding: 10 }}>{item.phone}</td><td style={{ padding: 10 }}>{formatarMoeda(Number(item.total_amount || 0))}</td><td style={{ padding: 10 }}>{item.status}</td><td style={{ padding: 10 }}><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" onClick={() => abrirPdf(item.proposal_data || item)}><FileDown size={16} /> PDF</button><button type="button" onClick={() => reenviar(item)}><MessageCircle size={16} /> Reenviar</button><button type="button" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button></div></td></tr>)}
+        {filtrado.map((item) => <tr key={item.id} style={{ borderTop: '1px solid #e5e9ef' }}><td style={{ padding: 10 }}>{new Date(item.created_at).toLocaleDateString('pt-BR')}</td><td style={{ padding: 10 }}><strong>{item.client_name}</strong></td><td style={{ padding: 10 }}>{item.phone}</td><td style={{ padding: 10 }}>{formatarMoeda(Number(item.total_amount || 0))}</td><td style={{ padding: 10 }}><strong>{item.status}</strong></td><td style={{ padding: 10 }}><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" onClick={() => abrirPdf(item.proposal_data || item)}><FileDown size={16} /> PDF</button><button type="button" onClick={() => reenviar(item)}><MessageCircle size={16} /> Reenviar</button><button type="button" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button></div></td></tr>)}
         {!filtrado.length && <tr><td colSpan="6" style={{ padding: 18, textAlign: 'center', color: '#667085' }}>Nenhuma proposta encontrada.</td></tr>}
       </tbody></table></div>
     </div>
