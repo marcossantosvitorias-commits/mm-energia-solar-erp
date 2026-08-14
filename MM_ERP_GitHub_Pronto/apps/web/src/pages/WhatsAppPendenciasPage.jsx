@@ -126,7 +126,7 @@ function WhatsAppPendenciasPage() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [filter, setFilter] = useState('pending');
+  const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -251,10 +251,10 @@ function WhatsAppPendenciasPage() {
             <div className="wa-toolbar-top"><div className="wa-title"><MessageCircle size={19} /> Conversas <span className="wa-count">{visible.length}</span></div><button className="wa-icon-btn" type="button" onClick={() => loadConversations()} title="Atualizar"><RefreshCw size={16} /></button></div>
             <div className="wa-search"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contato ou mensagem" /></div>
             <div className="wa-filters">
+              <button className={`wa-filter ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')} type="button">Todas</button>
               <button className={`wa-filter ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')} type="button">Aguardando você</button>
               <button className={`wa-filter ${filter === 'waiting_customer' ? 'active' : ''}`} onClick={() => setFilter('waiting_customer')} type="button">Aguardando cliente</button>
               <button className={`wa-filter ${filter === 'qualified' ? 'active' : ''}`} onClick={() => setFilter('qualified')} type="button">Qualificados</button>
-              <button className={`wa-filter ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')} type="button">Todas</button>
             </div>
           </div>
           <div className="wa-list">
