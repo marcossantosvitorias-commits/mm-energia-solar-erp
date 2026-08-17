@@ -17,6 +17,7 @@ import ErpDashboardPage from './pages/ErpDashboardPage.jsx';
 import EquipamentosPage from './pages/EquipamentosSupabasePage.jsx';
 import TributosPage from './pages/TributosPage.jsx';
 import ClientesPage from './pages/ClientesPage.jsx';
+import LeadsPipelinePage from './pages/LeadsPipelinePage.jsx';
 import BelCredSimuladorPage from './pages/BelCredSimuladorPage.jsx';
 import CotacoesBelenusPage from './pages/CotacoesBelenusSupabasePage.jsx';
 import BelenusCatalogBuilderPage from './pages/BelenusCatalogBuilderPage.jsx';
@@ -74,6 +75,7 @@ function App() {
 
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />, ROLES.DASHBOARD)} />
           <Route path="/app/fluxos" element={privateRoute(<FluxosKanbanPage />, ROLES.INTERNAL)} />
+          <Route path="/app/leads" element={privateRoute(<LeadsPipelinePage />, ROLES.SALES)} />
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.SALES)} />
           <Route path="/app/whatsapp" element={privateRoute(<WhatsAppPendenciasPage />, ROLES.SALES)} />
           <Route path="/app/prospeccao-solar" element={privateRoute(<ProspeccaoSolarPage />, ROLES.MANAGEMENT)} />
