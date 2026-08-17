@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, BatteryCharging, Calculator, CheckCircle2, Zap } from 'lucide-react';
 import ProposalGenerator from './ProposalGenerator.jsx';
 import HybridCalculatorWizard from '../components/solar/HybridCalculatorWizard.jsx';
+import HybridPresetProposal from '../components/solar/HybridPresetProposal.jsx';
 
 const moeda = new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' });
 const numero = v => Number(v || 0);
@@ -55,6 +56,8 @@ export function HybridKitsContent() {
   const descricaoInversor = `${CATALOGO.inversor.nome} + ${descricaoBateria}`;
 
   return <div className="hybrid-kits-content">
+    <HybridPresetProposal />
+
     <HybridCalculatorWizard onResult={setDimensionamento} />
 
     {dimensionamento && <section className="finance-panel" style={{marginBottom:18,borderColor:'#86efac',background:'#f0fdf4'}}>
