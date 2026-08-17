@@ -1,5 +1,6 @@
 export const ERP_ACCESS_OPTIONS = [
   { key: 'precos', label: 'Preços dos kits' },
+  { key: 'leads', label: 'Leads / Pipeline' },
   { key: 'clientes', label: 'Clientes e leads' },
   { key: 'whatsapp', label: 'WhatsApp / Pendências' },
   { key: 'calculadora', label: 'Calculadora Solar' },
@@ -21,6 +22,7 @@ export const ERP_ACCESS_OPTIONS = [
 
 export function accessKeyForPath(pathname = '') {
   if (pathname.startsWith('/app/precos')) return 'precos';
+  if (pathname.startsWith('/app/leads')) return 'leads';
   if (pathname.startsWith('/app/clientes')) return 'clientes';
   if (pathname.startsWith('/app/whatsapp')) return 'whatsapp';
   if (pathname.startsWith('/app/calculadora-solar')) return 'calculadora';
