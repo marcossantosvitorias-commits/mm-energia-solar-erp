@@ -25,6 +25,7 @@ const dashboardItem = {
 };
 const menuSections = [
   { title: 'Comercial', items: [
+    { to: '/app/leads', label: 'Leads / Pipeline', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'engenharia'] },
     { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/whatsapp', label: 'WhatsApp / Pendências', icon: MessageCircle, roles: ['admin', 'financeiro', 'comercial'] },
