@@ -21,6 +21,9 @@ function fromDatabase(client) {
     status: client.status || 'lead',
     monthlyBill: Number(client.monthly_bill || 0),
     notes: client.notes || '',
+    leadSource: client.lead_source || '',
+    externalProvider: client.external_provider || '',
+    externalId: client.external_id || '',
     created: client.created_at,
     updated: client.updated_at,
   };
@@ -40,6 +43,9 @@ function toDatabase(data) {
     status: data.status || 'lead',
     monthly_bill: Number(data.monthlyBill || 0),
     notes: data.notes?.trim() || null,
+    ...(data.leadSource ? { lead_source: data.leadSource } : {}),
+    ...(data.externalProvider ? { external_provider: data.externalProvider } : {}),
+    ...(data.externalId ? { external_id: data.externalId } : {}),
   };
 }
 
