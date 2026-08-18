@@ -49,6 +49,16 @@ function toDatabase(data) {
   };
 }
 
+async function pushClientToLeadConnector(clientId) {
+  try {
+    await supabase.functions.invoke('leadconnector-sync', {
+      body: { action: 'push_client', clientId },
+    });
+  } catch (error) {
+    console.warn('LeadConnector sync pending:', error);
+  }
+}
+
 export async function listClients() {
   ensureDatabase();
   const { data, error } = await supabase
@@ -67,6 +77,7 @@ export async function createClient(data) {
     .select('*')
     .single();
   if (error) throw error;
+  await pushClientToLeadConnector(created.id);
   return fromDatabase(created);
 }
 
@@ -79,6 +90,7 @@ export async function updateClient(id, data) {
     .select('*')
     .single();
   if (error) throw error;
+  await pushClientToLeadConnector(updated.id);
   return fromDatabase(updated);
 }
 
