@@ -12,7 +12,7 @@ const KITS_HIBRIDOS = [
     potenciaSistema: 20.46,
     inversores: 2,
     inversor: 'SAJ híbrido 7,5 kW Mono 220V',
-    valorVenda: 37656,
+    valorVenda: 34876,
     rsd: 3200,
     referencia: 'Kit comercial MM Energia Solar',
   },
