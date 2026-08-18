@@ -13,6 +13,7 @@ const KIT = {
 };
 
 const money = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const assetUrl = (name) => `${import.meta.env.BASE_URL}${name}`;
 
 function cardGross(net, feePercent) {
   const rate = Number(feePercent || 0) / 100;
@@ -86,9 +87,9 @@ export default function HybridPresetProposal() {
       const gold = [245, 188, 15];
       const gray = [92, 105, 120];
       const [logo, panel, inverter] = await Promise.all([
-        loadImageDataUrl('/logo-mm.png', 360, 240).catch(() => null),
-        loadImageDataUrl('/hybrid-panel-tsun.svg', 420, 420).catch(() => null),
-        loadImageDataUrl('/hybrid-inverter-saj.svg', 420, 420).catch(() => null),
+        loadImageDataUrl(assetUrl('logo-mm.png'), 360, 240).catch(() => null),
+        loadImageDataUrl(assetUrl('hybrid-panel-tsun.svg'), 420, 420).catch(() => null),
+        loadImageDataUrl(assetUrl('hybrid-inverter-saj.svg'), 420, 420).catch(() => null),
       ]);
 
       doc.setFillColor(...navy);
@@ -127,83 +128,83 @@ export default function HybridPresetProposal() {
       y += 24;
       doc.setFillColor(247, 249, 252);
       doc.setDrawColor(218, 225, 233);
-      doc.roundedRect(10, y, 190, 50, 3, 3, 'FD');
+      doc.roundedRect(10, y, 190, 44, 3, 3, 'FD');
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.text('Configuração do sistema', 15, y + 10);
-      doc.setFontSize(9.5);
-      doc.text(`${KIT.panelCount} placas TSUN ${KIT.panelPowerW}W bifacial`, 15, y + 21);
-      doc.text(`${KIT.inverterCount} inversores híbridos SAJ 7,5 kW`, 15, y + 29);
+      doc.setFontSize(11.5);
+      doc.text('Configuração do sistema', 15, y + 9);
+      doc.setFontSize(9);
+      doc.text(`${KIT.panelCount} placas TSUN ${KIT.panelPowerW}W bifacial`, 15, y + 19);
+      doc.text(`${KIT.inverterCount} inversores híbridos SAJ 7,5 kW`, 15, y + 27);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...gray);
-      doc.setFontSize(8.2);
-      doc.text(`Potência instalada: ${KIT.systemPowerKw.toFixed(2).replace('.', ',')} kWp`, 15, y + 39);
-      doc.text('Tensão: Mono 220V', 15, y + 45);
+      doc.setFontSize(7.7);
+      doc.text(`Potência instalada: ${KIT.systemPowerKw.toFixed(2).replace('.', ',')} kWp`, 15, y + 35);
+      doc.text('Tensão: Mono 220V', 15, y + 41);
 
       doc.setFillColor(255, 255, 255);
-      doc.roundedRect(116, y + 7, 37, 39, 2, 2, 'F');
-      doc.roundedRect(157, y + 7, 37, 39, 2, 2, 'F');
-      addContained(doc, panel, 119, y + 9, 31, 29);
-      addContained(doc, inverter, 160, y + 9, 31, 29);
+      doc.roundedRect(116, y + 5, 37, 35, 2, 2, 'F');
+      doc.roundedRect(157, y + 5, 37, 35, 2, 2, 'F');
+      addContained(doc, panel, 120, y + 7, 29, 25);
+      addContained(doc, inverter, 161, y + 7, 29, 25);
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.5);
-      doc.text('TSUN 620W BIFACIAL', 134.5, y + 44, { align: 'center' });
-      doc.text('SAJ HÍBRIDO 7,5 kW', 175.5, y + 44, { align: 'center' });
+      doc.setFontSize(6.2);
+      doc.text('TSUN 620W BIFACIAL', 134.5, y + 38, { align: 'center' });
+      doc.text('SAJ HÍBRIDO 7,5 kW', 175.5, y + 38, { align: 'center' });
 
-      y += 59;
+      y += 50;
       doc.setFillColor(...navy);
-      doc.roundedRect(10, y, 190, 24, 3, 3, 'F');
+      doc.roundedRect(10, y, 190, 20, 3, 3, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.text('VALOR DO SISTEMA À VISTA / PIX', 16, y + 9);
+      doc.setFontSize(9);
+      doc.text('VALOR DO SISTEMA À VISTA / PIX', 16, y + 8);
       doc.setTextColor(...gold);
-      doc.setFontSize(18);
-      doc.text(money(KIT.cashPrice), 194, y + 16, { align: 'right' });
+      doc.setFontSize(17);
+      doc.text(money(KIT.cashPrice), 194, y + 14, { align: 'right' });
 
-      y += 32;
+      y += 27;
       doc.setFillColor(255, 249, 235);
       doc.setDrawColor(245, 188, 15);
-      doc.roundedRect(10, y, 190, 42, 3, 3, 'FD');
+      doc.roundedRect(10, y, 190, 34, 3, 3, 'FD');
       doc.setTextColor(145, 93, 0);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('RSD (RAPID SHUTDOWN DEVICE) — OPCIONAL', 16, y + 9);
-      doc.setFontSize(13);
-      doc.text(money(KIT.rsdPrice), 194, y + 9, { align: 'right' });
+      doc.setFontSize(9.2);
+      doc.text('RSD (RAPID SHUTDOWN DEVICE) — OPCIONAL', 16, y + 8);
+      doc.setFontSize(12.5);
+      doc.text(money(KIT.rsdPrice), 194, y + 8, { align: 'right' });
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.3);
+      doc.setFontSize(6.6);
       doc.setTextColor(79, 68, 48);
-      const rsdText = 'Dispositivo de desligamento rápido para desenergizar os cabos de corrente contínua próximos aos módulos, reduzindo a tensão durante emergências ou manutenções em sistemas fotovoltaicos sobre telhados.';
-      doc.text(doc.splitTextToSize(rsdText, 176), 16, y + 19);
+      const rsdText = 'Dispositivo de desligamento rápido para desenergizar os cabos de corrente contínua próximos aos módulos, reduzindo a tensão durante emergências ou manutenções.';
+      doc.text(doc.splitTextToSize(rsdText, 176), 16, y + 17);
       doc.setFont('helvetica', 'bold');
-      doc.text('Valor separado e não incluso no total principal da proposta.', 16, y + 36);
+      doc.text('Valor separado e não incluso no total principal da proposta.', 16, y + 29);
 
-      y += 51;
+      y += 40;
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(10.5);
       doc.text('Parcelamento no cartão', 10, y);
       y += 5;
       const rows = visibleFees.length ? visibleFees : (selectedFee ? [selectedFee] : []);
-      doc.setFontSize(7.2);
+      doc.setFontSize(6.8);
       rows.slice(0, 10).forEach((fee, index) => {
         const installments = Number(fee.installments);
         const gross = cardGross(KIT.cashPrice, fee.fee_percent);
         const installment = gross / installments;
-        const rowY = y + index * 6.25;
+        const rowY = y + index * 5.3;
         doc.setFillColor(index % 2 ? 249 : 244, index % 2 ? 250 : 247, index % 2 ? 252 : 250);
-        doc.rect(10, rowY, 190, 5.8, 'F');
+        doc.rect(10, rowY, 190, 4.9, 'F');
         doc.setTextColor(39, 51, 66);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${installments}x`, 14, rowY + 4);
+        doc.text(`${installments}x`, 14, rowY + 3.5);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Taxa ${Number(fee.fee_percent).toFixed(2).replace('.', ',')}%`, 31, rowY + 4);
-        doc.text(`Total ${money(gross)}`, 82, rowY + 4);
+        doc.text(`Taxa ${Number(fee.fee_percent).toFixed(2).replace('.', ',')}%`, 31, rowY + 3.5);
+        doc.text(`Total ${money(gross)}`, 82, rowY + 3.5);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${installments}x de ${money(installment)}`, 195, rowY + 4, { align: 'right' });
+        doc.text(`${installments}x de ${money(installment)}`, 195, rowY + 3.5, { align: 'right' });
       });
 
       doc.setFillColor(...navy);
