@@ -22,7 +22,7 @@ function cardGross(net, feePercent) {
   return Number(net || 0) / (1 - rate);
 }
 
-function loadAsPng(src, maxWidth = 520, maxHeight = 360) {
+function loadLogoAsPng(src, maxWidth = 360, maxHeight = 240) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
@@ -31,20 +31,25 @@ function loadAsPng(src, maxWidth = 520, maxHeight = 360) {
       canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
       const context = canvas.getContext('2d');
-      if (!context) return reject(new Error('Não foi possível preparar a imagem.'));
+      if (!context) return reject(new Error('Não foi possível preparar o logotipo.'));
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL('image/png'));
     };
-    image.onerror = () => reject(new Error('Não foi possível carregar uma das imagens da proposta.'));
+    image.onerror = () => reject(new Error('Não foi possível carregar o logotipo.'));
     image.src = src;
   });
 }
 
-function safeAddImage(doc, image, x, y, width, height) {
+function addPng(doc, image, x, y, width, height) {
   if (!image) return;
   doc.addImage(image, 'PNG', x, y, width, height, undefined, 'FAST');
+}
+
+function addJpeg(doc, image, x, y, width, height) {
+  if (!image) return;
+  doc.addImage(image, 'JPEG', x, y, width, height, undefined, 'FAST');
 }
 
 function drawHeader(doc, logo, subtitle, price) {
@@ -55,7 +60,7 @@ function drawHeader(doc, logo, subtitle, price) {
   if (logo) {
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(10, 6, 25, 25, 3, 3, 'F');
-    safeAddImage(doc, logo, 12, 8, 21, 21);
+    addPng(doc, logo, 12, 8, 21, 21);
   }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
@@ -78,7 +83,7 @@ function drawFooter(doc, logo, page) {
   const navy = [8, 46, 88];
   doc.setFillColor(...navy);
   doc.rect(0, 280, 210, 17, 'F');
-  if (logo) safeAddImage(doc, logo, 11, 282, 13, 13);
+  if (logo) addPng(doc, logo, 11, 282, 13, 13);
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
@@ -128,13 +133,9 @@ export default function HybridPresetProposal() {
       const gold = [245, 188, 15];
       const gray = [92, 105, 120];
 
-      // Converte TODAS as imagens para PNG via canvas antes de entregá-las ao jsPDF.
-      // Isso evita o erro "addImage ... type UNKNOWN" em navegadores Android.
-      const [logo, panelImage, inverterImage] = await Promise.all([
-        loadAsPng(assetUrl('logo-mm.png'), 360, 240).catch(() => null),
-        loadAsPng(HYBRID_PANEL_IMAGE, 500, 500),
-        loadAsPng(HYBRID_INVERTER_IMAGE, 500, 500),
-      ]);
+      // O logo vem do public. As fotos do painel e inversor já estão embutidas como JPEG
+      // no bundle da ERP e são entregues diretamente ao jsPDF, sem Image()/canvas no Android.
+      const logo = await loadLogoAsPng(assetUrl('logo-mm.png')).catch(() => null);
 
       drawHeader(doc, logo, 'Sistema Fotovoltaico Híbrido', KIT.cashPrice);
 
@@ -162,8 +163,8 @@ export default function HybridPresetProposal() {
       doc.setFillColor(255, 255, 255);
       doc.roundedRect(15, y + 17, 80, 50, 2, 2, 'F');
       doc.roundedRect(105, y + 17, 80, 50, 2, 2, 'F');
-      safeAddImage(doc, panelImage, 29, y + 20, 52, 36);
-      safeAddImage(doc, inverterImage, 121, y + 20, 48, 36);
+      addJpeg(doc, HYBRID_PANEL_IMAGE, 29, y + 20, 52, 36);
+      addJpeg(doc, HYBRID_INVERTER_IMAGE, 121, y + 20, 48, 36);
 
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
