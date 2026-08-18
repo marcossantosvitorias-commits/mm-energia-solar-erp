@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { createClient, listClients, updateClient } from '../services/clientService.js';
+import { syncLeadConnector } from '../services/leadConnectorService.js';
 import './LeadsPipelinePage.css';
 
 const STAGES = [
@@ -34,6 +35,7 @@ const emptyOpportunity = {
 };
 
 function LeadCard({ lead, onDragStart, onOpenWhatsApp }) {
+  const sourceLabel = lead.leadSource || (lead.externalProvider === 'leadconnector' ? '1North' : 'ERP / WhatsApp');
   return (
     <article
       className="lead-kanban-card"
@@ -50,7 +52,7 @@ function LeadCard({ lead, onDragStart, onOpenWhatsApp }) {
       </div>
 
       <div className="lead-card-info">
-        <span>Fonte:</span><b>ERP / WhatsApp</b>
+        <span>Fonte:</span><b>{sourceLabel}</b>
         <span>Valor:</span><b>{formatCurrency(lead.monthlyBill)}</b>
       </div>
 
@@ -69,6 +71,7 @@ export default function LeadsPipelinePage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncing1North, setSyncing1North] = useState(false);
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState('');
   const [pipeline, setPipeline] = useState('vendas');
@@ -96,7 +99,7 @@ export default function LeadsPipelinePage() {
   const leads = useMemo(() => {
     const term = query.trim().toLowerCase();
     return clients.filter((lead) => {
-      const matchesSearch = !term || [lead.name, lead.phone, lead.email, lead.city]
+      const matchesSearch = !term || [lead.name, lead.phone, lead.email, lead.city, lead.leadSource]
         .filter(Boolean).some((value) => String(value).toLowerCase().includes(term));
       const matchesPhone = !showOnlyWithPhone || Boolean(lead.phone);
       return matchesSearch && matchesPhone;
@@ -142,6 +145,20 @@ export default function LeadsPipelinePage() {
     const digits = String(phone || '').replace(/\D/g, '');
     if (!digits) return;
     window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const importFrom1North = async () => {
+    setSyncing1North(true);
+    setMessage('Conectando à 1North e verificando os leads...');
+    try {
+      const result = await syncLeadConnector();
+      setMessage(`1North sincronizada: ${result.created || 0} novo(s), ${result.updated || 0} atualizado(s), ${result.skipped || 0} ignorado(s) e ${result.errors || 0} erro(s).`);
+      await load();
+    } catch (error) {
+      setMessage(error?.message || 'Não foi possível importar os leads da 1North.');
+    } finally {
+      setSyncing1North(false);
+    }
   };
 
   const saveOpportunity = async (event) => {
@@ -193,7 +210,7 @@ export default function LeadsPipelinePage() {
           <button className={view === 'kanban' ? 'active' : ''} onClick={() => setView('kanban')} type="button"><LayoutGrid size={17} /></button>
           <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')} type="button"><List size={17} /></button>
         </div>
-        <button className="leads-outline-button" type="button" onClick={() => setMessage('Importação CSV ficará disponível na próxima etapa do CRM.')}>Importar</button>
+        <button className="leads-outline-button" type="button" onClick={importFrom1North} disabled={syncing1North}>{syncing1North ? 'Sincronizando 1North...' : 'Importar da 1North'}</button>
         <button className="leads-primary-button" type="button" onClick={() => setShowModal(true)}><Plus size={17} /> Adicionar oportunidade</button>
         <button className="leads-icon-button" type="button"><MoreVertical size={18} /></button>
       </section>
@@ -233,8 +250,8 @@ export default function LeadsPipelinePage() {
         <section className="finance-panel lead-list-panel">
           <div className="finance-table-wrapper">
             <table className="finance-table">
-              <thead><tr><th>Lead</th><th>Contato</th><th>Cidade</th><th>Etapa</th><th>Conta média</th></tr></thead>
-              <tbody>{leads.map((lead) => <tr key={lead.id}><td><strong>{lead.name}</strong></td><td>{lead.phone || '-'}</td><td>{lead.city || '-'}</td><td>{STAGES.find((stage) => stage.key === lead.status)?.label || lead.status}</td><td>{formatCurrency(lead.monthlyBill)}</td></tr>)}</tbody>
+              <thead><tr><th>Lead</th><th>Contato</th><th>Cidade</th><th>Fonte</th><th>Etapa</th><th>Conta média</th></tr></thead>
+              <tbody>{leads.map((lead) => <tr key={lead.id}><td><strong>{lead.name}</strong></td><td>{lead.phone || '-'}</td><td>{lead.city || '-'}</td><td>{lead.leadSource || (lead.externalProvider === 'leadconnector' ? '1North' : 'ERP / WhatsApp')}</td><td>{STAGES.find((stage) => stage.key === lead.status)?.label || lead.status}</td><td>{formatCurrency(lead.monthlyBill)}</td></tr>)}</tbody>
             </table>
           </div>
         </section>
