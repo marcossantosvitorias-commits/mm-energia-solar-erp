@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CreditCard, FileDown, ShieldCheck } from 'lucide-react';
 import { cardFeeService } from '../../services/cardFeeService.js';
+import { HYBRID_INVERTER_IMAGE, HYBRID_PANEL_IMAGE } from './hybridProposalAssets.js';
 
 const KIT = {
   panelCount: 33,
@@ -30,9 +31,9 @@ function loadImageDataUrl(src, maxWidth = 520, maxHeight = 360) {
       canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
       const context = canvas.getContext('2d');
-      if (!context) return reject(new Error('Não foi possível preparar a imagem.'));
+      if (!context) return reject(new Error('Não foi possível preparar o logotipo.'));
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.86));
+      resolve(canvas.toDataURL('image/png'));
     };
     image.onerror = () => reject(new Error(`Não foi possível carregar ${src}.`));
     image.src = src;
@@ -45,7 +46,47 @@ function addContained(doc, dataUrl, x, y, maxWidth, maxHeight) {
   const ratio = Math.min(maxWidth / props.width, maxHeight / props.height);
   const width = props.width * ratio;
   const height = props.height * ratio;
-  doc.addImage(dataUrl, 'JPEG', x + (maxWidth - width) / 2, y + (maxHeight - height) / 2, width, height, undefined, 'FAST');
+  const format = dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+  doc.addImage(dataUrl, format, x + (maxWidth - width) / 2, y + (maxHeight - height) / 2, width, height, undefined, 'FAST');
+}
+
+function drawHeader(doc, logo, subtitle, price) {
+  const navy = [8, 46, 88];
+  const gold = [245, 188, 15];
+  doc.setFillColor(...navy);
+  doc.rect(0, 0, 210, 42, 'F');
+  if (logo) {
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(10, 6, 25, 25, 3, 3, 'F');
+    addContained(doc, logo, 12, 8, 21, 21);
+  }
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13.5);
+  doc.text('MM ENERGIA SOLAR', logo ? 40 : 12, 17);
+  doc.setFontSize(18);
+  doc.text('PROPOSTA COMERCIAL', 198, 16, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(subtitle, 198, 24, { align: 'right' });
+  if (price) {
+    doc.setTextColor(...gold);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text(money(price), 198, 34, { align: 'right' });
+  }
+}
+
+function drawFooter(doc, logo, page) {
+  const navy = [8, 46, 88];
+  doc.setFillColor(...navy);
+  doc.rect(0, 280, 210, 17, 'F');
+  if (logo) addContained(doc, logo, 11, 282, 13, 13);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.text('MM Energia Solar • Projeto, instalação, homologação e pós-venda.', 105, 289, { align: 'center' });
+  doc.text(`Página ${page}/2`, 198, 289, { align: 'right' });
 }
 
 export default function HybridPresetProposal() {
@@ -86,134 +127,178 @@ export default function HybridPresetProposal() {
       const navy = [8, 46, 88];
       const gold = [245, 188, 15];
       const gray = [92, 105, 120];
-      const [logo, panel, inverter] = await Promise.all([
-        loadImageDataUrl(assetUrl('logo-mm.png'), 360, 240).catch(() => null),
-        loadImageDataUrl(assetUrl('hybrid-panel-tsun.svg'), 420, 420).catch(() => null),
-        loadImageDataUrl(assetUrl('hybrid-inverter-saj.svg'), 420, 420).catch(() => null),
-      ]);
+      const logo = await loadImageDataUrl(assetUrl('logo-mm.png'), 360, 240).catch(() => null);
 
-      doc.setFillColor(...navy);
-      doc.rect(0, 0, 210, 44, 'F');
-      if (logo) {
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(10, 7, 24, 24, 3, 3, 'F');
-        addContained(doc, logo, 12, 9, 20, 20);
-      }
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13.5);
-      doc.text('MM ENERGIA SOLAR', logo ? 39 : 12, 17);
-      doc.setFontSize(18);
-      doc.text('PROPOSTA COMERCIAL', 198, 16, { align: 'right' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9.5);
-      doc.text('Sistema Fotovoltaico Híbrido', 198, 24, { align: 'right' });
-      doc.setTextColor(...gold);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(17);
-      doc.text(money(KIT.cashPrice), 198, 35, { align: 'right' });
+      drawHeader(doc, logo, 'Sistema Fotovoltaico Híbrido', KIT.cashPrice);
 
-      let y = 55;
+      let y = 53;
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(10.5);
       doc.text('CLIENTE', 12, y);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(38, 48, 60);
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.text(client.name || 'Não informado', 12, y + 7);
       doc.text(`Cidade: ${client.city || '-'}`, 12, y + 13);
       doc.text(`Contato: ${client.phone || '-'}`, 110, y + 13);
 
-      y += 24;
+      y += 22;
       doc.setFillColor(247, 249, 252);
       doc.setDrawColor(218, 225, 233);
-      doc.roundedRect(10, y, 190, 44, 3, 3, 'FD');
+      doc.roundedRect(10, y, 190, 76, 3, 3, 'FD');
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11.5);
-      doc.text('Configuração do sistema', 15, y + 9);
-      doc.setFontSize(9);
-      doc.text(`${KIT.panelCount} placas TSUN ${KIT.panelPowerW}W bifacial`, 15, y + 19);
-      doc.text(`${KIT.inverterCount} inversores híbridos SAJ 7,5 kW`, 15, y + 27);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...gray);
-      doc.setFontSize(7.7);
-      doc.text(`Potência instalada: ${KIT.systemPowerKw.toFixed(2).replace('.', ',')} kWp`, 15, y + 35);
-      doc.text('Tensão: Mono 220V', 15, y + 41);
+      doc.text('Configuração do sistema', 15, y + 10);
 
       doc.setFillColor(255, 255, 255);
-      doc.roundedRect(116, y + 5, 37, 35, 2, 2, 'F');
-      doc.roundedRect(157, y + 5, 37, 35, 2, 2, 'F');
-      addContained(doc, panel, 120, y + 7, 29, 25);
-      addContained(doc, inverter, 161, y + 7, 29, 25);
+      doc.roundedRect(15, y + 17, 80, 50, 2, 2, 'F');
+      doc.roundedRect(105, y + 17, 80, 50, 2, 2, 'F');
+      addContained(doc, HYBRID_PANEL_IMAGE, 29, y + 20, 52, 36);
+      addContained(doc, HYBRID_INVERTER_IMAGE, 121, y + 20, 48, 36);
+
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.2);
-      doc.text('TSUN 620W BIFACIAL', 134.5, y + 38, { align: 'center' });
-      doc.text('SAJ HÍBRIDO 7,5 kW', 175.5, y + 38, { align: 'center' });
+      doc.setFontSize(8);
+      doc.text('TSUN 620W BIFACIAL', 55, y + 60, { align: 'center' });
+      doc.text('SAJ HÍBRIDO 7,5 kW', 145, y + 60, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...gray);
+      doc.setFontSize(7.5);
+      doc.text(`${KIT.panelCount} módulos • ${KIT.systemPowerKw.toFixed(2).replace('.', ',')} kWp`, 55, y + 66, { align: 'center' });
+      doc.text(`${KIT.inverterCount} unidades • Mono 220V`, 145, y + 66, { align: 'center' });
 
-      y += 50;
+      y += 84;
       doc.setFillColor(...navy);
-      doc.roundedRect(10, y, 190, 20, 3, 3, 'F');
+      doc.roundedRect(10, y, 190, 22, 3, 3, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('VALOR DO SISTEMA À VISTA / PIX', 16, y + 8);
+      doc.text('VALOR DO SISTEMA À VISTA / PIX', 16, y + 9);
       doc.setTextColor(...gold);
       doc.setFontSize(17);
-      doc.text(money(KIT.cashPrice), 194, y + 14, { align: 'right' });
+      doc.text(money(KIT.cashPrice), 194, y + 15, { align: 'right' });
 
-      y += 27;
+      y += 29;
       doc.setFillColor(255, 249, 235);
       doc.setDrawColor(245, 188, 15);
-      doc.roundedRect(10, y, 190, 34, 3, 3, 'FD');
+      doc.roundedRect(10, y, 190, 38, 3, 3, 'FD');
       doc.setTextColor(145, 93, 0);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9.2);
-      doc.text('RSD (RAPID SHUTDOWN DEVICE) — OPCIONAL', 16, y + 8);
+      doc.text('RSD (RAPID SHUTDOWN DEVICE) — OPCIONAL', 16, y + 9);
       doc.setFontSize(12.5);
-      doc.text(money(KIT.rsdPrice), 194, y + 8, { align: 'right' });
+      doc.text(money(KIT.rsdPrice), 194, y + 9, { align: 'right' });
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.6);
+      doc.setFontSize(6.8);
       doc.setTextColor(79, 68, 48);
       const rsdText = 'Dispositivo de desligamento rápido para desenergizar os cabos de corrente contínua próximos aos módulos, reduzindo a tensão durante emergências ou manutenções.';
-      doc.text(doc.splitTextToSize(rsdText, 176), 16, y + 17);
+      doc.text(doc.splitTextToSize(rsdText, 176), 16, y + 19);
       doc.setFont('helvetica', 'bold');
-      doc.text('Valor separado e não incluso no total principal da proposta.', 16, y + 29);
+      doc.text('Valor separado e não incluso no total principal da proposta.', 16, y + 32);
 
-      y += 40;
+      y += 46;
       doc.setTextColor(...navy);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10.5);
+      doc.text('Resumo comercial', 10, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(55, 65, 81);
+      doc.setFontSize(8);
+      doc.text('Projeto completo com fornecimento dos equipamentos, instalação e homologação conforme escopo comercial.', 10, y + 8);
+      doc.text('As condições de parcelamento, itens inclusos e garantias estão detalhadas na página 2.', 10, y + 14);
+
+      drawFooter(doc, logo, 1);
+
+      doc.addPage();
+      drawHeader(doc, logo, 'Condições comerciais e escopo', null);
+
+      y = 52;
+      doc.setTextColor(...navy);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
       doc.text('Parcelamento no cartão', 10, y);
-      y += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...gray);
+      doc.setFontSize(7.5);
+      doc.text('Taxas My Gateway cadastradas no ERP. O total abaixo mantém o valor líquido da venda.', 10, y + 7);
+      y += 13;
+
       const rows = visibleFees.length ? visibleFees : (selectedFee ? [selectedFee] : []);
-      doc.setFontSize(6.8);
+      doc.setFontSize(7.2);
       rows.slice(0, 10).forEach((fee, index) => {
         const installments = Number(fee.installments);
         const gross = cardGross(KIT.cashPrice, fee.fee_percent);
         const installment = gross / installments;
-        const rowY = y + index * 5.3;
+        const rowY = y + index * 7;
         doc.setFillColor(index % 2 ? 249 : 244, index % 2 ? 250 : 247, index % 2 ? 252 : 250);
-        doc.rect(10, rowY, 190, 4.9, 'F');
+        doc.rect(10, rowY, 190, 6.5, 'F');
         doc.setTextColor(39, 51, 66);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${installments}x`, 14, rowY + 3.5);
+        doc.text(`${installments}x`, 14, rowY + 4.4);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Taxa ${Number(fee.fee_percent).toFixed(2).replace('.', ',')}%`, 31, rowY + 3.5);
-        doc.text(`Total ${money(gross)}`, 82, rowY + 3.5);
+        doc.text(`Taxa ${Number(fee.fee_percent).toFixed(2).replace('.', ',')}%`, 31, rowY + 4.4);
+        doc.text(`Total ${money(gross)}`, 82, rowY + 4.4);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${installments}x de ${money(installment)}`, 195, rowY + 3.5, { align: 'right' });
+        doc.text(`${installments}x de ${money(installment)}`, 195, rowY + 4.4, { align: 'right' });
       });
 
-      doc.setFillColor(...navy);
-      doc.rect(0, 280, 210, 17, 'F');
-      if (logo) addContained(doc, logo, 11, 282, 13, 13);
-      doc.setTextColor(255, 255, 255);
+      y += 78;
+      doc.setTextColor(...navy);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('O que está incluso', 10, y);
+      const included = [
+        'Projeto e dimensionamento do sistema',
+        '33 módulos fotovoltaicos TSUN 620W bifaciais',
+        '2 inversores híbridos SAJ 7,5 kW Mono 220V',
+        'Estrutura de fixação dos módulos',
+        'Cabeamento e proteções elétricas conforme projeto',
+        'Instalação, configuração e testes',
+        'Homologação junto à concessionária',
+        'Configuração do monitoramento e pós-venda MM Energia Solar',
+      ];
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.text('MM Energia Solar • Projeto, instalação e homologação conforme escopo comercial.', 105, 289, { align: 'center' });
+      doc.setTextColor(45, 56, 70);
+      doc.setFontSize(8);
+      included.forEach((item, index) => doc.text(`• ${item}`, 14, y + 8 + index * 6));
+
+      y += 61;
+      doc.setFillColor(247, 249, 252);
+      doc.setDrawColor(218, 225, 233);
+      doc.roundedRect(10, y, 92, 47, 3, 3, 'FD');
+      doc.roundedRect(108, y, 92, 47, 3, 3, 'FD');
+      doc.setTextColor(...navy);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('Garantias e segurança', 16, y + 10);
+      doc.text('Condições comerciais', 114, y + 10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 70, 84);
+      doc.setFontSize(7.2);
+      const warranty = [
+        'Equipamentos: conforme fabricante.',
+        'Instalação: conforme contrato comercial.',
+        'Homologação acompanhada pela MM Energia Solar.',
+        'RSD opcional: não incluso no valor principal.',
+      ];
+      const terms = [
+        'Valor à vista/Pix: ' + money(KIT.cashPrice) + '.',
+        'Parcelamento sujeito às taxas vigentes.',
+        'Validade comercial: 7 dias.',
+        'Cronograma conforme disponibilidade de equipamentos.',
+      ];
+      warranty.forEach((item, index) => doc.text(doc.splitTextToSize(`• ${item}`, 80), 16, y + 19 + index * 6));
+      terms.forEach((item, index) => doc.text(doc.splitTextToSize(`• ${item}`, 80), 114, y + 19 + index * 6));
+
+      y += 55;
+      doc.setTextColor(...gray);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.8);
+      doc.text('Observação: imagens dos equipamentos são referências visuais dos modelos informados e podem variar conforme atualização de fabricante ou lote.', 10, y);
+
+      drawFooter(doc, logo, 2);
 
       const safeName = String(client.name || 'cliente')
         .normalize('NFD')
@@ -222,7 +307,7 @@ export default function HybridPresetProposal() {
         .replace(/^-|-$/g, '')
         .toLowerCase();
       doc.save(`proposta-hibrido-${safeName || 'cliente'}.pdf`);
-      setMessage('Proposta gerada com sucesso.');
+      setMessage('Proposta completa de 2 páginas gerada com sucesso.');
     } catch (error) {
       setMessage(`Não foi possível gerar a proposta: ${error.message}`);
     } finally {
@@ -236,7 +321,7 @@ export default function HybridPresetProposal() {
         <div>
           <span className="hybrid-proposal-kicker">KIT SELECIONADO</span>
           <h2>33 placas TSUN + 2 SAJ híbridos 7,5 kW</h2>
-          <p>Preencha o cliente e gere a proposta.</p>
+          <p>Preencha o cliente e gere a proposta completa em 2 páginas.</p>
         </div>
         <button type="button" className="hybrid-generate-button" onClick={generatePdf} disabled={generating}>
           <FileDown size={18} /> {generating ? 'Gerando...' : 'GERAR PROPOSTA PDF'}
