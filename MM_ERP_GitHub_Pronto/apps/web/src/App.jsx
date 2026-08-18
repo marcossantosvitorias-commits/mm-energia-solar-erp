@@ -44,6 +44,7 @@ import InversorStringPage from './pages/InversorStringPage.jsx';
 import HybridKitsPage from './pages/HybridKitsPage.jsx';
 import UserAccessPage from './pages/UserAccessPage.jsx';
 import WhatsAppPendenciasPage from './pages/WhatsAppPendenciasPage.jsx';
+import PreVendasIAPage from './pages/PreVendasIAPage.jsx';
 
 const ROLES = {
   DASHBOARD: ['admin', 'financeiro', 'engenharia'],
@@ -78,6 +79,7 @@ function App() {
           <Route path="/app/leads" element={privateRoute(<LeadsPipelinePage />, ROLES.SALES)} />
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />, ROLES.SALES)} />
           <Route path="/app/whatsapp" element={privateRoute(<WhatsAppPendenciasPage />, ROLES.SALES)} />
+          <Route path="/app/pre-vendas-ia" element={privateRoute(<PreVendasIAPage />, ROLES.SALES)} />
           <Route path="/app/prospeccao-solar" element={privateRoute(<ProspeccaoSolarPage />, ROLES.MANAGEMENT)} />
           <Route path="/app/calculadora-solar" element={privateRoute(<CalculadoraSolarErpPage />, ROLES.SALES)} />
           <Route path="/app/propostas" element={privateRoute(<PropostasPage />, ROLES.SALES)} />
