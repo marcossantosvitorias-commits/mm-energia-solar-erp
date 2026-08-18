@@ -26,6 +26,12 @@ function SectionTitle({ icon:Icon, title, subtitle }) {
 function Toggle({ checked, onChange, label }) {
   return <button type="button" className="finance-secondary-button" onClick={()=>onChange(!checked)} style={{display:'inline-flex',gap:8,alignItems:'center',fontWeight:800}}>{checked?<PlayCircle size={17}/>:<PauseCircle size={17}/>} {label || (checked?'Ligado':'Desligado')}</button>;
 }
+function diagnosticText(row) {
+  if (row.ai_last_error) return `Erro: ${row.ai_last_error}`;
+  if (row.ai_last_generated_reply) return `Resposta: ${row.ai_last_generated_reply}`;
+  if (row.next_action) return row.next_action;
+  return 'Ainda não testado';
+}
 
 export default function PreVendasIAPage() {
   const [settings, setSettings] = useState(DEFAULTS);
@@ -40,7 +46,7 @@ export default function PreVendasIAPage() {
     try {
       const [{ data:cfg, error:cfgError }, { data:rows, error:rowsError }] = await Promise.all([
         supabase.from('whatsapp_ai_settings').select('*').eq('id',1).single(),
-        supabase.from('whatsapp_conversations').select('id,contact_name,phone,city,estimated_monthly_bill,lead_stage,lead_temperature,ai_score,ai_enabled,ai_paused,ai_handoff,last_message_at,has_existing_proposal,installation_timeline,payment_preference').order('last_message_at',{ascending:false}).limit(60),
+        supabase.from('whatsapp_conversations').select('id,contact_name,phone,city,estimated_monthly_bill,lead_stage,lead_temperature,ai_score,ai_enabled,ai_paused,ai_handoff,last_message_at,has_existing_proposal,installation_timeline,payment_preference,ai_last_attempt_at,ai_last_error,ai_last_generated_reply,ai_last_processed_inbound_at,ai_is_solar_lead,next_action').order('last_message_at',{ascending:false}).limit(60),
       ]);
       if (cfgError) throw cfgError;
       if (rowsError) throw rowsError;
@@ -86,9 +92,12 @@ export default function PreVendasIAPage() {
       const { data,error }=await supabase.functions.invoke('whatsapp-ai-presales',{body:{conversation_id:row.id,force:true,send:false}});
       if(error) throw error;
       if(data?.error) throw new Error(data.message || data.error);
-      setMessage(data?.reply ? `Teste IA: ${data.reply} • Score ${data.score ?? 0}` : JSON.stringify(data));
+      setMessage(data?.reply ? `Teste IA: ${data.reply} • Score ${data.score ?? 0}` : data?.solar_lead===false ? 'Teste concluído: contato classificado como não lead solar.' : JSON.stringify(data));
       await load();
-    } catch(error){ setMessage(error?.message || 'Falha ao testar a IA.'); }
+    } catch(error){
+      await load();
+      setMessage(error?.message || 'Falha ao testar a IA. Veja a coluna Diagnóstico para o erro detalhado.');
+    }
     finally{ setTestingId(''); }
   };
   const updateFollowUp = (index,key,value) => setSettings((s)=>({...s,follow_up_steps:s.follow_up_steps.map((item,i)=>i===index?{...item,[key]:value}:item)}));
@@ -168,15 +177,16 @@ export default function PreVendasIAPage() {
     <section className="finance-actions" style={{position:'sticky',bottom:12,zIndex:3,margin:'18px 0',justifyContent:'flex-end'}}><button className="finance-button" type="button" disabled={saving} onClick={saveSettings}><Save size={16}/> {saving?'Salvando...':'Salvar todas as configurações'}</button></section>
 
     <section className="finance-panel" style={{marginTop:18}}>
-      <SectionTitle icon={Sparkles} title="Fila da IA" subtitle="Teste uma resposta sem enviar ao cliente. Ao assumir manualmente no WhatsApp, a IA pausa aquela conversa."/>
-      <div className="finance-table-wrapper"><table className="finance-table"><thead><tr><th>Lead</th><th>Conta</th><th>Score</th><th>Proposta?</th><th>Etapa</th><th>IA</th><th>Ações</th></tr></thead><tbody>
-        {loading?<tr><td colSpan="7" className="finance-empty-cell">Carregando...</td></tr>:conversations.length===0?<tr><td colSpan="7" className="finance-empty-cell">Nenhuma conversa encontrada.</td></tr>:conversations.map((row)=><tr key={row.id}>
+      <SectionTitle icon={Sparkles} title="Fila da IA" subtitle="Teste uma resposta sem enviar ao cliente. A coluna Diagnóstico mostra a resposta gerada ou o erro real do backend."/>
+      <div className="finance-table-wrapper"><table className="finance-table"><thead><tr><th>Lead</th><th>Conta</th><th>Score</th><th>Lead solar?</th><th>Proposta?</th><th>Etapa</th><th>Diagnóstico</th><th>Ações</th></tr></thead><tbody>
+        {loading?<tr><td colSpan="8" className="finance-empty-cell">Carregando...</td></tr>:conversations.length===0?<tr><td colSpan="8" className="finance-empty-cell">Nenhuma conversa encontrada.</td></tr>:conversations.map((row)=><tr key={row.id}>
           <td><strong>{row.contact_name || row.phone}</strong><small>{row.city || 'Cidade não informada'}</small></td>
           <td>{row.estimated_monthly_bill?money(row.estimated_monthly_bill):'-'}</td>
           <td><strong style={{display:'flex',alignItems:'center',gap:5}}>{row.ai_score>=Number(settings.min_hot_score||70)&&<Flame size={15}/>} {row.ai_score||0}</strong></td>
+          <td>{row.ai_is_solar_lead===true?'Sim':row.ai_is_solar_lead===false?'Não':'-'}</td>
           <td>{row.has_existing_proposal===true?'Sim':row.has_existing_proposal===false?'Não':'-'}</td>
           <td>{row.ai_handoff?<span className="finance-badge recebida"><UserRoundCheck size={13}/> Assumir</span>:row.lead_stage||'Novo'}</td>
-          <td>{row.ai_handoff?'Humano':row.ai_paused||!row.ai_enabled?'Pausada':'Disponível'}</td>
+          <td style={{minWidth:260,maxWidth:420,whiteSpace:'normal'}}><small style={{display:'block',color:row.ai_last_error?'#b91c1c':'inherit'}}>{diagnosticText(row)}</small>{row.ai_last_attempt_at && <small style={{display:'block',marginTop:4,opacity:.65}}>Última tentativa: {new Date(row.ai_last_attempt_at).toLocaleString('pt-BR')}</small>}</td>
           <td><div className="finance-row-actions"><button className="finance-secondary-button" type="button" disabled={testingId===row.id} onClick={()=>testAI(row)}>{testingId===row.id?'Testando...':'Testar IA'}</button><button className="finance-secondary-button" type="button" onClick={()=>toggleConversation(row)}>{row.ai_paused?'Retomar':'Pausar'}</button></div></td>
         </tr>)}
       </tbody></table></div>
