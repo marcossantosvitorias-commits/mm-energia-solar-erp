@@ -4,7 +4,7 @@ import {
   LayoutDashboard, LayoutPanelTop, WalletCards, Calculator, SunMedium,
   BadgeDollarSign, FileSpreadsheet, FileSignature, FileText, PackageSearch, Scale,
   UserRound, UsersRound, CalendarDays, DatabaseBackup, PlugZap, RadioTower,
-  ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog, MessageCircle,
+  ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog, MessageCircle, Bot,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { accessKeyForPath } from '../../config/accessControl.js';
@@ -26,6 +26,7 @@ const dashboardItem = {
 const menuSections = [
   { title: 'Comercial', items: [
     { to: '/app/leads', label: 'Leads / Pipeline', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/pre-vendas-ia', label: 'Pré-vendas IA', icon: Bot, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/fluxos', label: 'Fluxos e Kanbans', icon: LayoutPanelTop, roles: ['admin', 'financeiro', 'engenharia'] },
     { to: '/app/clientes', label: 'Clientes e leads', icon: UsersRound, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/whatsapp', label: 'WhatsApp / Pendências', icon: MessageCircle, roles: ['admin', 'financeiro', 'comercial'] },
