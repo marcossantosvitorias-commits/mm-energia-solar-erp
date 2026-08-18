@@ -42,6 +42,14 @@ function loadLogoAsPng(src, maxWidth = 360, maxHeight = 240) {
   });
 }
 
+function dataUrlToBytes(dataUrl) {
+  const base64 = String(dataUrl || '').split(',')[1] || '';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 function addPng(doc, image, x, y, width, height) {
   if (!image) return;
   doc.addImage(image, 'PNG', x, y, width, height, undefined, 'FAST');
@@ -49,7 +57,8 @@ function addPng(doc, image, x, y, width, height) {
 
 function addJpeg(doc, image, x, y, width, height) {
   if (!image) return;
-  doc.addImage(image, 'JPEG', x, y, width, height, undefined, 'FAST');
+  const bytes = dataUrlToBytes(image);
+  doc.addImage(bytes, 'JPEG', x, y, width, height, undefined, 'NONE');
 }
 
 function drawHeader(doc, logo, subtitle, price) {
@@ -133,8 +142,6 @@ export default function HybridPresetProposal() {
       const gold = [245, 188, 15];
       const gray = [92, 105, 120];
 
-      // O logo vem do public. As fotos do painel e inversor já estão embutidas como JPEG
-      // no bundle da ERP e são entregues diretamente ao jsPDF, sem Image()/canvas no Android.
       const logo = await loadLogoAsPng(assetUrl('logo-mm.png')).catch(() => null);
 
       drawHeader(doc, logo, 'Sistema Fotovoltaico Híbrido', KIT.cashPrice);
