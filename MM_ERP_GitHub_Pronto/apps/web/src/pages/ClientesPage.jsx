@@ -7,10 +7,7 @@ import {
   listClients,
   updateClient,
 } from '../services/clientService.js';
-import {
-  clearReminderNotificationMarker,
-  requestReminderNotifications,
-} from '../services/reminderService.js';
+import { requestErpNotificationPermission } from '../services/notificationService.js';
 
 const emptyForm = {
   name: '',
@@ -107,7 +104,6 @@ export default function ClientesPage() {
       };
 
       if (editingId) {
-        clearReminderNotificationMarker(editingId);
         await updateClient(editingId, payload);
         setMessage(form.nextContactAt ? 'Cliente atualizado e lembrete agendado.' : 'Cliente atualizado com sucesso.');
       } else {
@@ -145,7 +141,6 @@ export default function ClientesPage() {
 
     try {
       await deleteClient(client.id);
-      clearReminderNotificationMarker(client.id);
       setMessage('Cliente excluído.');
       await load();
     } catch (error) {
@@ -156,7 +151,6 @@ export default function ClientesPage() {
   const handleCompleteReminder = async (client) => {
     try {
       await updateClient(client.id, { ...client, reminderDone: true });
-      clearReminderNotificationMarker(client.id);
       setMessage(`Retorno de ${client.name} marcado como concluído.`);
       window.dispatchEvent(new Event('mm-erp-reminders-changed'));
       await load();
@@ -166,9 +160,13 @@ export default function ClientesPage() {
   };
 
   const handleEnableNotifications = async () => {
-    const result = await requestReminderNotifications();
-    setMessage(result.message);
-    if (result.ok) window.dispatchEvent(new Event('mm-erp-reminders-changed'));
+    try {
+      const result = await requestErpNotificationPermission();
+      setMessage(result.message);
+      if (result.ok) window.dispatchEvent(new Event('mm-erp-reminders-changed'));
+    } catch (error) {
+      setMessage(error?.message || 'Não foi possível ativar as notificações neste celular.');
+    }
   };
 
   return (
