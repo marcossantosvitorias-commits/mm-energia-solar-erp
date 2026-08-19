@@ -91,6 +91,29 @@ async function buildAlerts(now: Date): Promise<Alert[]> {
     });
   }
 
+  const reminderStart = new Date(now.getTime() - 7 * 86400000).toISOString();
+  const { data: clients, error: clientsError } = await supabase
+    .from('clients')
+    .select('id, name, phone, next_contact_at, reminder_note, reminder_done')
+    .eq('reminder_done', false)
+    .not('next_contact_at', 'is', null)
+    .gte('next_contact_at', reminderStart)
+    .lte('next_contact_at', now.toISOString());
+  if (clientsError) throw clientsError;
+
+  for (const item of clients || []) {
+    const reminderAt = new Date(item.next_contact_at);
+    if (Number.isNaN(reminderAt.getTime())) continue;
+    alerts.push({
+      key: `client-${item.id}-${reminderAt.toISOString()}`,
+      type: 'client_follow_up',
+      referenceId: item.id,
+      title: `Retorno de cliente — ${item.name}`,
+      body: item.reminder_note || `Entrar em contato com ${item.name}${item.phone ? ` — ${item.phone}` : ''}.`,
+      url: '/app/clientes',
+    });
+  }
+
   return alerts;
 }
 
