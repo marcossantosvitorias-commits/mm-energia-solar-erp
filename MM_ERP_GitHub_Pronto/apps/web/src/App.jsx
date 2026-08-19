@@ -7,7 +7,6 @@ import {
 } from 'react-router-dom';
 
 import ScrollToTop from './components/ScrollToTop';
-import ReminderNotifier from './components/ReminderNotifier.jsx';
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 
@@ -35,7 +34,6 @@ function App() {
     <AuthProvider>
       <Router>
         <ScrollToTop />
-        <ReminderNotifier />
 
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
