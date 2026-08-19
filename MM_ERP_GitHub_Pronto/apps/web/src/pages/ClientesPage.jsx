@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
+import { Bell, CheckCircle2, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import {
   createClient,
@@ -7,6 +7,10 @@ import {
   listClients,
   updateClient,
 } from '../services/clientService.js';
+import {
+  clearReminderNotificationMarker,
+  requestReminderNotifications,
+} from '../services/reminderService.js';
 
 const emptyForm = {
   name: '',
@@ -19,7 +23,25 @@ const emptyForm = {
   status: 'lead',
   monthlyBill: '',
   notes: '',
+  nextContactAt: '',
+  reminderNote: '',
+  reminderDone: false,
 };
+
+function toDateTimeLocal(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatReminder(value) {
+  if (!value) return 'Sem retorno agendado';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Sem retorno agendado';
+  return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
 
 export default function ClientesPage() {
   const [clients, setClients] = useState([]);
@@ -80,16 +102,20 @@ export default function ClientesPage() {
       const payload = {
         ...form,
         monthlyBill: Number(form.monthlyBill || 0),
+        nextContactAt: form.nextContactAt ? new Date(form.nextContactAt).toISOString() : null,
+        reminderDone: form.nextContactAt ? false : Boolean(form.reminderDone),
       };
 
       if (editingId) {
+        clearReminderNotificationMarker(editingId);
         await updateClient(editingId, payload);
-        setMessage('Cliente atualizado com sucesso.');
+        setMessage(form.nextContactAt ? 'Cliente atualizado e lembrete agendado.' : 'Cliente atualizado com sucesso.');
       } else {
         await createClient(payload);
-        setMessage('Cliente cadastrado com sucesso.');
+        setMessage(form.nextContactAt ? 'Cliente cadastrado e lembrete agendado.' : 'Cliente cadastrado com sucesso.');
       }
 
+      window.dispatchEvent(new Event('mm-erp-reminders-changed'));
       resetForm();
       await load();
     } catch (error) {
@@ -99,13 +125,17 @@ export default function ClientesPage() {
     }
   };
 
-  const handleEdit = (client) => {
+  const handleEdit = (client, reminderOnly = false) => {
     setEditingId(client.id);
     setForm({
       ...emptyForm,
       ...client,
       monthlyBill: client.monthlyBill || '',
+      nextContactAt: toDateTimeLocal(client.nextContactAt),
+      reminderNote: client.reminderNote || '',
+      reminderDone: Boolean(client.reminderDone),
     });
+    setMessage(reminderOnly ? 'Escolha a data e hora do próximo contato e clique em “Salvar e me lembrar”.' : '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -115,6 +145,7 @@ export default function ClientesPage() {
 
     try {
       await deleteClient(client.id);
+      clearReminderNotificationMarker(client.id);
       setMessage('Cliente excluído.');
       await load();
     } catch (error) {
@@ -122,18 +153,42 @@ export default function ClientesPage() {
     }
   };
 
+  const handleCompleteReminder = async (client) => {
+    try {
+      await updateClient(client.id, { ...client, reminderDone: true });
+      clearReminderNotificationMarker(client.id);
+      setMessage(`Retorno de ${client.name} marcado como concluído.`);
+      window.dispatchEvent(new Event('mm-erp-reminders-changed'));
+      await load();
+    } catch (error) {
+      setMessage(error?.message || 'Não foi possível concluir o lembrete.');
+    }
+  };
+
+  const handleEnableNotifications = async () => {
+    const result = await requestReminderNotifications();
+    setMessage(result.message);
+    if (result.ok) window.dispatchEvent(new Event('mm-erp-reminders-changed'));
+  };
+
   return (
     <FinanceLayout
       title="Clientes e leads"
-      subtitle="Cadastre contatos, acompanhe oportunidades e mantenha o histórico comercial organizado."
+      subtitle="Cadastre contatos, acompanhe oportunidades e programe retornos para não perder vendas."
     >
       <section className="finance-panel">
         <div className="finance-panel-header">
           <div>
             <h2>{editingId ? 'Editar cliente' : 'Novo cliente'}</h2>
-            <p>Os dados ficam no PocketBase quando configurado e, provisoriamente, no navegador.</p>
+            <p>Cadastre o próximo contato para a ERP lembrar você na hora certa.</p>
           </div>
           <Plus size={22} />
+        </div>
+
+        <div className="finance-actions" style={{ marginBottom: 18 }}>
+          <button type="button" className="finance-secondary-button" onClick={handleEnableNotifications}>
+            <Bell size={16} /> Ativar notificações no celular
+          </button>
         </div>
 
         <form className="finance-form" onSubmit={handleSubmit}>
@@ -194,6 +249,16 @@ export default function ClientesPage() {
             <input type="number" min="0" step="0.01" name="monthlyBill" value={form.monthlyBill} onChange={handleChange} placeholder="0,00" />
           </label>
 
+          <label className="finance-field">
+            <span>Próximo contato</span>
+            <input type="datetime-local" name="nextContactAt" value={form.nextContactAt} onChange={handleChange} />
+          </label>
+
+          <label className="finance-field finance-field-wide">
+            <span>O que devo lembrar?</span>
+            <input name="reminderNote" value={form.reminderNote} onChange={handleChange} placeholder="Ex.: apresentar proposta de energia solar" />
+          </label>
+
           <label className="finance-field finance-field-wide">
             <span>Observações</span>
             <textarea name="notes" value={form.notes} onChange={handleChange} placeholder="Informações importantes sobre o contato" />
@@ -204,7 +269,7 @@ export default function ClientesPage() {
               <button type="button" className="finance-secondary-button" onClick={resetForm}>Cancelar edição</button>
             ) : null}
             <button className="finance-button" type="submit" disabled={saving}>
-              {saving ? 'Salvando...' : editingId ? 'Atualizar cliente' : 'Cadastrar cliente'}
+              {saving ? 'Salvando...' : form.nextContactAt ? 'Salvar e me lembrar' : editingId ? 'Atualizar cliente' : 'Cadastrar cliente'}
             </button>
           </div>
         </form>
@@ -231,9 +296,9 @@ export default function ClientesPage() {
                 <th>Cliente</th>
                 <th>Contato</th>
                 <th>Local</th>
-                <th>Perfil</th>
                 <th>Etapa</th>
                 <th>Conta média</th>
+                <th>Próximo retorno</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -242,22 +307,32 @@ export default function ClientesPage() {
                 <tr><td className="finance-empty-cell" colSpan="7">Carregando clientes...</td></tr>
               ) : filteredClients.length === 0 ? (
                 <tr><td className="finance-empty-cell" colSpan="7">Nenhum cliente encontrado.</td></tr>
-              ) : filteredClients.map((client) => (
-                <tr key={client.id}>
-                  <td><strong className="crm-client-name"><UserRound size={16} /> {client.name}</strong><small>{client.document || 'Sem documento'}</small></td>
-                  <td>{client.phone}<small>{client.email || 'Sem e-mail'}</small></td>
-                  <td>{client.city || '-'} / {client.state || '-'}</td>
-                  <td>{client.customerType || 'residencial'}</td>
-                  <td><span className={`finance-badge ${client.status === 'cliente' ? 'recebida' : 'pendente'}`}>{client.status || 'lead'}</span></td>
-                  <td>{Number(client.monthlyBill || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                  <td>
-                    <div className="finance-row-actions">
-                      <button className="finance-secondary-button" onClick={() => handleEdit(client)} aria-label="Editar cliente"><Pencil size={15} /></button>
-                      <button className="finance-delete" onClick={() => handleDelete(client)} aria-label="Excluir cliente"><Trash2 size={15} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              ) : filteredClients.map((client) => {
+                const overdue = client.nextContactAt && !client.reminderDone && new Date(client.nextContactAt).getTime() <= Date.now();
+                return (
+                  <tr key={client.id}>
+                    <td><strong className="crm-client-name"><UserRound size={16} /> {client.name}</strong><small>{client.document || 'Sem documento'}</small></td>
+                    <td>{client.phone}<small>{client.email || 'Sem e-mail'}</small></td>
+                    <td>{client.city || '-'} / {client.state || '-'}</td>
+                    <td><span className={`finance-badge ${client.status === 'cliente' ? 'recebida' : 'pendente'}`}>{client.status || 'lead'}</span></td>
+                    <td>{Number(client.monthlyBill || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td>
+                      <strong>{formatReminder(client.nextContactAt)}</strong>
+                      {client.reminderDone ? <small>Concluído</small> : overdue ? <small style={{ color: '#b91c1c' }}>Retorno pendente</small> : <small>{client.reminderNote || ''}</small>}
+                    </td>
+                    <td>
+                      <div className="finance-row-actions">
+                        <button className="finance-secondary-button" onClick={() => handleEdit(client, true)} aria-label="Me lembrar"><Bell size={15} /></button>
+                        {client.nextContactAt && !client.reminderDone ? (
+                          <button className="finance-secondary-button" onClick={() => handleCompleteReminder(client)} aria-label="Concluir lembrete"><CheckCircle2 size={15} /></button>
+                        ) : null}
+                        <button className="finance-secondary-button" onClick={() => handleEdit(client)} aria-label="Editar cliente"><Pencil size={15} /></button>
+                        <button className="finance-delete" onClick={() => handleDelete(client)} aria-label="Excluir cliente"><Trash2 size={15} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
