@@ -16,6 +16,9 @@ const CLIENTE_OSVALDO = {
   status: 'cliente',
   monthlyBill: 0,
   notes: 'Cliente com contrato solar assinado em 20/07/2026. Instalação prevista para a primeira ou segunda semana de agosto de 2026.',
+  nextContactAt: null,
+  reminderNote: '',
+  reminderDone: false,
   created: '2026-07-20T08:26:00-03:00',
   updated: new Date().toISOString(),
 };
@@ -46,6 +49,9 @@ function fromDatabase(client) {
     zipCode: client.zip_code || '',
     customerType: client.customer_type,
     monthlyBill: Number(client.monthly_bill || 0),
+    nextContactAt: client.next_contact_at || null,
+    reminderNote: client.reminder_note || '',
+    reminderDone: Boolean(client.reminder_done),
     created: client.created_at,
     updated: client.updated_at,
   };
@@ -65,6 +71,9 @@ function toDatabase(data) {
     status: data.status || 'lead',
     monthly_bill: Number(data.monthlyBill || 0),
     notes: data.notes || null,
+    next_contact_at: data.nextContactAt || null,
+    reminder_note: data.reminderNote || null,
+    reminder_done: Boolean(data.reminderDone),
   };
 }
 
