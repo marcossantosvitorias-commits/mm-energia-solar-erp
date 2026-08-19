@@ -3,6 +3,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:mmenergiasolar@hotmail.com';
@@ -119,7 +120,13 @@ async function buildAlerts(now: Date): Promise<Alert[]> {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok');
-  if (cronSecret && request.headers.get('x-cron-secret') !== cronSecret) {
+
+  const cronHeader = request.headers.get('x-cron-secret') || '';
+  const authorization = request.headers.get('authorization') || '';
+  const bearer = authorization.replace(/^Bearer\s+/i, '');
+  const authorizedByCronSecret = Boolean(cronSecret) && cronHeader === cronSecret;
+  const authorizedBySupabaseCron = Boolean(anonKey) && bearer === anonKey;
+  if (!authorizedByCronSecret && !authorizedBySupabaseCron) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
