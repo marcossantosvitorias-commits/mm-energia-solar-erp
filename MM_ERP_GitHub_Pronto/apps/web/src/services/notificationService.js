@@ -2,6 +2,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const AGENDA_KEY = 'mm-erp-agendamentos-v1';
 const PAYABLES_KEY = 'mm-erp-contas-pagar-v2';
+const CLIENTS_KEY = 'mm-erp-clients';
 const SENT_KEY = 'mm-erp-notificacoes-enviadas-v1';
 
 function readJson(key, fallback) {
@@ -51,6 +52,27 @@ function sentRegistry() {
   const registry = readJson(SENT_KEY, {});
   const limit = Date.now() - (14 * 86400000);
   return Object.fromEntries(Object.entries(registry).filter(([, timestamp]) => Number(timestamp) >= limit));
+}
+
+async function loadClientReminders() {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, name, phone, next_contact_at, reminder_note, reminder_done')
+      .eq('reminder_done', false)
+      .not('next_contact_at', 'is', null);
+    if (error) throw error;
+    return (data || []).map((client) => ({
+      id: client.id,
+      name: client.name,
+      phone: client.phone,
+      nextContactAt: client.next_contact_at,
+      reminderNote: client.reminder_note,
+      reminderDone: client.reminder_done,
+    }));
+  }
+
+  return readJson(CLIENTS_KEY, []).filter((client) => client.nextContactAt && !client.reminderDone);
 }
 
 export async function registerPushSubscription() {
@@ -142,6 +164,20 @@ export async function checkErpReminders() {
       sent[tag] = Date.now(); changed = true;
     }
   }
+
+  const clients = await loadClientReminders();
+  for (const client of clients) {
+    if (!client.nextContactAt || client.reminderDone) continue;
+    const dueAt = new Date(client.nextContactAt);
+    if (Number.isNaN(dueAt.getTime()) || dueAt.getTime() > now.getTime()) continue;
+    const tag = `cliente-${client.id}-${dueAt.toISOString()}`;
+    if (sent[tag]) continue;
+    const body = client.reminderNote || `Entrar em contato com ${client.name}${client.phone ? ` — ${client.phone}` : ''}.`;
+    if (await show(`Retorno de cliente — ${client.name}`, body, tag, '/app/clientes')) {
+      sent[tag] = Date.now(); changed = true;
+    }
+  }
+
   if (changed) writeJson(SENT_KEY, sent);
 }
 
