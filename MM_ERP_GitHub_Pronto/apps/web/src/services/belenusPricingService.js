@@ -55,6 +55,24 @@ const KIT_12_PLACAS_MICRO = {
   kitComercial: true,
 };
 
+const KIT_20_PLACAS_MICRO = {
+  id: 'WEB-006590407',
+  placas: 20,
+  potencia: 12.4,
+  modulo: 'Modulo Bifacial 132 Cel N Type 620W Frame Fibra De Vidro Cabo 1.2m Gokin - MFGF-1.2-BF-132-620W',
+  inversores: 5,
+  inversor: 'Microinversor Growatt monofásico 4 MPPT 220 V 2,25 kW - MINVGR-MO-220-2.25KW',
+  produtos: 17457.51,
+  frete: 707.25,
+  total: 18164.76,
+  precoAvista: 0,
+  estrutura: 'Telha colonial - alumínio Belenergy com ajuste vertical, 2 linhas de 10 módulos em retrato',
+  emissao: '2026-08-20',
+  validade: '2026-08-23',
+  status: 'Ativo',
+  kitComercial: true,
+};
+
 function ensureDatabase() {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('O Supabase não está configurado nesta publicação.');
@@ -91,9 +109,11 @@ async function listQuotes() {
 
   const quotes = (data || [])
     .map(mapQuote)
-    .filter((item) => item.placas !== 7 && item.id !== KIT_12_PLACAS_MICRO.id);
+    .filter((item) => item.placas !== 7
+      && item.id !== KIT_12_PLACAS_MICRO.id
+      && item.id !== KIT_20_PLACAS_MICRO.id);
 
-  return [...quotes, KIT_7_PLACAS, KIT_12_PLACAS_MICRO]
+  return [...quotes, KIT_7_PLACAS, KIT_12_PLACAS_MICRO, KIT_20_PLACAS_MICRO]
     .sort((a, b) => effectiveQuotePrice(a) - effectiveQuotePrice(b) || a.placas - b.placas);
 }
 
