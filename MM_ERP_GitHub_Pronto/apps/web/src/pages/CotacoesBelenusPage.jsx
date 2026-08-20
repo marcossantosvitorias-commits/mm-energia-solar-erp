@@ -12,6 +12,7 @@ const cotacoes = [
   { id: 'WEB-006409022', placas: 10, potencia: 6.2, modulo: 'JA Solar bifacial N-Type 620 W', inversores: 3, inversor: 'Microinversor Deye 2,25 kW 220 V', produtos: 9949.81, frete: 619.04, total: 10568.85, estrutura: 'Telha colonial - alumínio Belenergy', emissao: '24/07/2026' },
   { id: 'WEB-006414746', placas: 12, potencia: 7.44, modulo: 'TCL Solar bifacial N-Type 620 W', inversores: 3, inversor: 'Microinversor Deye 2,25 kW 220 V', produtos: 10810.97, frete: 660.38, total: 11471.35, estrutura: 'Telha colonial - alumínio Belenergy com ajuste vertical', emissao: '26/07/2026' },
   { id: 'WEB-006409070', placas: 16, potencia: 9.92, modulo: 'JA Solar bifacial N-Type 620 W', inversores: 4, inversor: 'Microinversor Deye 2,25 kW 220 V', produtos: 14964.06, frete: 707.25, total: 15671.31, estrutura: 'Telha colonial - alumínio Belenergy', emissao: '24/07/2026' },
+  { id: 'WEB-006590407', placas: 20, potencia: 12.4, modulo: 'Gokin bifacial N-Type 620 W - MFGF-1.2-BF-132-620W', inversores: 5, inversor: 'Microinversor Growatt 2,25 kW 220 V 4 MPPT - MINVGR-MO-220-2.25KW', produtos: 17457.51, frete: 707.25, total: 18164.76, estrutura: 'Telha colonial - alumínio Belenergy com ajuste vertical', emissao: '20/08/2026' },
 ];
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
