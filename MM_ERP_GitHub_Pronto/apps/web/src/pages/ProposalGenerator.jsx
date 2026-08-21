@@ -39,15 +39,34 @@ const separarCidadeUf = (cidadeUf = '') => {
   return { city: String(cidadeUf || '').trim() || null, state: null };
 };
 
-export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw }) {
-  const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadePlacas) || 620;
+export default function ProposalGenerator({
+  quantidadePlacas,
+  precoRecomendado,
+  modulo,
+  inversor,
+  potenciaSistemaKw,
+  tipoSistema = 'on-grid',
+  nomeKit = '',
+  potenciaInversorKw = 0,
+  quantidadeBaterias = 0,
+  capacidadeBateriaKwh = 0,
+  precoMinimo = 0,
+  equipamentosAdicionais = [],
+  retrofitDados = null,
+}) {
+  const quantidadeSegura = Math.max(Number(quantidadePlacas || 0), 1);
+  const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadeSegura) || 620;
+  const isHibrido = tipoSistema === 'hibrido' || tipoSistema === 'retrofit';
   const [dados, setDados] = useState({
     cliente: '', cidade: 'Bauru/SP', telefone: '', potenciaPlaca: potenciaInicial,
     marcaPlaca: modulo || 'TCL Solar bifacial N-Type 620 W',
     inversor: inversor || 'Microinversor Deye 2,25 kW 220 V',
-    geracaoMensal: Math.round(calcularGeracaoPorPainel(potenciaInicial) * quantidadePlacas),
+    geracaoMensal: Math.round(calcularGeracaoPorPainel(potenciaInicial) * Number(quantidadePlacas || 0)),
     valorProposta: Number(precoRecomendado || 0).toFixed(2), validade: 7,
-    observacoes: 'Projeto executivo, instalação, homologação junto à concessionária, estrutura, proteções elétricas e pós-venda inclusos.',
+    observacoes: isHibrido
+      ? 'A autonomia depende das cargas utilizadas. O dimensionamento definitivo depende do levantamento das cargas que o cliente deseja manter funcionando durante uma falta de energia.'
+      : 'Projeto executivo, instalação, homologação junto à concessionária, estrutura, proteções elétricas e pós-venda inclusos.',
+    autonomiaEstimada: isHibrido ? 'A definir após levantamento das cargas prioritárias' : '',
     fotoPainel: DEFAULT_PANEL_IMAGE, fotoInversor: DEFAULT_INVERTER_IMAGE,
   });
   const [historico, setHistorico] = useState([]);
@@ -56,9 +75,9 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const [salvando, setSalvando] = useState(false);
 
   const valor = Number(dados.valorProposta || precoRecomendado || 0);
-  const potenciaSistema = (quantidadePlacas * Number(dados.potenciaPlaca || 0)) / 1000;
+  const potenciaSistema = (Number(quantidadePlacas || 0) * Number(dados.potenciaPlaca || 0)) / 1000;
   const geracaoPorPainel = calcularGeracaoPorPainel(dados.potenciaPlaca);
-  const geracaoCalculada = geracaoPorPainel * quantidadePlacas;
+  const geracaoCalculada = geracaoPorPainel * Number(quantidadePlacas || 0);
   const parcelas = useMemo(() => BELCRED.map((opcao) => ({ ...opcao, valor: valor * opcao.fator })), [valor]);
   const cartao = useMemo(() => TAXAS_CARTAO.map((opcao) => {
     const total = valor / (1 - opcao.taxa / 100);
@@ -84,13 +103,17 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   const atualizar = (event) => {
     const { name, value } = event.target;
     setDados((atual) => name === 'potenciaPlaca'
-      ? { ...atual, potenciaPlaca: value, geracaoMensal: Math.round(calcularGeracaoPorPainel(value) * quantidadePlacas) }
+      ? { ...atual, potenciaPlaca: value, geracaoMensal: Math.round(calcularGeracaoPorPainel(value) * Number(quantidadePlacas || 0)) }
       : { ...atual, [name]: value });
   };
 
   const validarCliente = () => {
     if (!dados.cliente.trim()) { window.alert('Informe o nome do cliente.'); return false; }
     if (somenteNumeros(dados.telefone).length < 10) { window.alert('Informe o WhatsApp do cliente com DDD.'); return false; }
+    if (tipoSistema === 'retrofit' && retrofitDados && (retrofitDados.modulosMantidosMicro + retrofitDados.modulosTransferidosHibrido > retrofitDados.modulosExistentes)) {
+      window.alert('Revise o retrofit: a soma dos módulos mantidos e transferidos é maior que a quantidade de módulos existentes.');
+      return false;
+    }
     return true;
   };
 
@@ -138,6 +161,18 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     return criado.id;
   };
 
+  const dadosHibridos = isHibrido ? {
+    tipoSistema,
+    nomeKit,
+    potenciaInversorKw: Number(potenciaInversorKw || 0),
+    quantidadeBaterias: Number(quantidadeBaterias || 0),
+    capacidadeBateriaKwh: Number(capacidadeBateriaKwh || 0),
+    precoMinimo: Number(precoMinimo || 0),
+    equipamentosAdicionais,
+    retrofitDados,
+    autonomiaEstimada: dados.autonomiaEstimada,
+  } : null;
+
   const payload = (status = 'Gerada', clientId = null) => ({
     client_id: clientId,
     client_name: dados.cliente.trim(), phone: somenteNumeros(dados.telefone), city: dados.cidade || null,
@@ -145,7 +180,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     system_power_kw: potenciaSistema, monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada),
     panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Number(dados.validade || 7),
     notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null,
-    proposal_data: { ...dados, quantidadePlacas, potenciaSistema, cartao, parcelas },
+    proposal_data: { ...dados, quantidadePlacas, potenciaSistema, cartao, parcelas, dadosHibridos },
   });
 
   const salvarProposta = async (status = 'Gerada') => {
@@ -181,16 +216,27 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     const valorPdf = Number(proposta.valorProposta || proposta.total_amount || valor);
     const painel = proposta.marcaPlaca || proposta.panel_model || dados.marcaPlaca;
     const inv = proposta.inversor || proposta.inverter_model || dados.inversor;
-    const qtd = Number(proposta.quantidadePlacas || proposta.panel_count || quantidadePlacas);
+    const qtd = Number(proposta.quantidadePlacas ?? proposta.panel_count ?? quantidadePlacas);
     const potencia = Number(proposta.potenciaPlaca || proposta.panel_power_w || dados.potenciaPlaca);
     const geracao = Number(proposta.geracaoMensal || proposta.monthly_generation_kwh || dados.geracaoMensal);
     const observacoes = proposta.observacoes || proposta.notes || dados.observacoes;
     const validade = proposta.validade || proposta.validity_days || dados.validade;
+    const hibrido = proposta.dadosHibridos || dadosHibridos;
     const janela = window.open('', '_blank');
     if (!janela) { window.alert('Permita a abertura de janelas para gerar o PDF.'); return; }
     const logoUrl = `${window.location.origin}${import.meta.env.BASE_URL}logo-mm.png`;
     const data = new Intl.DateTimeFormat('pt-BR').format(new Date());
-    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Proposta - ${escapeHtml(cliente)}</title><style>*{box-sizing:border-box}body{margin:0;background:#e8edf4;font-family:Arial;color:#172033}.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff}.head{padding:38px 48px;background:linear-gradient(135deg,#08274d,#0d3c70);color:#fff}.head img{display:block;width:150px;height:auto;max-height:120px;object-fit:contain;object-position:left center}.head h1{font-size:31px;margin:28px 0 8px}.gold{color:#f7bd16}.content{padding:36px 48px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{border:1px solid #dce5ef;border-radius:12px;padding:14px}.card small{display:block;color:#667085}.price{margin:20px 0;padding:20px;border-radius:14px;background:#fff7d6;border:1px solid #efd264;font-size:30px;font-weight:800;color:#08274d}.equipment{margin-top:20px;padding:16px;border-left:5px solid #f7bd16;background:#f7f9fc}.footer{padding:25px 48px;background:#08274d;color:#fff}.actions{position:fixed;right:18px;bottom:18px}.actions button{padding:15px 20px;border:0;border-radius:12px;background:#f7bd16;font-weight:800}@media print{body{background:#fff}.page{margin:0}.actions{display:none}@page{size:A4;margin:0}}</style></head><body><main class="page"><section class="head"><img src="${logoUrl}" alt="MM Energia Solar"><h1>Proposta personalizada para <span class="gold">${escapeHtml(cliente)}</span></h1><p>Energia solar completa, instalada e homologada.</p></section><section class="content"><div class="grid"><div class="card"><small>Cliente</small><strong>${escapeHtml(cliente)}</strong></div><div class="card"><small>WhatsApp</small><strong>${escapeHtml(telefone)}</strong></div><div class="card"><small>Cidade</small><strong>${escapeHtml(cidade)}</strong></div><div class="card"><small>Sistema</small><strong>${qtd} painéis • ${(qtd * potencia / 1000).toFixed(2).replace('.', ',')} kWp</strong></div><div class="card"><small>Geração estimada</small><strong>${geracao.toLocaleString('pt-BR')} kWh/mês</strong></div><div class="card"><small>Validade</small><strong>${escapeHtml(validade)} dias</strong></div></div><div class="price">${formatarMoeda(valorPdf)}</div><div class="equipment"><h3>Equipamentos</h3><p><b>Painéis:</b> ${escapeHtml(painel)}</p><p><b>Inversor:</b> ${escapeHtml(inv)}</p><p>${escapeHtml(observacoes)}</p></div></section><footer class="footer">MM Energia Solar • Bauru/SP • Emitida em ${data}</footer></main><div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div></body></html>`);
+    const equipamentosHtml = hibrido?.equipamentosAdicionais?.length
+      ? `<ul>${hibrido.equipamentosAdicionais.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+      : '';
+    const retrofitHtml = hibrido?.tipoSistema === 'retrofit' && hibrido.retrofitDados
+      ? `<div class="equipment"><h3>Configuração do retrofit</h3><p><b>Sistema existente:</b> ${hibrido.retrofitDados.modulosExistentes} módulos e ${hibrido.retrofitDados.microinversoresExistentes} microinversores.</p><p><b>Permanecem nos microinversores:</b> ${hibrido.retrofitDados.modulosMantidosMicro} módulos.</p><p><b>Transferidos para o híbrido:</b> ${hibrido.retrofitDados.modulosTransferidosHibrido} módulos.</p><p><b>Validação:</b> configuração sujeita à validação técnica do projeto.</p></div>`
+      : '';
+    const cardsHibridos = hibrido
+      ? `<div class="card"><small>Inversor híbrido</small><strong>${escapeHtml(hibrido.potenciaInversorKw)} kW</strong></div><div class="card"><small>Bateria</small><strong>${escapeHtml(hibrido.capacidadeBateriaKwh)} kWh • ${escapeHtml(hibrido.quantidadeBaterias)} un.</strong></div><div class="card"><small>Autonomia</small><strong>${escapeHtml(hibrido.autonomiaEstimada || 'Conforme cargas utilizadas')}</strong></div>`
+      : `<div class="card"><small>Geração estimada</small><strong>${geracao.toLocaleString('pt-BR')} kWh/mês</strong></div>`;
+    const sistemaLabel = hibrido?.nomeKit || `${qtd} painéis • ${(qtd * potencia / 1000).toFixed(2).replace('.', ',')} kWp`;
+    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Proposta - ${escapeHtml(cliente)}</title><style>*{box-sizing:border-box}body{margin:0;background:#e8edf4;font-family:Arial;color:#172033}.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff}.head{padding:38px 48px;background:linear-gradient(135deg,#08274d,#0d3c70);color:#fff}.head img{display:block;width:150px;height:auto;max-height:120px;object-fit:contain;object-position:left center}.head h1{font-size:31px;margin:28px 0 8px}.gold{color:#f7bd16}.content{padding:36px 48px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{border:1px solid #dce5ef;border-radius:12px;padding:14px}.card small{display:block;color:#667085;margin-bottom:5px}.price{margin:20px 0;padding:20px;border-radius:14px;background:#fff7d6;border:1px solid #efd264;font-size:30px;font-weight:800;color:#08274d}.equipment{margin-top:20px;padding:16px;border-left:5px solid #f7bd16;background:#f7f9fc}.equipment li{margin:6px 0}.notice{margin-top:16px;padding:14px;border:1px solid #f1c75b;background:#fff9e8;border-radius:10px}.footer{padding:25px 48px;background:#08274d;color:#fff}.actions{position:fixed;right:18px;bottom:18px}.actions button{padding:15px 20px;border:0;border-radius:12px;background:#f7bd16;font-weight:800}@media print{body{background:#fff}.page{margin:0}.actions{display:none}@page{size:A4;margin:0}}</style></head><body><main class="page"><section class="head"><img src="${logoUrl}" alt="MM Energia Solar"><h1>Proposta personalizada para <span class="gold">${escapeHtml(cliente)}</span></h1><p>${hibrido ? 'Energia solar híbrida com armazenamento e backup.' : 'Energia solar completa, instalada e homologada.'}</p></section><section class="content"><div class="grid"><div class="card"><small>Cliente</small><strong>${escapeHtml(cliente)}</strong></div><div class="card"><small>WhatsApp</small><strong>${escapeHtml(telefone)}</strong></div><div class="card"><small>Cidade</small><strong>${escapeHtml(cidade)}</strong></div><div class="card"><small>Sistema</small><strong>${escapeHtml(sistemaLabel)}</strong></div>${cardsHibridos}<div class="card"><small>Validade</small><strong>${escapeHtml(validade)} dias</strong></div></div><div class="price">${formatarMoeda(valorPdf)}</div><div class="equipment"><h3>Equipamentos incluídos</h3><p><b>Painéis:</b> ${escapeHtml(painel)}</p><p><b>Inversor:</b> ${escapeHtml(inv)}</p>${equipamentosHtml}</div>${retrofitHtml}${hibrido ? `<div class="notice"><b>Autonomia:</b> ${escapeHtml(hibrido.autonomiaEstimada || 'depende das cargas utilizadas')}<br><br>O dimensionamento definitivo depende do levantamento das cargas que o cliente deseja manter funcionando durante uma falta de energia. A autonomia real varia conforme potência e tempo de uso dos equipamentos conectados.</div>` : ''}<div class="equipment"><p>${escapeHtml(observacoes)}</p></div></section><footer class="footer">MM Energia Solar • Bauru/SP • Emitida em ${data}</footer></main><div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div></body></html>`);
     janela.document.close();
   };
 
@@ -225,6 +271,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
 
   return <section className="finance-panel">
     <div className="finance-panel-header"><div><h2>Gerador de proposta para o cliente</h2><p>Preencha os dados. Ao gerar ou enviar, o cliente e a proposta são registrados no Supabase.</p></div></div>
+    {isHibrido && <div className="tax-warning"><strong>{nomeKit || 'Sistema híbrido'}</strong> • Inversor {potenciaInversorKw} kW • {quantidadeBaterias} bateria(s) • {capacidadeBateriaKwh} kWh de armazenamento. Autonomia final depende das cargas escolhidas pelo cliente.</div>}
     <div className="finance-form">
       <label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar} placeholder="Nome completo" /></label>
       <label className="finance-field"><span>WhatsApp do cliente *</span><input name="telefone" value={dados.telefone} onChange={atualizar} placeholder="(14) 99999-9999" inputMode="tel" /></label>
@@ -232,14 +279,17 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
       <label className="finance-field"><span>Potência de cada painel (W)</span><input type="number" name="potenciaPlaca" value={dados.potenciaPlaca} onChange={atualizar} /></label>
       <label className="finance-field"><span>Marca/modelo dos painéis</span><input name="marcaPlaca" value={dados.marcaPlaca} onChange={atualizar} /></label>
       <label className="finance-field"><span>Inversor ou microinversor</span><input name="inversor" value={dados.inversor} onChange={atualizar} /></label>
-      <label className="finance-field"><span>Geração estimada (kWh/mês)</span><input type="number" name="geracaoMensal" value={dados.geracaoMensal} onChange={atualizar} /></label>
+      {!isHibrido && <label className="finance-field"><span>Geração estimada (kWh/mês)</span><input type="number" name="geracaoMensal" value={dados.geracaoMensal} onChange={atualizar} /></label>}
+      {isHibrido && <label className="finance-field"><span>Estimativa de autonomia</span><input name="autonomiaEstimada" value={dados.autonomiaEstimada} onChange={atualizar} placeholder="Ex.: 5 h com cargas essenciais" /></label>}
       <label className="finance-field"><span>Valor final da proposta</span><input type="number" step="0.01" name="valorProposta" value={dados.valorProposta} onChange={atualizar} /></label>
       <label className="finance-field"><span>Validade da proposta (dias)</span><input type="number" name="validade" value={dados.validade} onChange={atualizar} /></label>
       <label className="finance-field"><span>Foto do painel (URL)</span><input name="fotoPainel" value={dados.fotoPainel} onChange={atualizar} /></label>
       <label className="finance-field"><span>Foto do inversor/microinversor (URL)</span><input name="fotoInversor" value={dados.fotoInversor} onChange={atualizar} /></label>
       <label className="finance-field"><span>Itens e observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar} rows="3" /></label>
     </div>
-    <div className="pricing-highlight"><span>Geração estimada</span><strong>{Math.round(geracaoCalculada).toLocaleString('pt-BR')} kWh/mês</strong></div>
+    {!isHibrido && <div className="pricing-highlight"><span>Geração estimada</span><strong>{Math.round(geracaoCalculada).toLocaleString('pt-BR')} kWh/mês</strong></div>}
+    {isHibrido && <div className="pricing-highlight"><span>Capacidade total das baterias</span><strong>{capacidadeBateriaKwh} kWh</strong></div>}
+    {isHibrido && Number(precoMinimo || 0) > 0 && <div className="pricing-highlight"><span>Preço mínimo comercial de referência</span><strong>{formatarMoeda(Number(precoMinimo))}</strong></div>}
     <div className="pricing-highlight"><span><CreditCard size={17} /> Cartão em 12x com taxa de 11,69%</span><strong>12x de {formatarMoeda(exemplo12?.valorParcela || 0)} • total {formatarMoeda(exemplo12?.total || 0)}</strong></div>
     <div className="pricing-highlight"><span>BelCred: exemplo em 96x</span><strong>{formatarMoeda(parcelas.find((item) => item.parcelas === 96)?.valor || 0)}</strong></div>
     {mensagem && <p style={{ padding: 12, borderRadius: 12, background: '#f1f6fb' }}>{mensagem}</p>}
