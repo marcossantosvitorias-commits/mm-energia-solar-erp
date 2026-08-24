@@ -12,6 +12,7 @@ import './CotacoesBelenusPage.css';
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const numero = (valor) => Number(valor || 0);
 const porcentagem = (valor) => numero(valor) / 100;
+const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);
 
 const FORM_PADRAO = {
   materialEletrico: 350,
@@ -57,8 +58,9 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
           cardFeeService.list('My Gateway'),
         ]);
         if (!ativo) return;
-        setCotacoes(quotes || []);
-        setCotacaoId(settings?.cotacaoId || quotes?.[0]?.id || '');
+        const ordenadas = [...(quotes || [])].sort((a, b) => numero(a.placas) - numero(b.placas));
+        setCotacoes(ordenadas);
+        setCotacaoId(settings?.cotacaoId || ordenadas?.[0]?.id || '');
         setForm({ ...FORM_PADRAO, ...(settings?.form || {}) });
         setCardFees(fees || []);
         if (!(fees || []).some((item) => item.installments === 12)) {
@@ -165,6 +167,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   };
 
   const selecionarCotacao = (id) => {
+    if (!id) return;
     setCotacaoId(id);
     setFormaPagamento('avista');
   };
@@ -191,17 +194,25 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
 
           {!carregando && cotacao && resultado && <>
             <section className="belenus-quotes">
-              {cotacoes.map((item) => (
-                <button type="button" key={item.id} className={cotacaoId === item.id ? 'active' : ''} onClick={() => selecionarCotacao(item.id)}>
-                  <div className="belenus-quote-top">
-                    <span>{item.placas} placas</span>
-                    <small>{numero(item.potencia).toFixed(2).replace('.', ',')} kWp</small>
-                  </div>
-                  <strong>{moeda.format(numero(item.precoAvista) || numero(item.total))}</strong>
-                  <small>{item.precoAvista ? 'Preço total à vista' : 'Equipamentos + frete'}</small>
-                  <b>{item.id}</b>
-                </button>
-              ))}
+              {QUANTIDADES_KITS.map((quantidade) => {
+                const item = cotacoes.find((cotacaoItem) => numero(cotacaoItem.placas) === quantidade);
+                return (
+                  <button
+                    type="button"
+                    key={quantidade}
+                    className={item && cotacaoId === item.id ? 'active' : ''}
+                    onClick={() => selecionarCotacao(item?.id)}
+                    disabled={!item}
+                    style={!item ? { opacity: 0.58, cursor: 'not-allowed' } : undefined}
+                  >
+                    <div className="belenus-quote-top">
+                      <span>{quantidade} placas</span>
+                      <small>{((item ? numero(item.potencia) : quantidade * 0.62)).toFixed(2).replace('.', ',')} kWp</small>
+                    </div>
+                    <b>{item ? 'Preço cadastrado' : 'Preço pendente'}</b>
+                  </button>
+                );
+              })}
             </section>
 
             <section className="finance-panel">
