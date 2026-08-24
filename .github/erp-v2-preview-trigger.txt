@@ -1,0 +1,4 @@
+ERP 2.0 preview deploy trigger
+Updated: 2026-08-23 23:22 BRT
+Source branch: erp-v2-preview
+Commit: 621b7468dd28f8621c116a520d1390756e7dbc9e
