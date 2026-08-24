@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import HybridPresetProposal from '../components/solar/HybridPresetProposal.jsx';
 import HybridCalculatorWizard from '../components/solar/HybridCalculatorWizard.jsx';
 
-const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);
 
 const KITS_HIBRIDOS = [
   {
@@ -19,7 +19,14 @@ const KITS_HIBRIDOS = [
 ];
 
 export function HybridKitsContent() {
-  const [kitSelecionado, setKitSelecionado] = useState(KITS_HIBRIDOS[0]);
+  const [quantidadeSelecionada, setQuantidadeSelecionada] = useState(4);
+
+  const kitSelecionado = useMemo(
+    () => KITS_HIBRIDOS.find((kit) => kit.placas === quantidadeSelecionada) || null,
+    [quantidadeSelecionada],
+  );
+
+  const potenciaSelecionada = quantidadeSelecionada * 620 / 1000;
 
   return (
     <div className="hybrid-kits-content">
@@ -27,35 +34,37 @@ export function HybridKitsContent() {
         <div className="finance-panel-header">
           <div>
             <h2>Escolha o kit híbrido</h2>
-            <p>Mesmo padrão dos kits on-grid: escolha pela quantidade de placas e depois gere a proposta.</p>
+            <p>Kits organizados de 4 até 22 placas. Os valores ficam ocultos e podem ser cadastrados depois.</p>
           </div>
         </div>
 
         <div className="belenus-quotes">
-          {KITS_HIBRIDOS.map((kit) => (
-            <button
-              type="button"
-              key={`${kit.placas}-${kit.inversor}`}
-              className={kitSelecionado.placas === kit.placas ? 'active' : ''}
-              onClick={() => setKitSelecionado(kit)}
-            >
-              <div className="belenus-quote-top">
-                <span>{kit.placas} placas</span>
-                <small>{kit.potenciaSistema.toFixed(2).replace('.', ',')} kWp</small>
-              </div>
-              <strong>{moeda.format(kit.valorVenda)}</strong>
-              <small>Preço de venda</small>
-              <b>{kit.inversores}x {kit.inversor}</b>
-            </button>
-          ))}
+          {QUANTIDADES_KITS.map((quantidade) => {
+            const kit = KITS_HIBRIDOS.find((item) => item.placas === quantidade);
+            return (
+              <button
+                type="button"
+                key={quantidade}
+                className={quantidadeSelecionada === quantidade ? 'active' : ''}
+                onClick={() => setQuantidadeSelecionada(quantidade)}
+              >
+                <div className="belenus-quote-top">
+                  <span>{quantidade} placas</span>
+                  <small>{(quantidade * 620 / 1000).toFixed(2).replace('.', ',')} kWp</small>
+                </div>
+                <b>{kit ? `${kit.inversores}x ${kit.inversor}` : 'Preço pendente'}</b>
+              </button>
+            );
+          })}
         </div>
 
         <div className="finance-notice">
-          Selecionado: {kitSelecionado.placas} placas TSUN 620W bifacial · {kitSelecionado.potenciaSistema.toFixed(2).replace('.', ',')} kWp · {kitSelecionado.inversores} inversores SAJ 7,5 kW · {moeda.format(kitSelecionado.valorVenda)}.
+          Selecionado: {quantidadeSelecionada} placas · {potenciaSelecionada.toFixed(2).replace('.', ',')} kWp
+          {kitSelecionado ? ` · ${kitSelecionado.inversores}x ${kitSelecionado.inversor}` : ' · preço ainda não cadastrado'}.
         </div>
       </section>
 
-      <HybridPresetProposal />
+      <HybridPresetProposal quantidadePlacasInicial={quantidadeSelecionada} />
 
       <details style={{ marginTop: 18 }}>
         <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#0b2b52' }}>
