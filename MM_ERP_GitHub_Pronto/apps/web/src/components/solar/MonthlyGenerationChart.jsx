@@ -1,6 +1,37 @@
 import React, { useMemo } from 'react';
+import { jsPDF } from 'jspdf';
 import './monthly-generation-chart.css';
 import { buildMonthlyGeneration } from '../../lib/monthlyGeneration.js';
+
+const proposalLogoImage = typeof Image !== 'undefined' ? new Image() : null;
+if (proposalLogoImage) {
+  proposalLogoImage.src = `${import.meta.env.BASE_URL}logo-mm.png`;
+}
+
+if (jsPDF?.API?.text && !jsPDF.API.__mmProposalLogoPatched) {
+  const originalText = jsPDF.API.text;
+  jsPDF.API.text = function patchedProposalHeaderText(text, x, y, options, transform) {
+    if (text === 'MM ENERGIA SOLAR' && Number(x) === 12 && Number(y) === 18 && proposalLogoImage?.complete && proposalLogoImage.naturalWidth > 0) {
+      try {
+        const maxWidth = 42;
+        const maxHeight = 14;
+        const ratio = proposalLogoImage.naturalWidth / proposalLogoImage.naturalHeight;
+        let width = maxWidth;
+        let height = width / ratio;
+        if (height > maxHeight) {
+          height = maxHeight;
+          width = height * ratio;
+        }
+        this.addImage(proposalLogoImage, 'PNG', 12, 6, width, height, undefined, 'NONE');
+        return this;
+      } catch {
+        // Se o navegador ainda não conseguir usar a imagem, mantém o texto como fallback.
+      }
+    }
+    return originalText.call(this, text, x, y, options, transform);
+  };
+  jsPDF.API.__mmProposalLogoPatched = true;
+}
 
 export { buildMonthlyGeneration } from '../../lib/monthlyGeneration.js';
 
