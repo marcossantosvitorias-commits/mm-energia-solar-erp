@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - erp-v2-preview
   workflow_dispatch:
 
 permissions:
