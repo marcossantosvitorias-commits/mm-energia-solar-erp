@@ -5,66 +5,19 @@ import ProposalGenerator from './ProposalGenerator.jsx';
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
+const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);
 
 // Sempre usamos o maior valor exibido no orçamento: "Valor total".
 // Esse valor já contempla o frete quando o orçamento da distribuidora o inclui.
 const KITS_INVERSOR = [
-  {
-    placas: 4,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 4443.55,
-    inversor: 'Auxsol monofásico 3 kW',
-    referencia: 'Orçamento enviado em 06/08/2026',
-  },
-  {
-    placas: 5,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 5114.23,
-    inversor: 'Auxsol monofásico 5 kW',
-    referencia: 'Orçamento enviado em 06/08/2026',
-  },
-  {
-    placas: 6,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 5712.43,
-    inversor: 'Auxsol monofásico 5 kW',
-    referencia: 'Orçamento WEB-006496328',
-  },
-  {
-    placas: 7,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 6377.43,
-    inversor: 'Auxsol monofásico 5 kW',
-    referencia: 'Orçamento enviado em 06/08/2026',
-  },
-  {
-    placas: 8,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 6989.63,
-    inversor: 'Auxsol monofásico 5 kW',
-    referencia: 'Orçamento enviado em 06/08/2026',
-  },
-  {
-    placas: 9,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 7654.62,
-    inversor: 'Auxsol monofásico 5 kW',
-    referencia: 'Orçamento enviado em 06/08/2026',
-  },
-  {
-    placas: 10,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 8337.49,
-    inversor: 'Deye monofásico 6,6 kW',
-    referencia: 'Orçamento enviado em 06/08/2026',
-  },
-  {
-    placas: 12,
-    potenciaPlaca: 620,
-    valorTotalDistribuidora: 9799.71,
-    inversor: 'Auxsol monofásico 6 kW',
-    referencia: 'Cotação cadastrada em 10/08/2026 · produtos R$ 9.263,61 · frete R$ 536,10',
-  },
+  { placas: 4, potenciaPlaca: 620, valorTotalDistribuidora: 4443.55, inversor: 'Auxsol monofásico 3 kW', referencia: 'Orçamento enviado em 06/08/2026' },
+  { placas: 5, potenciaPlaca: 620, valorTotalDistribuidora: 5114.23, inversor: 'Auxsol monofásico 5 kW', referencia: 'Orçamento enviado em 06/08/2026' },
+  { placas: 6, potenciaPlaca: 620, valorTotalDistribuidora: 5712.43, inversor: 'Auxsol monofásico 5 kW', referencia: 'Orçamento WEB-006496328' },
+  { placas: 7, potenciaPlaca: 620, valorTotalDistribuidora: 6377.43, inversor: 'Auxsol monofásico 5 kW', referencia: 'Orçamento enviado em 06/08/2026' },
+  { placas: 8, potenciaPlaca: 620, valorTotalDistribuidora: 6989.63, inversor: 'Auxsol monofásico 5 kW', referencia: 'Orçamento enviado em 06/08/2026' },
+  { placas: 9, potenciaPlaca: 620, valorTotalDistribuidora: 7654.62, inversor: 'Auxsol monofásico 5 kW', referencia: 'Orçamento enviado em 06/08/2026' },
+  { placas: 10, potenciaPlaca: 620, valorTotalDistribuidora: 8337.49, inversor: 'Deye monofásico 6,6 kW', referencia: 'Orçamento enviado em 06/08/2026' },
+  { placas: 12, potenciaPlaca: 620, valorTotalDistribuidora: 9799.71, inversor: 'Auxsol monofásico 6 kW', referencia: 'Cotação cadastrada em 10/08/2026 · produtos R$ 9.263,61 · frete R$ 536,10' },
 ];
 
 const FORM_PADRAO = {
@@ -111,6 +64,7 @@ export default function InversorStringPage() {
   const atualizar = ({ target: { name, value } }) => setForm((atual) => ({ ...atual, [name]: value }));
 
   const selecionarKit = (kit) => {
+    if (!kit) return;
     setForm((atual) => ({
       ...atual,
       placas: kit.placas,
@@ -145,26 +99,29 @@ export default function InversorStringPage() {
         <div className="finance-panel-header">
           <div>
             <h2>Escolha o kit com inversor</h2>
-            <p>Os valores abaixo usam sempre o maior valor do orçamento: o Valor total da distribuidora.</p>
+            <p>Kits organizados de 4 até 22 placas. Quando ainda não houver preço cadastrado, o kit fica identificado como pendente.</p>
           </div>
         </div>
         <div className="belenus-quotes">
-          {KITS_INVERSOR.map((kit) => (
-            <button
-              type="button"
-              key={kit.placas}
-              className={numero(form.placas) === kit.placas ? 'active' : ''}
-              onClick={() => selecionarKit(kit)}
-            >
-              <div className="belenus-quote-top">
-                <span>{kit.placas} placas</span>
-                <small>{(kit.placas * kit.potenciaPlaca / 1000).toFixed(2).replace('.', ',')} kWp</small>
-              </div>
-              <strong>{moeda.format(kit.valorTotalDistribuidora)}</strong>
-              <small>Valor total da distribuidora</small>
-              <b>{kit.inversor}</b>
-            </button>
-          ))}
+          {QUANTIDADES_KITS.map((quantidade) => {
+            const kit = KITS_INVERSOR.find((item) => item.placas === quantidade);
+            return (
+              <button
+                type="button"
+                key={quantidade}
+                className={kit && numero(form.placas) === quantidade ? 'active' : ''}
+                onClick={() => selecionarKit(kit)}
+                disabled={!kit}
+                style={!kit ? { opacity: 0.58, cursor: 'not-allowed' } : undefined}
+              >
+                <div className="belenus-quote-top">
+                  <span>{quantidade} placas</span>
+                  <small>{(quantidade * 620 / 1000).toFixed(2).replace('.', ',')} kWp</small>
+                </div>
+                <b>{kit ? kit.inversor : 'Preço pendente'}</b>
+              </button>
+            );
+          })}
         </div>
         <div className="finance-notice">
           Selecionado: {form.placas} placas · {resultado.potenciaSistema.toFixed(2).replace('.', ',')} kWp · {inversorSelecionado} · {referencia}.
@@ -172,7 +129,7 @@ export default function InversorStringPage() {
       </section>
 
       <section className="finance-panel">
-        <div className="finance-panel-header"><div><h2>Custos e margem</h2><p>Esses custos ficam somente no ERP e não aparecem para o cliente.</p></div></div>
+        <div className="finance-panel-header"><div><h2>Custos e margem</h2><p>Esses custos ficam somente no ERP e não aparecem nos cartões dos kits.</p></div></div>
         <div className="finance-form">
           {campos.map(([name, label, step]) => (
             <label className="finance-field" key={name}>
