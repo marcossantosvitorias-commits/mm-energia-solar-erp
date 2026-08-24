@@ -56,6 +56,26 @@
   font-size: 10px;
 }
 
+/* Na grade de cotações, exibe apenas quantidade de placas e potência.
+   Os valores internos de equipamentos/frete continuam disponíveis para os cálculos,
+   mas não ficam visíveis nos cartões. */
+.belenus-quotes > button > strong,
+.belenus-quotes > button > small {
+  display: none;
+}
+
+/* A tela publicada atualmente possui 8 cartões na sequência
+   4, 6, 8, 10, 12, 7, 16, 20. Quando esses 8 cartões estiverem presentes,
+   reorganiza visualmente para 4, 6, 7, 8, 10, 12, 16, 20. */
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(1) { order: 1; }
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(2) { order: 2; }
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(6) { order: 3; }
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(3) { order: 4; }
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(4) { order: 5; }
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(5) { order: 6; }
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(7) { order: 7; }
+.belenus-quotes:has(> button:nth-child(8)) > button:nth-child(8) { order: 8; }
+
 .belenus-subtitle {
   margin: 5px 0 0;
   color: #7c8798;
