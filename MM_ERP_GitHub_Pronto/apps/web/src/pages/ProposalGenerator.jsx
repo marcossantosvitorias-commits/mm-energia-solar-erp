@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, FileDown, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, Wrench } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { useNavigate } from 'react-router-dom';
-import { MICROINVERSOR_IMAGE, PAINEL_IMAGE } from '../assets/proposalImages.js';
+import { MICROINVERSOR_IMAGE } from '../assets/proposalImages.js';
+import { PAINEL_620_BELENUS_IMAGE, INVERSOR_BELENUS_IMAGE, INVERSOR_75_BELENUS_IMAGE } from '../assets/proposalBelenusImages.js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import { createClientInteraction, listClients } from '../services/clientService.js';
 import { closeProposalAsSale } from '../services/proposalWorkflowService.js';
@@ -19,6 +20,7 @@ const BELCRED = [
   { parcelas: 84, taxa: '2,28%', fator: 509.99 / 16383.49 },
   { parcelas: 96, taxa: '2,32%', fator: 496.62 / 16383.49 },
 ];
+
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const somenteNumeros = (v = '') => String(v).replace(/\D/g, '');
 const gerarPorPainel = (w) => (Number(w || 0) * 5.2 * 0.8 * 30) / 1000;
@@ -42,15 +44,110 @@ function montarOpcoesCartao(valorBase, taxas = [], totalFallback = 0, taxaFallba
   return Array.from({ length: 20 }, (_, i) => ({ parcelas: i + 2, taxa: Number(taxaFallback || 0), total, valorParcela: total / (i + 2) }));
 }
 
+function extrairPotenciaInversor(valor = '') {
+  const texto = String(valor || '').replace(',', '.');
+  const match = texto.match(/(\d+(?:\.\d+)?)\s*k(?:w)?/i);
+  return match ? Number(match[1]) : null;
+}
+
+function formatarPotenciaInversor(valor) {
+  if (!Number.isFinite(valor)) return '';
+  return Number.isInteger(valor) ? String(valor) : String(valor).replace('.', ',');
+}
+
+function nomeCurtoEquipamento(valor, ehMicro) {
+  const potencia = extrairPotenciaInversor(valor);
+  if (ehMicro) return potencia ? `Microinversor ${formatarPotenciaInversor(potencia)} kW` : 'Microinversor';
+  return potencia ? `Inversor ${formatarPotenciaInversor(potencia)} kW` : 'Inversor';
+}
+
+function imagemEquipamentoPdf(valor, ehMicro) {
+  if (ehMicro) return MICROINVERSOR_IMAGE;
+  const potencia = extrairPotenciaInversor(valor);
+  return potencia && potencia >= 7.4 ? INVERSOR_75_BELENUS_IMAGE : INVERSOR_BELENUS_IMAGE;
+}
+
 function WhatsAppBusinessIcon({ size = 20 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#25D366"/><path fill="#fff" d="M17.4 6.6A7.5 7.5 0 0 0 5.6 15.7L4.5 19.5l3.9-1a7.5 7.5 0 0 0 9-11.9Zm-5.4 11a6.2 6.2 0 0 1-3.2-.9l-.2-.1-2.3.6.6-2.2-.1-.2a6.2 6.2 0 1 1 5.2 2.8Z"/></svg>;
 }
-function caixa(doc, x, y, w, h, fill = [246, 248, 252]) { doc.setFillColor(...fill); doc.setDrawColor(220, 226, 235); doc.roundedRect(x, y, w, h, 3, 3, 'FD'); }
-function cabecalho(doc, titulo, destaque, selo) {
-  doc.setFillColor(8, 46, 88); doc.rect(0, 0, 210, 72, 'F'); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('MM ENERGIA SOLAR', 12, 18); doc.setFontSize(7.5); doc.text(selo, 198, 16, { align: 'right' }); doc.setFontSize(21); doc.text(titulo, 12, 34); doc.setTextColor(255, 194, 15); doc.text(destaque, 12, 45);
+
+function caixa(doc, x, y, w, h, fill = [246, 248, 252]) {
+  doc.setFillColor(...fill);
+  doc.setDrawColor(220, 226, 235);
+  doc.roundedRect(x, y, w, h, 3, 3, 'FD');
 }
-function rodape(doc, validade) { doc.setFillColor(8, 46, 88); doc.rect(0, 266, 210, 31, 'F'); doc.setTextColor(255,255,255); doc.setFontSize(7); doc.text(`MM Energia Solar • Validade ${validade} dias`,198,283,{align:'right'}); }
-function imagemContida(doc, imagem, x, y, w, h) { try { const p = doc.getImageProperties(imagem); const e = Math.min(w / p.width, h / p.height); const iw = p.width * e; const ih = p.height * e; doc.addImage(imagem, 'JPEG', x + (w-iw)/2, y + (h-ih)/2, iw, ih, undefined, 'NONE'); } catch {} }
+
+function imagemContida(doc, imagem, x, y, w, h) {
+  try {
+    if (!imagem) return;
+    const p = doc.getImageProperties(imagem);
+    const e = Math.min(w / p.width, h / p.height);
+    const iw = p.width * e;
+    const ih = p.height * e;
+    const formato = /^data:image\/png/i.test(imagem) ? 'PNG' : 'JPEG';
+    doc.addImage(imagem, formato, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih, undefined, 'FAST');
+  } catch {}
+}
+
+async function carregarLogoPdf() {
+  try {
+    const logoUrl = `${window.location.origin}${import.meta.env.BASE_URL}logo-mm.png`;
+    const response = await fetch(logoUrl, { cache: 'force-cache' });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const imagem = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = objectUrl;
+    });
+    const limiteLargura = 520;
+    const limiteAltura = 260;
+    const escala = Math.min(limiteLargura / imagem.width, limiteAltura / imagem.height, 1);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(imagem.width * escala));
+    canvas.height = Math.max(1, Math.round(imagem.height * escala));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(imagem, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(objectUrl);
+    return canvas.toDataURL('image/jpeg', 0.78);
+  } catch {
+    return null;
+  }
+}
+
+function cabecalho(doc, titulo, destaque, selo, logoPdf) {
+  doc.setFillColor(8, 46, 88);
+  doc.rect(0, 0, 210, 72, 'F');
+  if (logoPdf) {
+    imagemContida(doc, logoPdf, 12, 4, 43, 22);
+  } else {
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('MM ENERGIA SOLAR', 12, 18);
+  }
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text(selo, 198, 16, { align: 'right' });
+  doc.setFontSize(21);
+  doc.text(titulo, 12, 34);
+  doc.setTextColor(255, 194, 15);
+  doc.text(destaque, 12, 45);
+}
+
+function rodape(doc, validade) {
+  doc.setFillColor(8, 46, 88);
+  doc.rect(0, 266, 210, 31, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7);
+  doc.text(`MM Energia Solar • Validade ${validade} dias`, 198, 283, { align: 'right' });
+}
+
 function desenharGraficoGeracao(doc, mediaMensal, cidade) {
   const meses = buildMonthlyGeneration(mediaMensal);
   const totalAnual = Math.round(meses.reduce((soma, item) => soma + item.generation, 0));
@@ -94,35 +191,88 @@ function desenharGraficoGeracao(doc, mediaMensal, cidade) {
 export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, modulo, inversor, potenciaSistemaKw, precoCartao = 0, taxaCartao = 0 }) {
   const navigate = useNavigate();
   const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadePlacas) || 620;
-  const [clientes, setClientes] = useState([]); const [clienteId, setClienteId] = useState(''); const [historico, setHistorico] = useState([]); const [busca, setBusca] = useState(''); const [mensagem, setMensagem] = useState(''); const [salvando, setSalvando] = useState(false); const [fechandoId, setFechandoId] = useState(null); const [planoBelcred, setPlanoBelcred] = useState(96); const [taxasCartao, setTaxasCartao] = useState([]);
-  const [dados, setDados] = useState({ cliente:'', cidade:'Bauru/SP', telefone:'', potenciaPlaca:potenciaInicial, marcaPlaca:modulo || 'Painel solar 620 Wp Tier 1', inversor:inversor || 'Microinversor 2,25 kW', geracaoMensal:Math.round(gerarPorPainel(potenciaInicial)*quantidadePlacas), valorProposta:Number(precoRecomendado||0).toFixed(2), validade:7, observacoes:'Projeto, instalação, homologação e pós-venda inclusos.' });
-  const valor = Number(dados.valorProposta || precoRecomendado || 0); const potenciaSistema = (quantidadePlacas * Number(dados.potenciaPlaca || 0))/1000; const geracaoCalculada = gerarPorPainel(dados.potenciaPlaca)*quantidadePlacas; const belcred = useMemo(()=>BELCRED.map(o=>({...o,valor:valor*o.fator})),[valor]); const totalCartao = Number(precoCartao || valor*(1+Number(taxaCartao||0)/100)); const opcoesCartao = useMemo(()=>montarOpcoesCartao(valor,taxasCartao,totalCartao,taxaCartao),[valor,taxasCartao,totalCartao,taxaCartao]); const belcredSelecionado = belcred.find(i=>i.parcelas===planoBelcred)||belcred.at(-1);
+  const [clientes, setClientes] = useState([]);
+  const [clienteId, setClienteId] = useState('');
+  const [historico, setHistorico] = useState([]);
+  const [busca, setBusca] = useState('');
+  const [mensagem, setMensagem] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [fechandoId, setFechandoId] = useState(null);
+  const [planoBelcred, setPlanoBelcred] = useState(96);
+  const [taxasCartao, setTaxasCartao] = useState([]);
+  const [dados, setDados] = useState({
+    cliente: '', cidade: 'Bauru/SP', telefone: '', potenciaPlaca: potenciaInicial,
+    marcaPlaca: modulo || 'Painel solar 620 Wp Tier 1', inversor: inversor || 'Microinversor 2,25 kW',
+    geracaoMensal: Math.round(gerarPorPainel(potenciaInicial) * quantidadePlacas),
+    valorProposta: Number(precoRecomendado || 0).toFixed(2), validade: 7,
+    observacoes: 'Projeto, instalação, homologação e pós-venda inclusos.',
+  });
+
+  const valor = Number(dados.valorProposta || precoRecomendado || 0);
+  const potenciaSistema = (quantidadePlacas * Number(dados.potenciaPlaca || 0)) / 1000;
+  const geracaoCalculada = gerarPorPainel(dados.potenciaPlaca) * quantidadePlacas;
+  const belcred = useMemo(() => BELCRED.map((o) => ({ ...o, valor: valor * o.fator })), [valor]);
+  const totalCartao = Number(precoCartao || valor * (1 + Number(taxaCartao || 0) / 100));
+  const opcoesCartao = useMemo(() => montarOpcoesCartao(valor, taxasCartao, totalCartao, taxaCartao), [valor, taxasCartao, totalCartao, taxaCartao]);
+  const belcredSelecionado = belcred.find((i) => i.parcelas === planoBelcred) || belcred.at(-1);
   const ehMicroinversor = /microinversor/i.test(String(dados.inversor || inversor || ''));
   const nomeGarantiaEquipamento = ehMicroinversor ? 'Garantia do microinversor' : 'Garantia do inversor';
   const garantiaEquipamento = ehMicroinversor ? '15 anos' : '10 anos';
 
-  const carregarDados = async () => { if (!isSupabaseConfigured || !supabase) return; try { const [c,p,o] = await Promise.all([listClients(),supabase.from('sales_proposals').select('*').order('created_at',{ascending:false}).limit(100),supabase.from('service_orders').select('id, order_number, proposal_id, status')]); setClientes(c||[]); if (!p.error) setHistorico((p.data||[]).map(x=>({...x,serviceOrder:(o.data||[]).find(y=>y.proposal_id===x.id)||null}))); } catch {} };
-  useEffect(()=>{carregarDados(); cardFeeService.list('My Gateway').then(setTaxasCartao).catch(()=>setTaxasCartao([]));},[]);
-  useEffect(()=>{setDados(a=>({...a,valorProposta:Number(precoRecomendado||0).toFixed(2),marcaPlaca:modulo||a.marcaPlaca,inversor:inversor||a.inversor}));},[precoRecomendado,modulo,inversor]);
-  const selecionarCliente = (id) => { setClienteId(id); const c=clientes.find(x=>x.id===id); if(c) setDados(a=>({...a,cliente:c.name,telefone:c.phone,cidade:[c.city,c.state].filter(Boolean).join('/')||a.cidade})); };
-  const atualizar = ({target:{name,value}}) => setDados(a=>name==='potenciaPlaca'?{...a,potenciaPlaca:value,geracaoMensal:Math.round(gerarPorPainel(value)*quantidadePlacas)}:{...a,[name]:value});
-  const paymentOptions = { cash:{total:valor}, card:{provider:'My Gateway',total:opcoesCartao.at(-1)?.total||totalCartao,options:opcoesCartao}, belcred:{installments:belcredSelecionado.parcelas,monthlyRate:belcredSelecionado.taxa,installmentValue:belcredSelecionado.valor} };
-  const payload = (status='Gerada') => ({ client_id:clienteId||null, client_name:dados.cliente.trim(), phone:String(dados.telefone||''), city:dados.cidade||null, status, total_amount:Number(valor.toFixed(2)), panel_count:Math.round(Number(quantidadePlacas||0)), panel_power_w:Math.round(Number(dados.potenciaPlaca||0)), system_power_kw:Number(potenciaSistema.toFixed(2)), monthly_generation_kwh:Math.round(Number(dados.geracaoMensal||geracaoCalculada)), panel_model:dados.marcaPlaca, inverter_model:dados.inversor, validity_days:Math.round(Number(dados.validade||7)), notes:dados.observacoes||null, sent_at:status==='Enviada'?new Date().toISOString():null, proposal_data:{...dados,telefone:String(dados.telefone||''),clienteId,quantidadePlacas,potenciaSistema,paymentOptions} });
-  const salvarProposta = async (status='Gerada') => { if(!isSupabaseConfigured||!supabase) return {saved:false,warning:'Supabase indisponível.'}; try { const {data,error}=await supabase.from('sales_proposals').insert(payload(status)).select('*').single(); if(error) return {saved:false,warning:`Não registrado no CRM: ${error.message}`}; if(clienteId){try{await createClientInteraction(clienteId,{type:'proposta',description:`Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`,nextActionAt:''});}catch{}} await carregarDados(); return {saved:true,data}; } catch(e){return{saved:false,warning:e?.message||'Erro ao salvar.'};} };
+  const carregarDados = async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const [c, p, o] = await Promise.all([
+        listClients(),
+        supabase.from('sales_proposals').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('service_orders').select('id, order_number, proposal_id, status'),
+      ]);
+      setClientes(c || []);
+      if (!p.error) setHistorico((p.data || []).map((x) => ({ ...x, serviceOrder: (o.data || []).find((y) => y.proposal_id === x.id) || null })));
+    } catch {}
+  };
 
-  const criarArquivoPdf = async (origem=dados) => {
+  useEffect(() => { carregarDados(); cardFeeService.list('My Gateway').then(setTaxasCartao).catch(() => setTaxasCartao([])); }, []);
+  useEffect(() => { setDados((a) => ({ ...a, valorProposta: Number(precoRecomendado || 0).toFixed(2), marcaPlaca: modulo || a.marcaPlaca, inversor: inversor || a.inversor })); }, [precoRecomendado, modulo, inversor]);
+
+  const selecionarCliente = (id) => {
+    setClienteId(id);
+    const c = clientes.find((x) => x.id === id);
+    if (c) setDados((a) => ({ ...a, cliente: c.name, telefone: c.phone, cidade: [c.city, c.state].filter(Boolean).join('/') || a.cidade }));
+  };
+  const atualizar = ({ target: { name, value } }) => setDados((a) => name === 'potenciaPlaca' ? { ...a, potenciaPlaca: value, geracaoMensal: Math.round(gerarPorPainel(value) * quantidadePlacas) } : { ...a, [name]: value });
+  const paymentOptions = { cash: { total: valor }, card: { provider: 'My Gateway', total: opcoesCartao.at(-1)?.total || totalCartao, options: opcoesCartao }, belcred: { installments: belcredSelecionado.parcelas, monthlyRate: belcredSelecionado.taxa, installmentValue: belcredSelecionado.valor } };
+  const payload = (status = 'Gerada') => ({ client_id: clienteId || null, client_name: dados.cliente.trim(), phone: String(dados.telefone || ''), city: dados.cidade || null, status, total_amount: Number(valor.toFixed(2)), panel_count: Math.round(Number(quantidadePlacas || 0)), panel_power_w: Math.round(Number(dados.potenciaPlaca || 0)), system_power_kw: Number(potenciaSistema.toFixed(2)), monthly_generation_kwh: Math.round(Number(dados.geracaoMensal || geracaoCalculada)), panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Math.round(Number(dados.validade || 7)), notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null, proposal_data: { ...dados, telefone: String(dados.telefone || ''), clienteId, quantidadePlacas, potenciaSistema, paymentOptions } });
+
+  const salvarProposta = async (status = 'Gerada') => {
+    if (!isSupabaseConfigured || !supabase) return { saved: false, warning: 'Supabase indisponível.' };
+    try {
+      const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
+      if (error) return { saved: false, warning: `Não registrado no CRM: ${error.message}` };
+      if (clienteId) { try { await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' }); } catch {} }
+      await carregarDados();
+      return { saved: true, data };
+    } catch (e) {
+      return { saved: false, warning: e?.message || 'Erro ao salvar.' };
+    }
+  };
+
+  const criarArquivoPdf = async (origem = dados) => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const logoPdf = await carregarLogoPdf();
     const qtd = Number(origem.quantidadePlacas || quantidadePlacas || 0);
     const pot = Number(origem.potenciaPlaca || dados.potenciaPlaca || 0);
     const ger = Number(origem.geracaoMensal || gerarPorPainel(pot) * qtd);
     const validade = Number(origem.validade || 7);
     const val = Number(origem.valorProposta || valor || 0);
-    const opcoesCartaoPdf = montarOpcoesCartao(val,taxasCartao,precoCartao || totalCartao,taxaCartao);
-    const ehMicroPdf = /microinversor/i.test(String(origem.inversor || dados.inversor || inversor || ''));
-    const nomeEquipamentoPdf = ehMicroPdf ? 'Microinversor 2,25 kW' : (origem.inversor || dados.inversor || inversor || 'Inversor');
+    const opcoesCartaoPdf = montarOpcoesCartao(val, taxasCartao, precoCartao || totalCartao, taxaCartao);
+    const inversorPdf = String(origem.inversor || dados.inversor || inversor || '');
+    const ehMicroPdf = /microinversor/i.test(inversorPdf);
+    const nomeEquipamentoPdf = nomeCurtoEquipamento(inversorPdf, ehMicroPdf);
+    const imagemEquipamento = imagemEquipamentoPdf(inversorPdf, ehMicroPdf);
     const garantiaEquipamentoPdf = ehMicroPdf ? '15 anos' : '10 anos';
 
-    cabecalho(doc, 'Energia solar pensada para', 'economizar todos os meses.', 'PROPOSTA COMERCIAL');
+    cabecalho(doc, 'Energia solar pensada para', 'economizar todos os meses.', 'PROPOSTA COMERCIAL', logoPdf);
     let y = 82;
     [['CLIENTE', origem.cliente || '-'], ['LOCAL', origem.cidade || '-'], ['CONTATO', origem.telefone || '-']].forEach(([a, b]) => {
       caixa(doc, 12, y, 186, 14, [20, 66, 112]);
@@ -138,13 +288,40 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     caixa(doc, 12, 174, 186, 22); doc.setFontSize(7); doc.text('Geração estimada', 16, 181);
     doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${Math.round(ger)} kWh/mês`, 16, 190);
     rodape(doc, validade);
-    doc.addPage(); cabecalho(doc,'Sua geração prevista','em todos os meses.','PREVISÃO ANUAL'); desenharGraficoGeracao(doc, ger, origem.cidade); rodape(doc,validade);
-    doc.addPage(); cabecalho(doc,'Condições de pagamento','BelCred e cartão.','PAGAMENTOS'); doc.setTextColor(16,47,82);doc.setFontSize(12);doc.text('Financiamento BelCred',12,83); BELCRED.map(o=>({...o,valor:val*o.fator})).forEach((o,i)=>{caixa(doc,12,90+i*12,186,11);doc.setFontSize(8);doc.text(`${o.parcelas}x`,16,97+i*12);doc.text(moeda.format(o.valor),62,97+i*12);doc.text(`${o.taxa} a.m.`,155,97+i*12);}); doc.setFontSize(12);doc.text('Cartão de crédito',12,200); opcoesCartaoPdf.forEach((o,i)=>{const x=12+(i%4)*47;const cy=207+Math.floor(i/4)*11.2;caixa(doc,x,cy,44,9.5);doc.setFontSize(6.3);doc.text(`${o.parcelas}x de ${moeda.format(o.valorParcela)}`,x+2,cy+6.2);}); rodape(doc,validade);
-    doc.addPage(); cabecalho(doc,'Equipamentos escolhidos para','desempenho e segurança.','EQUIPAMENTOS'); caixa(doc,12,84,90,105,[255,255,255]);imagemContida(doc,PAINEL_IMAGE,20,91,74,50);doc.setTextColor(16,47,82);doc.setFontSize(10);doc.text('Painel fotovoltaico 620 Wp',16,149);doc.setFontSize(7);doc.text('Garantia: 15 anos',16,181); caixa(doc,108,84,90,105,[255,255,255]);imagemContida(doc,MICROINVERSOR_IMAGE,116,91,74,50);doc.setFontSize(10);doc.text(nomeEquipamentoPdf,112,149,{maxWidth:82});doc.setFontSize(7);doc.text(`Garantia: ${garantiaEquipamentoPdf}`,112,181);doc.setFontSize(12);doc.text('Garantia da instalação: 1 ano',12,211);rodape(doc,validade);
-    doc.addPage();cabecalho(doc,'Seu projeto acompanhado','do início ao pós-venda.','ETAPAS DO PROJETO');[['Vistoria técnica','Validação do local'],['Projeto executivo','Dimensionamento e documentação'],['Instalação','Montagem e testes'],['Homologação','Processo junto à concessionária'],['Monitoramento','Configuração do aplicativo'],['Pós-venda','Suporte após a entrega']].forEach(([a,b],i)=>{const x=i%2?106:12;const cy=84+Math.floor(i/2)*48;caixa(doc,x,cy,92,38,[255,255,255]);doc.setTextColor(16,47,82);doc.setFontSize(9);doc.text(a,x+5,cy+11);doc.setFontSize(7);doc.text(b,x+5,cy+22);});rodape(doc,validade);
 
     doc.addPage();
-    cabecalho(doc, 'Pronto para começar a', 'economizar com energia solar.', 'VALOR DA PROPOSTA');
+    cabecalho(doc, 'Sua geração prevista', 'em todos os meses.', 'PREVISÃO ANUAL', logoPdf);
+    desenharGraficoGeracao(doc, ger, origem.cidade);
+    rodape(doc, validade);
+
+    doc.addPage();
+    cabecalho(doc, 'Condições de pagamento', 'BelCred e cartão.', 'PAGAMENTOS', logoPdf);
+    doc.setTextColor(16, 47, 82); doc.setFontSize(12); doc.text('Financiamento BelCred', 12, 83);
+    BELCRED.map((o) => ({ ...o, valor: val * o.fator })).forEach((o, i) => { caixa(doc, 12, 90 + i * 12, 186, 11); doc.setFontSize(8); doc.text(`${o.parcelas}x`, 16, 97 + i * 12); doc.text(moeda.format(o.valor), 62, 97 + i * 12); doc.text(`${o.taxa} a.m.`, 155, 97 + i * 12); });
+    doc.setFontSize(12); doc.text('Cartão de crédito', 12, 200);
+    opcoesCartaoPdf.forEach((o, i) => { const x = 12 + (i % 4) * 47; const cy = 207 + Math.floor(i / 4) * 11.2; caixa(doc, x, cy, 44, 9.5); doc.setFontSize(6.3); doc.text(`${o.parcelas}x de ${moeda.format(o.valorParcela)}`, x + 2, cy + 6.2); });
+    rodape(doc, validade);
+
+    doc.addPage();
+    cabecalho(doc, 'Equipamentos escolhidos para', 'desempenho e segurança.', 'EQUIPAMENTOS', logoPdf);
+    caixa(doc, 12, 84, 90, 105, [255, 255, 255]);
+    imagemContida(doc, PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);
+    doc.setTextColor(16, 47, 82); doc.setFontSize(10); doc.text('Painel fotovoltaico 620 Wp', 16, 149);
+    doc.setFontSize(7); doc.text('Garantia: 15 anos', 16, 181);
+    caixa(doc, 108, 84, 90, 105, [255, 255, 255]);
+    imagemContida(doc, imagemEquipamento, 116, 91, 74, 50);
+    doc.setFontSize(10); doc.text(nomeEquipamentoPdf, 112, 149, { maxWidth: 82 });
+    doc.setFontSize(7); doc.text(`Garantia: ${garantiaEquipamentoPdf}`, 112, 181);
+    doc.setFontSize(12); doc.text('Garantia da instalação: 1 ano', 12, 211);
+    rodape(doc, validade);
+
+    doc.addPage();
+    cabecalho(doc, 'Seu projeto acompanhado', 'do início ao pós-venda.', 'ETAPAS DO PROJETO', logoPdf);
+    [['Vistoria técnica', 'Validação do local'], ['Projeto executivo', 'Dimensionamento e documentação'], ['Instalação', 'Montagem e testes'], ['Homologação', 'Processo junto à concessionária'], ['Monitoramento', 'Configuração do aplicativo'], ['Pós-venda', 'Suporte após a entrega']].forEach(([a, b], i) => { const x = i % 2 ? 106 : 12; const cy = 84 + Math.floor(i / 2) * 48; caixa(doc, x, cy, 92, 38, [255, 255, 255]); doc.setTextColor(16, 47, 82); doc.setFontSize(9); doc.text(a, x + 5, cy + 11); doc.setFontSize(7); doc.text(b, x + 5, cy + 22); });
+    rodape(doc, validade);
+
+    doc.addPage();
+    cabecalho(doc, 'Pronto para começar a', 'economizar com energia solar.', 'VALOR DA PROPOSTA', logoPdf);
     doc.setTextColor(16, 47, 82); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
     doc.text('Investimento total do seu projeto', 105, 102, { align: 'center' });
     caixa(doc, 18, 116, 174, 58, [255, 250, 229]);
@@ -156,15 +333,17 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     doc.text('Conte com a MM Energia Solar do projeto ao pós-venda.', 105, 215, { align: 'center' });
     rodape(doc, validade);
 
-    const blob=doc.output('blob');
-    return new File([blob],`Proposta MM Energia Solar - ${arquivoSeguro(origem.cliente)}.pdf`,{type:'application/pdf'});
+    const blob = doc.output('blob');
+    return new File([blob], `Proposta MM Energia Solar - ${arquivoSeguro(origem.cliente)}.pdf`, { type: 'application/pdf' });
   };
-  const baixarPdf=(arquivo)=>{const url=URL.createObjectURL(arquivo);const a=document.createElement('a');a.href=url;a.download=arquivo.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-  const gerarESalvar=async()=>{if(!dados.cliente.trim()){setMensagem('Informe o nome do cliente.');return;}setSalvando(true);try{const arq=await criarArquivoPdf();baixarPdf(arq);const r=await salvarProposta('Gerada');setMensagem(r.saved?'Proposta salva no histórico e PDF gerado.':r.warning);}finally{setSalvando(false);}};
-  const enviarWhatsApp=async()=>{if(!dados.cliente.trim()){setMensagem('Informe o nome do cliente.');return;}let telefone=somenteNumeros(dados.telefone).replace(/^0+/,'');if(!telefone){setMensagem('Informe o WhatsApp do cliente.');return;}if(telefone.length<=11)telefone=`55${telefone}`;setSalvando(true);try{const arquivo=await criarArquivoPdf();const texto=`Olá, ${dados.cliente.trim()}! Segue sua proposta da MM Energia Solar.`;const podeCompartilhar=typeof navigator.share==='function'&&(!navigator.canShare||navigator.canShare({files:[arquivo]}));if(podeCompartilhar){await navigator.share({title:`Proposta MM Energia Solar - ${dados.cliente.trim()}`,text:texto,files:[arquivo]});setMensagem('PDF compartilhado. Escolha o WhatsApp Business e o contato do cliente.');salvarProposta('Enviada').catch(()=>{});return;}baixarPdf(arquivo);const mensagem=encodeURIComponent(`${texto}\n\nO PDF foi baixado no aparelho. Anexe-o nesta conversa.`);const destino=/Android/i.test(navigator.userAgent)?`intent://send?phone=${telefone}&text=${mensagem}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end`:`https://wa.me/${telefone}?text=${mensagem}`;setMensagem('O navegador não permite anexar automaticamente. O PDF foi baixado e o WhatsApp será aberto.');salvarProposta('Enviada').catch(()=>{});window.location.assign(destino);}catch(error){if(error?.name!=='AbortError')setMensagem(`Não foi possível compartilhar o PDF: ${error?.message||'erro desconhecido'}`);}finally{setSalvando(false);}};
-  const fecharVenda=async(p)=>{if(!window.confirm(`Confirmar a venda para ${p.client_name}?`))return;setFechandoId(p.id);try{const {proposal,serviceOrder}=await closeProposalAsSale(p.id);setHistorico(rows=>rows.map(r=>r.id===p.id?{...r,...proposal,serviceOrder}:r));}finally{setFechandoId(null);}};
-  const excluir=async(id)=>{if(window.confirm('Excluir esta proposta?')&&supabase){await supabase.from('sales_proposals').delete().eq('id',id);carregarDados();}};
-  const filtrado=historico.filter(i=>`${i.client_name} ${i.proposal_data?.telefone||''}`.toLowerCase().includes(busca.toLowerCase())); const actionButton={minHeight:46,padding:'8px 14px',borderRadius:12,fontSize:14,flex:'0 1 230px'};
 
-  return <section className="finance-panel"><div className="finance-panel-header proposal-no-print"><div><h2>Proposta profissional ERP 2.0</h2><p>PDF, histórico e envio direto ao WhatsApp Business.</p></div></div><div className="proposal-print-area"><div className="finance-form"><label className="finance-field proposal-no-print"><span>Cliente do CRM</span><select value={clienteId} onChange={e=>selecionarCliente(e.target.value)}><option value="">Preencher manualmente</option>{clientes.map(c=><option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}</select></label><label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar}/></label><label className="finance-field"><span>WhatsApp</span><input name="telefone" value={dados.telefone} onChange={atualizar}/></label><label className="finance-field"><span>Cidade/UF</span><input name="cidade" value={dados.cidade} onChange={atualizar}/></label><label className="finance-field finance-field-wide"><span>Observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar}/></label></div><div className="pricing-highlight"><span>Valor total da proposta</span><strong>{moeda.format(valor)}</strong></div><div className="proposal-payment-grid"><div className="proposal-payment-card"><span>Financiamento BelCred</span><strong>{belcredSelecionado.parcelas}x de {moeda.format(belcredSelecionado.valor)}</strong><div className="proposal-card-options">{belcred.map(i=><button type="button" className="proposal-card-option" key={i.parcelas} onClick={()=>setPlanoBelcred(i.parcelas)}>{i.parcelas}x de {moeda.format(i.valor)}</button>)}</div></div><div className="proposal-payment-card"><span>Cartão de crédito</span><div className="proposal-card-options">{opcoesCartao.map(i=><div className="proposal-card-option" key={i.parcelas} title={`Taxa ${i.taxa.toFixed(2).replace('.', ',')}%`}>{i.parcelas}x de {moeda.format(i.valorParcela)}</div>)}</div></div></div><div className="proposal-payment-grid" style={{marginTop:14}}><div className="proposal-payment-card"><span>Garantia da placa</span><strong>15 anos</strong></div><div className="proposal-payment-card"><span>{nomeGarantiaEquipamento}</span><strong>{garantiaEquipamento}</strong></div><div className="proposal-payment-card"><span>Garantia da instalação</span><strong>1 ano</strong></div></div></div>{mensagem&&<p className="finance-notice proposal-no-print" style={{fontWeight:800}}>{mensagem}</p>}<div className="proposal-no-print" style={{marginTop:18,border:'1px solid #dce5ef',borderRadius:18,padding:16}}><div style={{display:'flex',gap:10,marginBottom:12}}><Sparkles size={20}/><strong>Proposta pronta</strong></div><div className="finance-actions" style={{gap:10,flexWrap:'wrap'}}><button className="finance-button" style={actionButton} disabled={salvando} onClick={gerarESalvar}><FileDown size={18}/>{salvando?'Gerando...':'Gerar PDF'}</button><button className="finance-button" style={actionButton} disabled={salvando} onClick={enviarWhatsApp}><WhatsAppBusinessIcon/>{salvando?'Preparando PDF...':'Compartilhar PDF'}</button></div><div style={{marginTop:10,color:'#667085',fontSize:12,display:'flex',gap:6}}><ShieldCheck size={15}/>No Android, o PDF é aberto no compartilhamento do sistema. Escolha o WhatsApp Business e depois o contato.</div></div><div className="proposal-no-print" style={{marginTop:24,borderTop:'1px solid #dce5ef',paddingTop:20}}><div className="finance-panel-header"><div><h2>Histórico de propostas</h2></div><button onClick={carregarDados}><RefreshCw size={20}/></button></div><label className="finance-field"><span>Pesquisar</span><div style={{display:'flex',gap:8}}><Search size={18}/><input value={busca} onChange={e=>setBusca(e.target.value)}/></div></label>{filtrado.map(i=><div className="finance-list-item" key={i.id}><div><strong>{i.client_name}</strong><span>{new Date(i.created_at).toLocaleDateString('pt-BR')} · {moeda.format(i.total_amount)} · {i.status}</span></div><div className="finance-actions"><button onClick={async()=>baixarPdf(await criarArquivoPdf(i.proposal_data||dados))}><FileDown size={16}/>PDF</button>{i.serviceOrder||i.status==='Venda Fechada'?<button onClick={()=>navigate('/app/ordens-servico')}><CheckCircle2 size={16}/>Abrir OS</button>:<button disabled={fechandoId===i.id} onClick={()=>fecharVenda(i)}><Wrench size={16}/>Fechar venda</button>}<button className="finance-delete" onClick={()=>excluir(i.id)}><Trash2 size={16}/>Excluir</button></div></div>)}{!filtrado.length&&<div className="finance-empty">Nenhuma proposta encontrada.</div>}</div></section>;
+  const baixarPdf = (arquivo) => { const url = URL.createObjectURL(arquivo); const a = document.createElement('a'); a.href = url; a.download = arquivo.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+  const gerarESalvar = async () => { if (!dados.cliente.trim()) { setMensagem('Informe o nome do cliente.'); return; } setSalvando(true); try { const arq = await criarArquivoPdf(); baixarPdf(arq); const r = await salvarProposta('Gerada'); setMensagem(r.saved ? 'Proposta salva no histórico e PDF gerado.' : r.warning); } finally { setSalvando(false); } };
+  const enviarWhatsApp = async () => { if (!dados.cliente.trim()) { setMensagem('Informe o nome do cliente.'); return; } let telefone = somenteNumeros(dados.telefone).replace(/^0+/, ''); if (!telefone) { setMensagem('Informe o WhatsApp do cliente.'); return; } if (telefone.length <= 11) telefone = `55${telefone}`; setSalvando(true); try { const arquivo = await criarArquivoPdf(); const texto = `Olá, ${dados.cliente.trim()}! Segue sua proposta da MM Energia Solar.`; const podeCompartilhar = typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare({ files: [arquivo] })); if (podeCompartilhar) { await navigator.share({ title: `Proposta MM Energia Solar - ${dados.cliente.trim()}`, text: texto, files: [arquivo] }); setMensagem('PDF compartilhado. Escolha o WhatsApp Business e o contato do cliente.'); salvarProposta('Enviada').catch(() => {}); return; } baixarPdf(arquivo); const mensagemWhats = encodeURIComponent(`${texto}\n\nO PDF foi baixado no aparelho. Anexe-o nesta conversa.`); const destino = /Android/i.test(navigator.userAgent) ? `intent://send?phone=${telefone}&text=${mensagemWhats}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end` : `https://wa.me/${telefone}?text=${mensagemWhats}`; setMensagem('O navegador não permite anexar automaticamente. O PDF foi baixado e o WhatsApp será aberto.'); salvarProposta('Enviada').catch(() => {}); window.location.assign(destino); } catch (error) { if (error?.name !== 'AbortError') setMensagem(`Não foi possível compartilhar o PDF: ${error?.message || 'erro desconhecido'}`); } finally { setSalvando(false); } };
+  const fecharVenda = async (p) => { if (!window.confirm(`Confirmar a venda para ${p.client_name}?`)) return; setFechandoId(p.id); try { const { proposal, serviceOrder } = await closeProposalAsSale(p.id); setHistorico((rows) => rows.map((r) => r.id === p.id ? { ...r, ...proposal, serviceOrder } : r)); } finally { setFechandoId(null); } };
+  const excluir = async (id) => { if (window.confirm('Excluir esta proposta?') && supabase) { await supabase.from('sales_proposals').delete().eq('id', id); carregarDados(); } };
+  const filtrado = historico.filter((i) => `${i.client_name} ${i.proposal_data?.telefone || ''}`.toLowerCase().includes(busca.toLowerCase()));
+  const actionButton = { minHeight: 46, padding: '8px 14px', borderRadius: 12, fontSize: 14, flex: '0 1 230px' };
+
+  return <section className="finance-panel"><div className="finance-panel-header proposal-no-print"><div><h2>Proposta profissional ERP 2.0</h2><p>PDF, histórico e envio direto ao WhatsApp Business.</p></div></div><div className="proposal-print-area"><div className="finance-form"><label className="finance-field proposal-no-print"><span>Cliente do CRM</span><select value={clienteId} onChange={(e) => selecionarCliente(e.target.value)}><option value="">Preencher manualmente</option>{clientes.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}</select></label><label className="finance-field"><span>Nome do cliente *</span><input name="cliente" value={dados.cliente} onChange={atualizar}/></label><label className="finance-field"><span>WhatsApp</span><input name="telefone" value={dados.telefone} onChange={atualizar}/></label><label className="finance-field"><span>Cidade/UF</span><input name="cidade" value={dados.cidade} onChange={atualizar}/></label><label className="finance-field finance-field-wide"><span>Observações</span><textarea name="observacoes" value={dados.observacoes} onChange={atualizar}/></label></div><div className="pricing-highlight"><span>Valor total da proposta</span><strong>{moeda.format(valor)}</strong></div><div className="proposal-payment-grid"><div className="proposal-payment-card"><span>Financiamento BelCred</span><strong>{belcredSelecionado.parcelas}x de {moeda.format(belcredSelecionado.valor)}</strong><div className="proposal-card-options">{belcred.map((i) => <button type="button" className="proposal-card-option" key={i.parcelas} onClick={() => setPlanoBelcred(i.parcelas)}>{i.parcelas}x de {moeda.format(i.valor)}</button>)}</div></div><div className="proposal-payment-card"><span>Cartão de crédito</span><div className="proposal-card-options">{opcoesCartao.map((i) => <div className="proposal-card-option" key={i.parcelas} title={`Taxa ${i.taxa.toFixed(2).replace('.', ',')}%`}>{i.parcelas}x de {moeda.format(i.valorParcela)}</div>)}</div></div></div><div className="proposal-payment-grid" style={{ marginTop: 14 }}><div className="proposal-payment-card"><span>Garantia da placa</span><strong>15 anos</strong></div><div className="proposal-payment-card"><span>{nomeGarantiaEquipamento}</span><strong>{garantiaEquipamento}</strong></div><div className="proposal-payment-card"><span>Garantia da instalação</span><strong>1 ano</strong></div></div></div>{mensagem && <p className="finance-notice proposal-no-print" style={{ fontWeight: 800 }}>{mensagem}</p>}<div className="proposal-no-print" style={{ marginTop: 18, border: '1px solid #dce5ef', borderRadius: 18, padding: 16 }}><div style={{ display: 'flex', gap: 10, marginBottom: 12 }}><Sparkles size={20}/><strong>Proposta pronta</strong></div><div className="finance-actions" style={{ gap: 10, flexWrap: 'wrap' }}><button className="finance-button" style={actionButton} disabled={salvando} onClick={gerarESalvar}><FileDown size={18}/>{salvando ? 'Gerando...' : 'Gerar PDF'}</button><button className="finance-button" style={actionButton} disabled={salvando} onClick={enviarWhatsApp}><WhatsAppBusinessIcon/>{salvando ? 'Preparando PDF...' : 'Compartilhar PDF'}</button></div><div style={{ marginTop: 10, color: '#667085', fontSize: 12, display: 'flex', gap: 6 }}><ShieldCheck size={15}/>No Android, o PDF é aberto no compartilhamento do sistema. Escolha o WhatsApp Business e depois o contato.</div></div><div className="proposal-no-print" style={{ marginTop: 24, borderTop: '1px solid #dce5ef', paddingTop: 20 }}><div className="finance-panel-header"><div><h2>Histórico de propostas</h2></div><button onClick={carregarDados}><RefreshCw size={20}/></button></div><label className="finance-field"><span>Pesquisar</span><div style={{ display: 'flex', gap: 8 }}><Search size={18}/><input value={busca} onChange={(e) => setBusca(e.target.value)}/></div></label>{filtrado.map((i) => <div className="finance-list-item" key={i.id}><div><strong>{i.client_name}</strong><span>{new Date(i.created_at).toLocaleDateString('pt-BR')} · {moeda.format(i.total_amount)} · {i.status}</span></div><div className="finance-actions"><button onClick={async () => baixarPdf(await criarArquivoPdf(i.proposal_data || dados))}><FileDown size={16}/>PDF</button>{i.serviceOrder || i.status === 'Venda Fechada' ? <button onClick={() => navigate('/app/ordens-servico')}><CheckCircle2 size={16}/>Abrir OS</button> : <button disabled={fechandoId === i.id} onClick={() => fecharVenda(i)}><Wrench size={16}/>Fechar venda</button>}<button className="finance-delete" onClick={() => excluir(i.id)}><Trash2 size={16}/>Excluir</button></div></div>)}{!filtrado.length && <div className="finance-empty">Nenhuma proposta encontrada.</div>}</div></section>;
 }
