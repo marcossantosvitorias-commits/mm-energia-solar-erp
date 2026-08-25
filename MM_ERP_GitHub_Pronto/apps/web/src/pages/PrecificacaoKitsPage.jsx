@@ -33,7 +33,7 @@ const configuracoes = {
     titulo: 'Inversor string',
     descricao: 'Kits com inversor central/string. Selecione a quantidade de placas.',
     modulo: 'TCL Solar bifacial N-Type 620 W - MFTC-1.2-BF-132-620W',
-    inversor: 'Deye monofásico 5 kW, 2 MPPT, 220 V - INVDE-MO-220V-5KW',
+    inversor: 'Inversor string conforme dimensionamento',
   },
   hibrido: {
     titulo: 'Híbrido',
@@ -45,6 +45,15 @@ const configuracoes = {
 
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
+
+function inversorStringPorQuantidade(quantidade) {
+  const qtd = Number(quantidade || 0);
+  if (qtd <= 6) return 'Inversor string 3 kW';
+  if (qtd <= 10) return 'Inversor string 5 kW';
+  if (qtd <= 12) return 'Inversor string 6 kW';
+  if (qtd <= 14) return 'Inversor string 6,6 kW';
+  return 'Inversor string 7,5 kW';
+}
 
 export default function PrecificacaoKitsPage() {
   const [tipoSistema, setTipoSistema] = useState('microinversor');
@@ -106,7 +115,9 @@ export default function PrecificacaoKitsPage() {
   const form = forms[tipoSistema];
   const presetMicro = tipoSistema === 'microinversor' ? microinversorPresets[quantidadePlacas] : null;
   const moduloProposta = presetMicro?.modulo || config.modulo;
-  const inversorProposta = presetMicro?.inversor || config.inversor;
+  const inversorProposta = tipoSistema === 'inversor'
+    ? inversorStringPorQuantidade(quantidadePlacas)
+    : (presetMicro?.inversor || config.inversor);
 
   const selecionarTipo = (tipo) => {
     setTipoSistema(tipo);
