@@ -5,7 +5,11 @@ import { formatarMoeda } from '../components/finance/storage.js';
 import ProposalGenerator from './ProposalGenerator.jsx';
 
 const presets = Array.from({ length: 19 }, (_, indice) => indice + 4);
+const POTENCIAS_PLACA = [600, 620];
 const TAXA_CARTAO_12X = 11.69;
+const IRRADIACAO_MEDIA = 5.2;
+const FATOR_DESEMPENHO = 0.8;
+const DIAS_MES = 30;
 
 const microinversorPresets = {
   12: {
@@ -25,19 +29,19 @@ const microinversorPresets = {
 const configuracoes = {
   microinversor: {
     titulo: 'Microinversor',
-    descricao: 'Kits com microinversores. Selecione a quantidade de placas.',
+    descricao: 'Kits com microinversores. Selecione a quantidade e a potência das placas.',
     modulo: 'Módulo fotovoltaico bifacial N-Type 620 W',
     inversor: 'Microinversor Deye 2,25 kW 220 V',
   },
   inversor: {
     titulo: 'Inversor string',
-    descricao: 'Kits com inversor central/string. Selecione a quantidade de placas.',
+    descricao: 'Kits com inversor central/string. Selecione a quantidade e a potência das placas.',
     modulo: 'TCL Solar bifacial N-Type 620 W - MFTC-1.2-BF-132-620W',
     inversor: 'Inversor string conforme dimensionamento',
   },
   hibrido: {
     titulo: 'Híbrido',
-    descricao: 'Kits com inversor híbrido, bateria e backup. Selecione a quantidade de placas.',
+    descricao: 'Kits com inversor híbrido, bateria e backup. Selecione a quantidade e a potência das placas.',
     modulo: 'Módulo fotovoltaico bifacial N-Type 620 W',
     inversor: 'SAJ H2 5 kW',
   },
@@ -45,6 +49,9 @@ const configuracoes = {
 
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
+const calcularGeracaoMensal = (quantidade, potenciaW) => (
+  numero(quantidade) * numero(potenciaW) * IRRADIACAO_MEDIA * FATOR_DESEMPENHO * DIAS_MES
+) / 1000;
 
 function inversorStringPorQuantidade(quantidade) {
   const qtd = Number(quantidade || 0);
@@ -58,6 +65,7 @@ function inversorStringPorQuantidade(quantidade) {
 export default function PrecificacaoKitsPage() {
   const [tipoSistema, setTipoSistema] = useState('microinversor');
   const [quantidades, setQuantidades] = useState({ microinversor: 4, inversor: 4, hibrido: 4 });
+  const [potenciaPlaca, setPotenciaPlaca] = useState(620);
   const [formaPagamento, setFormaPagamento] = useState('avista');
   const [forms, setForms] = useState({
     microinversor: {
@@ -114,10 +122,15 @@ export default function PrecificacaoKitsPage() {
   const quantidadePlacas = quantidades[tipoSistema];
   const form = forms[tipoSistema];
   const presetMicro = tipoSistema === 'microinversor' ? microinversorPresets[quantidadePlacas] : null;
-  const moduloProposta = presetMicro?.modulo || config.modulo;
+  const moduloBase = presetMicro?.modulo || config.modulo;
+  const moduloProposta = potenciaPlaca === 620
+    ? moduloBase
+    : `Módulo fotovoltaico bifacial N-Type ${potenciaPlaca} W`;
   const inversorProposta = tipoSistema === 'inversor'
     ? inversorStringPorQuantidade(quantidadePlacas)
     : (presetMicro?.inversor || config.inversor);
+  const potenciaSistemaKw = (quantidadePlacas * potenciaPlaca) / 1000;
+  const geracaoMensalKwh = calcularGeracaoMensal(quantidadePlacas, potenciaPlaca);
 
   const selecionarTipo = (tipo) => {
     setTipoSistema(tipo);
@@ -177,7 +190,7 @@ export default function PrecificacaoKitsPage() {
   return (
     <FinanceLayout
       title="Preços dos kits"
-      subtitle="Microinversor, inversor string e híbrido organizados por quantidade de placas."
+      subtitle="Microinversor, inversor string e híbrido organizados por quantidade e potência das placas."
       theme="empresa"
     >
       <section className="finance-panel">
@@ -217,6 +230,26 @@ export default function PrecificacaoKitsPage() {
             </button>
           ))}
         </div>
+
+        <div className="finance-panel-header" style={{ marginTop: 18 }}>
+          <div><h2>Potência da placa</h2><p>A potência escolhida será usada no kWp e no cálculo da geração da proposta.</p></div>
+        </div>
+        <div className="tax-mode-grid">
+          {POTENCIAS_PLACA.map((potencia) => (
+            <button
+              key={potencia}
+              className={potenciaPlaca === potencia ? 'active' : ''}
+              onClick={() => setPotenciaPlaca(potencia)}
+            >
+              <strong>{potencia} W</strong>
+              <span>placa fotovoltaica</span>
+            </button>
+          ))}
+        </div>
+        <div className="pricing-highlight">
+          <span>{quantidadePlacas} placas de {potenciaPlaca} W • {potenciaSistemaKw.toFixed(2).replace('.', ',')} kWp</span>
+          <strong>≈ {Math.round(geracaoMensalKwh).toLocaleString('pt-BR')} kWh/mês</strong>
+        </div>
       </section>
 
       <details className="finance-panel">
@@ -251,7 +284,8 @@ export default function PrecificacaoKitsPage() {
       </details>
 
       <section className="finance-grid">
-        <StatCard label="Preço à vista" value={formatarMoeda(resultado.precoVenda)} helper={`${quantidadePlacas} placas • valores internos ocultos`} tone="primary" />
+        <StatCard label="Preço à vista" value={formatarMoeda(resultado.precoVenda)} helper={`${quantidadePlacas} placas de ${potenciaPlaca} W • valores internos ocultos`} tone="primary" />
+        <StatCard label="Potência do sistema" value={`${potenciaSistemaKw.toFixed(2).replace('.', ',')} kWp`} helper={`Geração estimada: ${Math.round(geracaoMensalKwh).toLocaleString('pt-BR')} kWh/mês`} tone="primary" />
         <StatCard label="Lucro estimado" value={formatarMoeda(resultado.lucro)} helper={`Margem real de ${resultado.margemReal.toFixed(2)}%`} tone="positive" />
       </section>
 
@@ -271,12 +305,12 @@ export default function PrecificacaoKitsPage() {
       </section>
 
       <ProposalGenerator
-        key={`${tipoSistema}-${quantidadePlacas}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}`}
+        key={`${tipoSistema}-${quantidadePlacas}-${potenciaPlaca}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}`}
         quantidadePlacas={quantidadePlacas}
         precoRecomendado={resultado.valorProposta}
         modulo={moduloProposta}
         inversor={inversorProposta}
-        potenciaSistemaKw={(quantidadePlacas * 620) / 1000}
+        potenciaSistemaKw={potenciaSistemaKw}
       />
     </FinanceLayout>
   );
