@@ -13,6 +13,10 @@ const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const numero = (valor) => Number(valor || 0);
 const porcentagem = (valor) => numero(valor) / 100;
 const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);
+const POTENCIAS_PLACA = [600, 620];
+const IRRADIACAO_MEDIA = 5.2;
+const FATOR_DESEMPENHO = 0.8;
+const DIAS_MES = 30;
 
 const FORM_PADRAO = {
   materialEletrico: 350,
@@ -38,6 +42,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   const [cardFees, setCardFees] = useState([]);
   const [installments, setInstallments] = useState(12);
   const [formaPagamento, setFormaPagamento] = useState('avista');
+  const [potenciaPlaca, setPotenciaPlaca] = useState(() => searchParams.get('potencia') === '600' ? 600 : 620);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
@@ -78,6 +83,8 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
 
   const cotacao = cotacoes.find((item) => item.id === cotacaoId) || cotacoes[0];
   const selectedFee = cardFees.find((item) => item.installments === Number(installments));
+  const potenciaSistemaKw = cotacao ? numero(cotacao.placas) * potenciaPlaca / 1000 : 0;
+  const geracaoMensalKwh = potenciaSistemaKw * IRRADIACAO_MEDIA * FATOR_DESEMPENHO * DIAS_MES;
 
   const resultado = useMemo(() => {
     if (!cotacao) return null;
@@ -138,8 +145,9 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   async function copiarResumo() {
     if (!cotacao || !resultado) return;
     const texto = [
-      `Proposta MM Energia Solar - ${cotacao.placas} placas`,
-      `Potência: ${numero(cotacao.potencia).toFixed(2).replace('.', ',')} kWp`,
+      `Proposta MM Energia Solar - ${cotacao.placas} placas de ${potenciaPlaca} W`,
+      `Potência: ${potenciaSistemaKw.toFixed(2).replace('.', ',')} kWp`,
+      `Geração estimada: ${Math.round(geracaoMensalKwh).toLocaleString('pt-BR')} kWh/mês`,
       `Preço à vista: ${moeda.format(resultado.precoVenda)}`,
       `Cartão em ${installments}x: ${moeda.format(resultado.precoCartao)}`,
       `${installments} parcelas de ${moeda.format(resultado.valorParcela)}`,
@@ -163,7 +171,18 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
   ];
 
   const selecionarTipoKit = (tipo) => {
-    setSearchParams(tipo === 'hibrido' ? { tipo: 'hibrido' } : {});
+    const params = new URLSearchParams(searchParams);
+    if (tipo === 'hibrido') params.set('tipo', 'hibrido');
+    else params.delete('tipo');
+    params.set('potencia', String(potenciaPlaca));
+    setSearchParams(params);
+  };
+
+  const selecionarPotencia = (potencia) => {
+    setPotenciaPlaca(potencia);
+    const params = new URLSearchParams(searchParams);
+    params.set('potencia', String(potencia));
+    setSearchParams(params);
   };
 
   const selecionarCotacao = (id) => {
@@ -207,12 +226,29 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
                   >
                     <div className="belenus-quote-top">
                       <span>{quantidade} placas</span>
-                      <small>{((item ? numero(item.potencia) : quantidade * 0.62)).toFixed(2).replace('.', ',')} kWp</small>
+                      <small>{(quantidade * potenciaPlaca / 1000).toFixed(2).replace('.', ',')} kWp</small>
                     </div>
                     <b>{item ? 'Preço cadastrado' : 'Preço pendente'}</b>
                   </button>
                 );
               })}
+            </section>
+
+            <section className="finance-panel">
+              <div className="finance-panel-header">
+                <div><h2>Potência da placa</h2><p>Escolha 600 W ou 620 W. A proposta e a geração serão recalculadas automaticamente.</p></div>
+              </div>
+              <div className="tax-mode-grid">
+                {POTENCIAS_PLACA.map((potencia) => (
+                  <button type="button" key={potencia} className={potenciaPlaca === potencia ? 'active' : ''} onClick={() => selecionarPotencia(potencia)}>
+                    <strong>{potencia} W</strong><span>Usar na proposta</span>
+                  </button>
+                ))}
+              </div>
+              <div className="pricing-highlight">
+                <span>{cotacao.placas} placas de {potenciaPlaca} W · {potenciaSistemaKw.toFixed(2).replace('.', ',')} kWp</span>
+                <strong>≈ {Math.round(geracaoMensalKwh).toLocaleString('pt-BR')} kWh/mês</strong>
+              </div>
             </section>
 
             <section className="finance-panel">
@@ -266,12 +302,12 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
             </section>
 
             <ProposalGenerator
-              key={`${cotacao.id}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}-${installments}`}
+              key={`${cotacao.id}-${potenciaPlaca}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}-${installments}`}
               quantidadePlacas={cotacao.placas}
               precoRecomendado={resultado.valorProposta}
-              modulo={cotacao.modulo}
+              modulo={`Módulo fotovoltaico bifacial N-Type ${potenciaPlaca} W`}
               inversor={`${cotacao.inversores}x ${cotacao.inversor}`}
-              potenciaSistemaKw={cotacao.potencia}
+              potenciaSistemaKw={potenciaSistemaKw}
               precoCartao={resultado.precoCartao}
               parcelasCartao={installments}
               valorParcelaCartao={resultado.valorParcela}
