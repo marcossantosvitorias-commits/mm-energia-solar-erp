@@ -1,15 +1,35 @@
 from pathlib import Path
 
-page = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/CotacoesBelenusSupabasePage.jsx')
+micro_page = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/CotacoesBelenusSupabasePage.jsx')
+inversor_page = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/InversorStringPage.jsx')
 proposal = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/ProposalGenerator.jsx')
 
-text = page.read_text(encoding='utf-8')
+# Remove 64 placas da tela de microinversor.
+text = micro_page.read_text(encoding='utf-8')
+text = text.replace(
+    "const QUANTIDADES_KITS = [...Array.from({ length: 19 }, (_, indice) => indice + 4), 64];",
+    "const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);"
+)
+micro_page.write_text(text, encoding='utf-8')
+
+# Adiciona 64 placas somente na tela de inversor string.
+text = inversor_page.read_text(encoding='utf-8')
 text = text.replace(
     "const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);",
     "const QUANTIDADES_KITS = [...Array.from({ length: 19 }, (_, indice) => indice + 4), 64];"
 )
-page.write_text(text, encoding='utf-8')
 
+kit_64 = "  { placas: 64, potenciaPlaca: 620, valorTotalDistribuidora: 63161.27, inversor: 'Auxsol trifásico 20 kW 220 V, 4 MPPT', referencia: 'Orçamento WEB-006717414' },\n"
+anchor = "  { placas: 12, potenciaPlaca: 620, valorTotalDistribuidora: 9799.71, inversor: 'Auxsol monofásico 6 kW', referencia: 'Cotação cadastrada em 10/08/2026 · produtos R$ 9.263,61 · frete R$ 536,10' },\n"
+if "placas: 64" not in text:
+    text = text.replace(anchor, anchor + kit_64)
+text = text.replace(
+    "Kits organizados de 4 até 22 placas. Quando ainda não houver preço cadastrado, o kit fica identificado como pendente.",
+    "Kits organizados de 4 até 22 placas, além do projeto especial de 64 placas. Quando ainda não houver preço cadastrado, o kit fica identificado como pendente."
+)
+inversor_page.write_text(text, encoding='utf-8')
+
+# Mantém as imagens exclusivas do orçamento Auxsol 20 kW no PDF.
 text = proposal.read_text(encoding='utf-8')
 import_line = "import { PAINEL_620_BELENUS_IMAGE, INVERSOR_BELENUS_IMAGE, INVERSOR_75_BELENUS_IMAGE } from '../assets/proposalBelenusImages.js';"
 extra_import = "import { JA_SOLAR_620_AUXSOL_QUOTE_IMAGE, AUXSOL_20KW_QUOTE_IMAGE } from '../assets/proposalAuxsol20Images.js';"
