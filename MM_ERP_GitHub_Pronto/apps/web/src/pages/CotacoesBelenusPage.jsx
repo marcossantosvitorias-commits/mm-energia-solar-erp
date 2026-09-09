@@ -85,6 +85,21 @@ const cotacoes = [
     emissao: '26/07/2026',
   },
   {
+    id: 'WEB-006717414',
+    placas: 64,
+    potencia: 39.68,
+    modulo: 'JA Solar bifacial N-Type 620 W',
+    inversores: 1,
+    inversor: 'Inversor Auxsol trifásico 4 MPPT 220 V 20 kW',
+    produtos: 60731.99,
+    frete: 2429.28,
+    total: 63161.27,
+    estrutura: 'Telha metálica - Mini Trilho Alto Belenergy',
+    emissao: '09/09/2026',
+    fotoPainel: '/propostas/WEB-006717414-painel.webp',
+    fotoInversor: '/propostas/WEB-006717414-inversor.webp',
+  },
+  {
     id: 'WEB-006409070',
     placas: 16,
     potencia: 9.92,
@@ -196,7 +211,7 @@ function CotacoesBelenusPage({ pricingMode = false }) {
       `Proposta MM Energia Solar - ${cotacao.placas} placas`,
       `Potência: ${cotacao.potencia.toFixed(2).replace('.', ',')} kWp`,
       `Módulos: ${cotacao.modulo}`,
-      `${cotacao.inversores} ${cotacao.inversores === 1 ? 'microinversor' : 'microinversores'} Deye`,
+      `${cotacao.inversores}x ${cotacao.inversor}`,
       '',
       `Preço de venda: ${moeda.format(resultado.precoVenda)}`,
       `Preço com desconto: ${moeda.format(resultado.precoComDesconto)}`,
@@ -256,7 +271,7 @@ function CotacoesBelenusPage({ pricingMode = false }) {
           </div>
 
           <div className="finance-list-item">
-            <div><strong>Microinversores</strong><span>{cotacao.inversor}</span></div>
+            <div><strong>Inversor / microinversores</strong><span>{cotacao.inversor}</span></div>
             <strong>{cotacao.inversores} un.</strong>
           </div>
           <div className="finance-list-item">
@@ -391,6 +406,8 @@ function CotacoesBelenusPage({ pricingMode = false }) {
         modulo={cotacao.modulo}
         inversor={`${cotacao.inversores}x ${cotacao.inversor}`}
         potenciaSistemaKw={cotacao.potencia}
+        fotoPainelPadrao={cotacao.fotoPainel || ''}
+        fotoInversorPadrao={cotacao.fotoInversor || ''}
       />
     </FinanceLayout>
   );
