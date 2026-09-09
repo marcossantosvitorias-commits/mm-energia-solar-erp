@@ -2,7 +2,8 @@ name: Patch WEB-006717414
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,95 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Aplicar ajuste ERP
-        shell: python
-        run: |
-          from pathlib import Path
-
-          cot_path = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/CotacoesBelenusPage.jsx')
-          prop_path = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/ProposalGenerator.jsx')
-          workflow_path = Path('.github/workflows/patch-006717414.yml')
-
-          cot = cot_path.read_text(encoding='utf-8')
-          if "WEB-006717414" not in cot:
-              marker = "  {\n    id: 'WEB-006409070',"
-              idx = cot.find(marker)
-              if idx == -1:
-                  raise SystemExit('Ponto de insercao da cotacao nao encontrado')
-              quote = """  {
-    id: 'WEB-006717414',
-    placas: 64,
-    potencia: 39.68,
-    modulo: 'JA Solar bifacial N-Type 620 W',
-    inversores: 1,
-    inversor: 'Inversor Auxsol trifásico 4 MPPT 220 V 20 kW',
-    produtos: 60731.99,
-    frete: 2429.28,
-    total: 63161.27,
-    estrutura: 'Telha metálica - mini trilho alto Belenergy',
-    emissao: '09/09/2026',
-    fotoPainel: '/propostas/WEB-006717414-painel.webp',
-    fotoInversor: '/propostas/WEB-006717414-inversor.webp',
-  },
-"""
-              cot = cot[:idx] + quote + cot[idx:]
-
-          old_call = """        potenciaSistemaKw={cotacao.potencia}
-      />"""
-          new_call = """        potenciaSistemaKw={cotacao.potencia}
-        fotoPainelPadrao={cotacao.fotoPainel || ''}
-        fotoInversorPadrao={cotacao.fotoInversor || ''}
-      />"""
-          if old_call in cot and 'fotoPainelPadrao=' not in cot:
-              cot = cot.replace(old_call, new_call, 1)
-          cot_path.write_text(cot, encoding='utf-8')
-
-          prop = prop_path.read_text(encoding='utf-8')
-          old_props = """  equipamentosAdicionais = [],
-  retrofitDados = null,
-}) {"""
-          new_props = """  equipamentosAdicionais = [],
-  retrofitDados = null,
-  fotoPainelPadrao = '',
-  fotoInversorPadrao = '',
-}) {"""
-          if old_props in prop and 'fotoPainelPadrao' not in prop:
-              prop = prop.replace(old_props, new_props, 1)
-
-          old_fotos = """    fotoPainel: DEFAULT_PANEL_IMAGE, fotoInversor: DEFAULT_INVERTER_IMAGE,
-  });"""
-          new_fotos = """    fotoPainel: fotoPainelPadrao || DEFAULT_PANEL_IMAGE,
-    fotoInversor: fotoInversorPadrao || DEFAULT_INVERTER_IMAGE,
-  });"""
-          if old_fotos in prop:
-              prop = prop.replace(old_fotos, new_fotos, 1)
-
-          old_pdf_vars = """    const validade = proposta.validade || proposta.validity_days || dados.validade;
-    const hibrido = proposta.dadosHibridos || dadosHibridos;"""
-          new_pdf_vars = """    const validade = proposta.validade || proposta.validity_days || dados.validade;
-    const fotoPainelPdf = proposta.fotoPainel || dados.fotoPainel;
-    const fotoInversorPdf = proposta.fotoInversor || dados.fotoInversor;
-    const hibrido = proposta.dadosHibridos || dadosHibridos;"""
-          if old_pdf_vars in prop and 'fotoPainelPdf' not in prop:
-              prop = prop.replace(old_pdf_vars, new_pdf_vars, 1)
-
-          old_css = ".equipment li{margin:6px 0}.notice{"
-          new_css = ".equipment li{margin:6px 0}.equipment-images{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.equipment-images figure{margin:0;border:1px solid #dce5ef;border-radius:12px;padding:10px;background:#fff}.equipment-images img{width:100%;height:180px;object-fit:contain;display:block}.equipment-images figcaption{font-size:12px;color:#667085;text-align:center;margin-top:7px}.notice{"
-          if old_css in prop and '.equipment-images{' not in prop:
-              prop = prop.replace(old_css, new_css, 1)
-
-          old_equipment = """<div class=\"equipment\"><h3>Equipamentos incluídos</h3><p><b>Painéis:</b> ${escapeHtml(painel)}</p><p><b>Inversor:</b> ${escapeHtml(inv)}</p>${equipamentosHtml}</div>"""
-          new_equipment = """<div class=\"equipment\"><h3>Equipamentos incluídos</h3><p><b>Painéis:</b> ${escapeHtml(painel)}</p><p><b>Inversor:</b> ${escapeHtml(inv)}</p>${equipamentosHtml}${fotoPainelPdf || fotoInversorPdf ? `<div class=\"equipment-images\">${fotoPainelPdf ? `<figure><img src=\"${escapeHtml(fotoPainelPdf)}\" alt=\"Painel solar\"><figcaption>Painel JA Solar 620 W</figcaption></figure>` : ''}${fotoInversorPdf ? `<figure><img src=\"${escapeHtml(fotoInversorPdf)}\" alt=\"Inversor\"><figcaption>Inversor Auxsol 20 kW</figcaption></figure>` : ''}</div>` : ''}</div>"""
-          if old_equipment in prop and 'equipment-images' not in prop.split(old_equipment)[0][-500:]:
-              prop = prop.replace(old_equipment, new_equipment, 1)
-
-          prop_path.write_text(prop, encoding='utf-8')
-          if workflow_path.exists():
-              workflow_path.unlink()
+        run: python scripts/patch_web_006717414.py
       - name: Commitar ajuste
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add MM_ERP_GitHub_Pronto/apps/web/src/pages/CotacoesBelenusPage.jsx MM_ERP_GitHub_Pronto/apps/web/src/pages/ProposalGenerator.jsx
           if git diff --cached --quiet; then
             exit 0
           fi
