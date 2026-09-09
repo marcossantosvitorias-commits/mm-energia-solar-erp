@@ -51,10 +51,10 @@ new = """function imagemEquipamentoPdf(valor, ehMicro) {
 }"""
 text = text.replace(old, new)
 
-# jsPDF estava recebendo WEBP e tratando como JPEG, deixando o card em branco.
-# Converte qualquer WEBP para JPEG via canvas antes de inserir no PDF.
-helper_anchor = "async function carregarLogoPdf() {"
-helper = """async function prepararImagemPdf(imagem) {
+# Reprocessa TODAS as imagens de equipamento no navegador antes do jsPDF.
+# Isso evita JPEGs que o jsPDF não decodifica bem e adiciona margem branca
+# para não cortar o inversor nas bordas.
+old_helper = """async function prepararImagemPdf(imagem) {
   if (!imagem || !/^data:image\\/webp/i.test(imagem)) return imagem;
   try {
     const img = await new Promise((resolve, reject) => {
@@ -74,11 +74,38 @@ helper = """async function prepararImagemPdf(imagem) {
   } catch {
     return imagem;
   }
-}
+}"""
 
-"""
-if "async function prepararImagemPdf(imagem)" not in text:
-    text = text.replace(helper_anchor, helper + helper_anchor)
+new_helper = """async function prepararImagemPdf(imagem) {
+  if (!imagem || !/^data:image\\/(?:png|jpe?g|webp)/i.test(imagem)) return imagem;
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = imagem;
+    });
+    const largura = Math.max(1, img.naturalWidth || img.width || 1);
+    const altura = Math.max(1, img.naturalHeight || img.height || 1);
+    const margem = Math.max(18, Math.round(Math.max(largura, altura) * 0.10));
+    const canvas = document.createElement('canvas');
+    canvas.width = largura + margem * 2;
+    canvas.height = altura + margem * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, margem, margem, largura, altura);
+    return canvas.toDataURL('image/jpeg', 0.90);
+  } catch {
+    return imagem;
+  }
+}"""
+
+if old_helper in text:
+    text = text.replace(old_helper, new_helper)
+elif "async function prepararImagemPdf(imagem)" not in text:
+    helper_anchor = "async function carregarLogoPdf() {"
+    text = text.replace(helper_anchor, new_helper + "\n\n" + helper_anchor)
 
 old_pdf_vars = """    const imagemEquipamento = imagemEquipamentoPdf(inversorPdf, ehMicroPdf);
     const garantiaEquipamentoPdf = ehMicroPdf ? '15 anos' : '10 anos';"""
