@@ -53,6 +53,8 @@ export default function ProposalGenerator({
   precoMinimo = 0,
   equipamentosAdicionais = [],
   retrofitDados = null,
+  fotoPainelPadrao = '',
+  fotoInversorPadrao = '',
 }) {
   const quantidadeSegura = Math.max(Number(quantidadePlacas || 0), 1);
   const potenciaInicial = Math.round((Number(potenciaSistemaKw || 0) * 1000) / quantidadeSegura) || 620;
@@ -67,7 +69,8 @@ export default function ProposalGenerator({
       ? 'A autonomia depende das cargas utilizadas. O dimensionamento definitivo depende do levantamento das cargas que o cliente deseja manter funcionando durante uma falta de energia.'
       : 'Projeto executivo, instalação, homologação junto à concessionária, estrutura, proteções elétricas e pós-venda inclusos.',
     autonomiaEstimada: isHibrido ? 'A definir após levantamento das cargas prioritárias' : '',
-    fotoPainel: DEFAULT_PANEL_IMAGE, fotoInversor: DEFAULT_INVERTER_IMAGE,
+    fotoPainel: fotoPainelPadrao || DEFAULT_PANEL_IMAGE,
+    fotoInversor: fotoInversorPadrao || DEFAULT_INVERTER_IMAGE,
   });
   const [historico, setHistorico] = useState([]);
   const [busca, setBusca] = useState('');
@@ -180,7 +183,15 @@ export default function ProposalGenerator({
     system_power_kw: potenciaSistema, monthly_generation_kwh: Number(dados.geracaoMensal || geracaoCalculada),
     panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Number(dados.validade || 7),
     notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null,
-    proposal_data: { ...dados, quantidadePlacas, potenciaSistema, cartao, parcelas, dadosHibridos },
+    proposal_data: {
+      ...dados,
+      quantidadePlacas,
+      potenciaSistema,
+      cartao,
+      parcelas,
+      dadosHibridos,
+      usarFotosEquipamentos: Boolean(fotoPainelPadrao || fotoInversorPadrao),
+    },
   });
 
   const salvarProposta = async (status = 'Gerada') => {
@@ -221,6 +232,9 @@ export default function ProposalGenerator({
     const geracao = Number(proposta.geracaoMensal || proposta.monthly_generation_kwh || dados.geracaoMensal);
     const observacoes = proposta.observacoes || proposta.notes || dados.observacoes;
     const validade = proposta.validade || proposta.validity_days || dados.validade;
+    const fotoPainelPdf = proposta.fotoPainel || dados.fotoPainel;
+    const fotoInversorPdf = proposta.fotoInversor || dados.fotoInversor;
+    const mostrarFotosEquipamentos = Boolean(proposta.usarFotosEquipamentos || fotoPainelPadrao || fotoInversorPadrao);
     const hibrido = proposta.dadosHibridos || dadosHibridos;
     const janela = window.open('', '_blank');
     if (!janela) { window.alert('Permita a abertura de janelas para gerar o PDF.'); return; }
@@ -229,6 +243,9 @@ export default function ProposalGenerator({
     const equipamentosHtml = hibrido?.equipamentosAdicionais?.length
       ? `<ul>${hibrido.equipamentosAdicionais.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
       : '';
+    const imagensEquipamentosHtml = mostrarFotosEquipamentos
+      ? `<div class="equipment-images">${fotoPainelPdf ? `<figure><img src="${escapeHtml(fotoPainelPdf)}" alt="Painel JA Solar 620 W"><figcaption>Painel JA Solar 620 W</figcaption></figure>` : ''}${fotoInversorPdf ? `<figure><img src="${escapeHtml(fotoInversorPdf)}" alt="Inversor Auxsol 20 kW"><figcaption>Inversor Auxsol 20 kW</figcaption></figure>` : ''}</div>`
+      : '';
     const retrofitHtml = hibrido?.tipoSistema === 'retrofit' && hibrido.retrofitDados
       ? `<div class="equipment"><h3>Configuração do retrofit</h3><p><b>Sistema existente:</b> ${hibrido.retrofitDados.modulosExistentes} módulos e ${hibrido.retrofitDados.microinversoresExistentes} microinversores.</p><p><b>Permanecem nos microinversores:</b> ${hibrido.retrofitDados.modulosMantidosMicro} módulos.</p><p><b>Transferidos para o híbrido:</b> ${hibrido.retrofitDados.modulosTransferidosHibrido} módulos.</p><p><b>Validação:</b> configuração sujeita à validação técnica do projeto.</p></div>`
       : '';
@@ -236,7 +253,7 @@ export default function ProposalGenerator({
       ? `<div class="card"><small>Inversor híbrido</small><strong>${escapeHtml(hibrido.potenciaInversorKw)} kW</strong></div><div class="card"><small>Bateria</small><strong>${escapeHtml(hibrido.capacidadeBateriaKwh)} kWh • ${escapeHtml(hibrido.quantidadeBaterias)} un.</strong></div><div class="card"><small>Autonomia</small><strong>${escapeHtml(hibrido.autonomiaEstimada || 'Conforme cargas utilizadas')}</strong></div>`
       : `<div class="card"><small>Geração estimada</small><strong>${geracao.toLocaleString('pt-BR')} kWh/mês</strong></div>`;
     const sistemaLabel = hibrido?.nomeKit || `${qtd} painéis • ${(qtd * potencia / 1000).toFixed(2).replace('.', ',')} kWp`;
-    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Proposta - ${escapeHtml(cliente)}</title><style>*{box-sizing:border-box}body{margin:0;background:#e8edf4;font-family:Arial;color:#172033}.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff}.head{padding:38px 48px;background:linear-gradient(135deg,#08274d,#0d3c70);color:#fff}.head img{display:block;width:150px;height:auto;max-height:120px;object-fit:contain;object-position:left center}.head h1{font-size:31px;margin:28px 0 8px}.gold{color:#f7bd16}.content{padding:36px 48px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{border:1px solid #dce5ef;border-radius:12px;padding:14px}.card small{display:block;color:#667085;margin-bottom:5px}.price{margin:20px 0;padding:20px;border-radius:14px;background:#fff7d6;border:1px solid #efd264;font-size:30px;font-weight:800;color:#08274d}.equipment{margin-top:20px;padding:16px;border-left:5px solid #f7bd16;background:#f7f9fc}.equipment li{margin:6px 0}.notice{margin-top:16px;padding:14px;border:1px solid #f1c75b;background:#fff9e8;border-radius:10px}.footer{padding:25px 48px;background:#08274d;color:#fff}.actions{position:fixed;right:18px;bottom:18px}.actions button{padding:15px 20px;border:0;border-radius:12px;background:#f7bd16;font-weight:800}@media print{body{background:#fff}.page{margin:0}.actions{display:none}@page{size:A4;margin:0}}</style></head><body><main class="page"><section class="head"><img src="${logoUrl}" alt="MM Energia Solar"><h1>Proposta personalizada para <span class="gold">${escapeHtml(cliente)}</span></h1><p>${hibrido ? 'Energia solar híbrida com armazenamento e backup.' : 'Energia solar completa, instalada e homologada.'}</p></section><section class="content"><div class="grid"><div class="card"><small>Cliente</small><strong>${escapeHtml(cliente)}</strong></div><div class="card"><small>WhatsApp</small><strong>${escapeHtml(telefone)}</strong></div><div class="card"><small>Cidade</small><strong>${escapeHtml(cidade)}</strong></div><div class="card"><small>Sistema</small><strong>${escapeHtml(sistemaLabel)}</strong></div>${cardsHibridos}<div class="card"><small>Validade</small><strong>${escapeHtml(validade)} dias</strong></div></div><div class="price">${formatarMoeda(valorPdf)}</div><div class="equipment"><h3>Equipamentos incluídos</h3><p><b>Painéis:</b> ${escapeHtml(painel)}</p><p><b>Inversor:</b> ${escapeHtml(inv)}</p>${equipamentosHtml}</div>${retrofitHtml}${hibrido ? `<div class="notice"><b>Autonomia:</b> ${escapeHtml(hibrido.autonomiaEstimada || 'depende das cargas utilizadas')}<br><br>O dimensionamento definitivo depende do levantamento das cargas que o cliente deseja manter funcionando durante uma falta de energia. A autonomia real varia conforme potência e tempo de uso dos equipamentos conectados.</div>` : ''}<div class="equipment"><p>${escapeHtml(observacoes)}</p></div></section><footer class="footer">MM Energia Solar • Bauru/SP • Emitida em ${data}</footer></main><div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div></body></html>`);
+    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Proposta - ${escapeHtml(cliente)}</title><style>*{box-sizing:border-box}body{margin:0;background:#e8edf4;font-family:Arial;color:#172033}.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff}.head{padding:38px 48px;background:linear-gradient(135deg,#08274d,#0d3c70);color:#fff}.head img{display:block;width:150px;height:auto;max-height:120px;object-fit:contain;object-position:left center}.head h1{font-size:31px;margin:28px 0 8px}.gold{color:#f7bd16}.content{padding:36px 48px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{border:1px solid #dce5ef;border-radius:12px;padding:14px}.card small{display:block;color:#667085;margin-bottom:5px}.price{margin:20px 0;padding:20px;border-radius:14px;background:#fff7d6;border:1px solid #efd264;font-size:30px;font-weight:800;color:#08274d}.equipment{margin-top:20px;padding:16px;border-left:5px solid #f7bd16;background:#f7f9fc}.equipment li{margin:6px 0}.equipment-images{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.equipment-images figure{margin:0;border:1px solid #dce5ef;border-radius:12px;padding:10px;background:#fff}.equipment-images img{width:100%;height:180px;object-fit:contain;display:block}.equipment-images figcaption{font-size:12px;color:#667085;text-align:center;margin-top:7px}.notice{margin-top:16px;padding:14px;border:1px solid #f1c75b;background:#fff9e8;border-radius:10px}.footer{padding:25px 48px;background:#08274d;color:#fff}.actions{position:fixed;right:18px;bottom:18px}.actions button{padding:15px 20px;border:0;border-radius:12px;background:#f7bd16;font-weight:800}@media print{body{background:#fff}.page{margin:0}.actions{display:none}@page{size:A4;margin:0}}</style></head><body><main class="page"><section class="head"><img src="${logoUrl}" alt="MM Energia Solar"><h1>Proposta personalizada para <span class="gold">${escapeHtml(cliente)}</span></h1><p>${hibrido ? 'Energia solar híbrida com armazenamento e backup.' : 'Energia solar completa, instalada e homologada.'}</p></section><section class="content"><div class="grid"><div class="card"><small>Cliente</small><strong>${escapeHtml(cliente)}</strong></div><div class="card"><small>WhatsApp</small><strong>${escapeHtml(telefone)}</strong></div><div class="card"><small>Cidade</small><strong>${escapeHtml(cidade)}</strong></div><div class="card"><small>Sistema</small><strong>${escapeHtml(sistemaLabel)}</strong></div>${cardsHibridos}<div class="card"><small>Validade</small><strong>${escapeHtml(validade)} dias</strong></div></div><div class="price">${formatarMoeda(valorPdf)}</div><div class="equipment"><h3>Equipamentos incluídos</h3><p><b>Painéis:</b> ${escapeHtml(painel)}</p><p><b>Inversor:</b> ${escapeHtml(inv)}</p>${equipamentosHtml}${imagensEquipamentosHtml}</div>${retrofitHtml}${hibrido ? `<div class="notice"><b>Autonomia:</b> ${escapeHtml(hibrido.autonomiaEstimada || 'depende das cargas utilizadas')}<br><br>O dimensionamento definitivo depende do levantamento das cargas que o cliente deseja manter funcionando durante uma falta de energia. A autonomia real varia conforme potência e tempo de uso dos equipamentos conectados.</div>` : ''}<div class="equipment"><p>${escapeHtml(observacoes)}</p></div></section><footer class="footer">MM Energia Solar • Bauru/SP • Emitida em ${data}</footer></main><div class="actions"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div></body></html>`);
     janela.document.close();
   };
 
