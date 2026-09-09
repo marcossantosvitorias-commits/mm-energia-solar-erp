@@ -50,7 +50,45 @@ new = """function imagemEquipamentoPdf(valor, ehMicro) {
 }"""
 text = text.replace(old, new)
 
-old_panel = "imagemContida(doc, PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);"
-new_panel = "imagemContida(doc, (/auxsol/i.test(inversorPdf) && /20\\s*k(?:w)?/i.test(inversorPdf)) ? JA_SOLAR_620_AUXSOL_QUOTE_IMAGE : PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);"
-text = text.replace(old_panel, new_panel)
+# jsPDF estava recebendo WEBP e tratando como JPEG, deixando o card em branco.
+# Converte qualquer WEBP para JPEG via canvas antes de inserir no PDF.
+helper_anchor = "async function carregarLogoPdf() {"
+helper = """async function prepararImagemPdf(imagem) {
+  if (!imagem || !/^data:image\\/webp/i.test(imagem)) return imagem;
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = imagem;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, img.naturalWidth || img.width || 1);
+    canvas.height = Math.max(1, img.naturalHeight || img.height || 1);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  } catch {
+    return imagem;
+  }
+}
+
+"""
+if "async function prepararImagemPdf(imagem)" not in text:
+    text = text.replace(helper_anchor, helper + helper_anchor)
+
+old_pdf_vars = """    const imagemEquipamento = imagemEquipamentoPdf(inversorPdf, ehMicroPdf);
+    const garantiaEquipamentoPdf = ehMicroPdf ? '15 anos' : '10 anos';"""
+new_pdf_vars = """    const ehAuxsol20 = /auxsol/i.test(inversorPdf) && /20\\s*k(?:w)?/i.test(inversorPdf);
+    const imagemPainelPdf = await prepararImagemPdf(ehAuxsol20 ? JA_SOLAR_620_AUXSOL_QUOTE_IMAGE : PAINEL_620_BELENUS_IMAGE);
+    const imagemEquipamento = await prepararImagemPdf(imagemEquipamentoPdf(inversorPdf, ehMicroPdf));
+    const garantiaEquipamentoPdf = ehMicroPdf ? '15 anos' : '10 anos';"""
+text = text.replace(old_pdf_vars, new_pdf_vars)
+
+old_panel_special = "imagemContida(doc, (/auxsol/i.test(inversorPdf) && /20\\s*k(?:w)?/i.test(inversorPdf)) ? JA_SOLAR_620_AUXSOL_QUOTE_IMAGE : PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);"
+text = text.replace(old_panel_special, "imagemContida(doc, imagemPainelPdf, 20, 91, 74, 50);")
+text = text.replace("imagemContida(doc, PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);", "imagemContida(doc, imagemPainelPdf, 20, 91, 74, 50);")
+
 proposal.write_text(text, encoding='utf-8')
