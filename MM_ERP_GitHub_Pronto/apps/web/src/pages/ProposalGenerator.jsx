@@ -92,6 +92,28 @@ function imagemContida(doc, imagem, x, y, w, h) {
   } catch {}
 }
 
+async function prepararImagemPdf(imagem) {
+  if (!imagem || !/^data:image\/webp/i.test(imagem)) return imagem;
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = imagem;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, img.naturalWidth || img.width || 1);
+    canvas.height = Math.max(1, img.naturalHeight || img.height || 1);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  } catch {
+    return imagem;
+  }
+}
+
 async function carregarLogoPdf() {
   try {
     const logoUrl = `${window.location.origin}${import.meta.env.BASE_URL}logo-mm.png`;
@@ -272,7 +294,9 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     const inversorPdf = String(origem.inversor || dados.inversor || inversor || '');
     const ehMicroPdf = /microinversor/i.test(inversorPdf);
     const nomeEquipamentoPdf = nomeCurtoEquipamento(inversorPdf, ehMicroPdf);
-    const imagemEquipamento = imagemEquipamentoPdf(inversorPdf, ehMicroPdf);
+    const ehAuxsol20 = /auxsol/i.test(inversorPdf) && /20\s*k(?:w)?/i.test(inversorPdf);
+    const imagemPainelPdf = await prepararImagemPdf(ehAuxsol20 ? JA_SOLAR_620_AUXSOL_QUOTE_IMAGE : PAINEL_620_BELENUS_IMAGE);
+    const imagemEquipamento = await prepararImagemPdf(imagemEquipamentoPdf(inversorPdf, ehMicroPdf));
     const garantiaEquipamentoPdf = ehMicroPdf ? '15 anos' : '10 anos';
 
     cabecalho(doc, 'Energia solar pensada para', 'economizar todos os meses.', 'PROPOSTA COMERCIAL', logoPdf);
@@ -308,7 +332,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     doc.addPage();
     cabecalho(doc, 'Equipamentos escolhidos para', 'desempenho e segurança.', 'EQUIPAMENTOS', logoPdf);
     caixa(doc, 12, 84, 90, 105, [255, 255, 255]);
-    imagemContida(doc, (/auxsol/i.test(inversorPdf) && /20\s*k(?:w)?/i.test(inversorPdf)) ? JA_SOLAR_620_AUXSOL_QUOTE_IMAGE : PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);
+    imagemContida(doc, imagemPainelPdf, 20, 91, 74, 50);
     doc.setTextColor(16, 47, 82); doc.setFontSize(10); doc.text('Painel fotovoltaico 620 Wp', 16, 149);
     doc.setFontSize(7); doc.text('Garantia: 15 anos', 16, 181);
     caixa(doc, 108, 84, 90, 105, [255, 255, 255]);
