@@ -12,7 +12,7 @@ import './CotacoesBelenusPage.css';
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const numero = (valor) => Number(valor || 0);
 const porcentagem = (valor) => numero(valor) / 100;
-const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);
+const QUANTIDADES_KITS = [...Array.from({ length: 19 }, (_, indice) => indice + 4), 64];
 const POTENCIAS_PLACA = [600, 620];
 const IRRADIACAO_MEDIA = 5.2;
 const FATOR_DESEMPENHO = 0.8;

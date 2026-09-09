@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import { useNavigate } from 'react-router-dom';
 import { MICROINVERSOR_IMAGE } from '../assets/proposalImages.js';
 import { PAINEL_620_BELENUS_IMAGE, INVERSOR_BELENUS_IMAGE, INVERSOR_75_BELENUS_IMAGE } from '../assets/proposalBelenusImages.js';
+import { JA_SOLAR_620_AUXSOL_QUOTE_IMAGE, AUXSOL_20KW_QUOTE_IMAGE } from '../assets/proposalAuxsol20Images.js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 import { createClientInteraction, listClients } from '../services/clientService.js';
 import { closeProposalAsSale } from '../services/proposalWorkflowService.js';
@@ -63,6 +64,8 @@ function nomeCurtoEquipamento(valor, ehMicro) {
 
 function imagemEquipamentoPdf(valor, ehMicro) {
   if (ehMicro) return MICROINVERSOR_IMAGE;
+  const texto = String(valor || '');
+  if (/auxsol/i.test(texto) && /20\s*k(?:w)?/i.test(texto)) return AUXSOL_20KW_QUOTE_IMAGE;
   const potencia = extrairPotenciaInversor(valor);
   return potencia && potencia >= 7.4 ? INVERSOR_75_BELENUS_IMAGE : INVERSOR_BELENUS_IMAGE;
 }
@@ -305,7 +308,7 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     doc.addPage();
     cabecalho(doc, 'Equipamentos escolhidos para', 'desempenho e segurança.', 'EQUIPAMENTOS', logoPdf);
     caixa(doc, 12, 84, 90, 105, [255, 255, 255]);
-    imagemContida(doc, PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);
+    imagemContida(doc, (/auxsol/i.test(inversorPdf) && /20\s*k(?:w)?/i.test(inversorPdf)) ? JA_SOLAR_620_AUXSOL_QUOTE_IMAGE : PAINEL_620_BELENUS_IMAGE, 20, 91, 74, 50);
     doc.setTextColor(16, 47, 82); doc.setFontSize(10); doc.text('Painel fotovoltaico 620 Wp', 16, 149);
     doc.setFontSize(7); doc.text('Garantia: 15 anos', 16, 181);
     caixa(doc, 108, 84, 90, 105, [255, 255, 255]);
