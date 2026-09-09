@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Patch idempotente do kit especial WEB-006717414 e das imagens do PDF.
 micro_page = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/CotacoesBelenusSupabasePage.jsx')
 inversor_page = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/InversorStringPage.jsx')
 proposal = Path('MM_ERP_GitHub_Pronto/apps/web/src/pages/ProposalGenerator.jsx')
