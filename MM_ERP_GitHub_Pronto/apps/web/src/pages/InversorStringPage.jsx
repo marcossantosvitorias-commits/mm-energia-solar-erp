@@ -5,7 +5,7 @@ import ProposalGenerator from './ProposalGenerator.jsx';
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
-const QUANTIDADES_KITS = Array.from({ length: 19 }, (_, indice) => indice + 4);
+const QUANTIDADES_KITS = [...Array.from({ length: 19 }, (_, indice) => indice + 4), 64];
 
 // Sempre usamos o maior valor exibido no orçamento: "Valor total".
 // Esse valor já contempla o frete quando o orçamento da distribuidora o inclui.
@@ -18,6 +18,7 @@ const KITS_INVERSOR = [
   { placas: 9, potenciaPlaca: 620, valorTotalDistribuidora: 7654.62, inversor: 'Auxsol monofásico 5 kW', referencia: 'Orçamento enviado em 06/08/2026' },
   { placas: 10, potenciaPlaca: 620, valorTotalDistribuidora: 8337.49, inversor: 'Deye monofásico 6,6 kW', referencia: 'Orçamento enviado em 06/08/2026' },
   { placas: 12, potenciaPlaca: 620, valorTotalDistribuidora: 9799.71, inversor: 'Auxsol monofásico 6 kW', referencia: 'Cotação cadastrada em 10/08/2026 · produtos R$ 9.263,61 · frete R$ 536,10' },
+  { placas: 64, potenciaPlaca: 620, valorTotalDistribuidora: 63161.27, inversor: 'Auxsol trifásico 20 kW 220 V, 4 MPPT', referencia: 'Orçamento WEB-006717414' },
 ];
 
 const FORM_PADRAO = {
@@ -99,7 +100,7 @@ export default function InversorStringPage() {
         <div className="finance-panel-header">
           <div>
             <h2>Escolha o kit com inversor</h2>
-            <p>Kits organizados de 4 até 22 placas. Quando ainda não houver preço cadastrado, o kit fica identificado como pendente.</p>
+            <p>Kits organizados de 4 até 22 placas, além do projeto especial de 64 placas. Quando ainda não houver preço cadastrado, o kit fica identificado como pendente.</p>
           </div>
         </div>
         <div className="belenus-quotes">
