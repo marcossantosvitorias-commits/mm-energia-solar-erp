@@ -322,6 +322,9 @@ export default function OrdensServicoPage() {
                     <button className="service-orders-secondary" type="button" onClick={() => navigate(`/app/ordens-servico/${order.id}/preparacao`)}>
                       <Settings2 size={16} /> Preparar
                     </button>
+                    <button className="service-orders-secondary" type="button" onClick={() => navigate(`/app/ordens-servico/${order.id}/campo`)}>
+                      <Wrench size={16} /> Fazer serviço
+                    </button>
                     <button className="service-orders-primary" type="button" onClick={() => openOrder(order)}>
                       Abrir OS
                     </button>
@@ -344,6 +347,9 @@ export default function OrdensServicoPage() {
               <div className="service-orders-details-actions">
                 <button className="service-orders-secondary" type="button" onClick={() => navigate(`/app/ordens-servico/${selected.id}/preparacao`)}>
                   <Settings2 size={16} /> Preparar
+                </button>
+                <button className="service-orders-primary" type="button" onClick={() => navigate(`/app/ordens-servico/${selected.id}/campo`)}>
+                  <Wrench size={16} /> Fazer serviço no celular
                 </button>
                 <select className="service-orders-search" value={selected.status} onChange={(e) => changeStatus(e.target.value)} style={{ minWidth: 190 }}>
                   {statuses.map((item) => <option key={item}>{item}</option>)}
