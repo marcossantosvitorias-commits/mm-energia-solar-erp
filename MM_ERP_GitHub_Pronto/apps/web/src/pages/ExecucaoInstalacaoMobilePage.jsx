@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Camera, CheckCircle2, ClipboardCheck, CloudOff, LocateFixed, MapPin, Play, RefreshCw, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Camera, CheckCircle2, ClipboardCheck, CloudOff, LocateFixed, MapPin, Play, Plus, RefreshCw, Save, Trash2, UploadCloud } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getCurrentPosition,
@@ -11,6 +11,13 @@ import {
   saveFieldPhoto,
   syncPendingFieldActions,
 } from '../services/mobileInstallationService.js';
+import {
+  listServiceOrderActivities,
+  newServiceActivity,
+  saveServiceOrderActivities,
+  SERVICE_ACTIVITY_TEMPLATES,
+  SERVICE_ACTIVITY_TYPES,
+} from '../services/serviceOrderActivityService.js';
 import './execucao-instalacao-mobile.css';
 
 export default function ExecucaoInstalacaoMobilePage() {
@@ -25,6 +32,7 @@ export default function ExecucaoInstalacaoMobilePage() {
   const [stage, setStage] = useState('Antes');
   const [caption, setCaption] = useState('');
   const [preview, setPreview] = useState('');
+  const [activities, setActivities] = useState([]);
 
   const load = async () => {
     setBusy(true);
@@ -32,6 +40,12 @@ export default function ExecucaoInstalacaoMobilePage() {
       const data = await loadMobileInstallation(id);
       setOrder(data.order);
       setChecklist(data.checklist);
+      try {
+        const activityRows = await listServiceOrderActivities(id);
+        setActivities(activityRows.length ? activityRows.map((item) => ({ ...item, localId: item.id })) : [newServiceActivity(0)]);
+      } catch {
+        setActivities([newServiceActivity(0)]);
+      }
       setMessage(data.offline ? 'Dados carregados do aparelho. Você está trabalhando offline.' : 'OS pronta para execução em campo.');
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
@@ -86,6 +100,30 @@ export default function ExecucaoInstalacaoMobilePage() {
     finally { setBusy(false); event.target.value = ''; }
   };
 
+  const updateActivity = (index, patch) => {
+    setActivities((rows) => rows.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      const next = { ...item, ...patch };
+      if (patch.activity_type || patch.condition) {
+        next.observation = SERVICE_ACTIVITY_TEMPLATES[next.activity_type]?.[next.condition] || next.observation;
+      }
+      return next;
+    }));
+  };
+
+  const saveActivities = async () => {
+    setBusy(true);
+    try {
+      const saved = await saveServiceOrderActivities(id, activities);
+      setActivities(saved.map((item) => ({ ...item, localId: item.id })));
+      setMessage('Atividades da manutenção salvas.');
+    } catch (error) {
+      setMessage(error.message || 'Não foi possível salvar as atividades.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const sync = async () => {
     setBusy(true);
     try {
@@ -138,6 +176,64 @@ export default function ExecucaoInstalacaoMobilePage() {
           <span><small>{item.section}</small><strong>{item.item}</strong>{item.required && <em>Obrigatório</em>}</span>
         </button>)}
       </div>
+    </section>
+
+    <section className="field-card maintenance-card">
+      <div className="field-section-title">
+        <div><small>REGISTRO TÉCNICO</small><h2>Atividades da Manutenção</h2></div>
+        <ClipboardCheck size={24} />
+      </div>
+      <p className="maintenance-help">Registre cada atividade executada. Toque em Conforme, Atenção ou Não Conforme para preencher a observação automaticamente; o texto pode ser editado.</p>
+
+      <div className="maintenance-list">
+        {activities.map((activity, index) => (
+          <article className="maintenance-item" key={activity.localId || activity.id || index}>
+            <div className="maintenance-row">
+              <select value={activity.activity_type} onChange={(e) => updateActivity(index, { activity_type: e.target.value })}>
+                {SERVICE_ACTIVITY_TYPES.map((type) => <option key={type}>{type}</option>)}
+              </select>
+              <select value={activity.status} onChange={(e) => updateActivity(index, { status: e.target.value })}>
+                <option value="pendente">Pendente</option>
+                <option value="em_andamento">Em andamento</option>
+                <option value="concluido">Concluído</option>
+                <option value="nao_aplicavel">Não aplicável</option>
+              </select>
+              <button className="maintenance-delete" type="button" aria-label="Excluir atividade" onClick={() => setActivities((rows) => rows.filter((_, i) => i !== index))}>
+                <Trash2 size={18} />
+              </button>
+            </div>
+
+            <span className="maintenance-label">Sugestões de observação</span>
+            <div className="maintenance-condition-row">
+              <button type="button" className={activity.condition === 'conforme' ? 'active ok' : 'ok'} onClick={() => updateActivity(index, { condition: 'conforme' })}>
+                <span /> Conforme
+              </button>
+              <button type="button" className={activity.condition === 'atencao' ? 'active warn' : 'warn'} onClick={() => updateActivity(index, { condition: 'atencao' })}>
+                <span /> Atenção
+              </button>
+              <button type="button" className={activity.condition === 'nao_conforme' ? 'active bad' : 'bad'} onClick={() => updateActivity(index, { condition: 'nao_conforme' })}>
+                <span /> Não Conforme
+              </button>
+            </div>
+
+            <label className="maintenance-observation">
+              <span>Observação</span>
+              <textarea
+                value={activity.observation || ''}
+                onChange={(e) => updateActivity(index, { observation: e.target.value })}
+                placeholder="Toque em uma sugestão acima ou descreva a observação técnica."
+              />
+            </label>
+          </article>
+        ))}
+      </div>
+
+      <button className="maintenance-add" type="button" onClick={() => setActivities((rows) => [...rows, newServiceActivity(rows.length)])}>
+        <Plus size={17} /> Adicionar atividade
+      </button>
+      <button className="maintenance-save" type="button" disabled={busy} onClick={saveActivities}>
+        <Save size={18} /> Salvar atividades
+      </button>
     </section>
 
     <section className="field-card">
