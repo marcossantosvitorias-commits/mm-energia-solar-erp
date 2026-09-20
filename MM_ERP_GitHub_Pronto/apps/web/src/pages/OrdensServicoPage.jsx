@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, CheckCircle2, FileDown, Plus, Save, Trash2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
@@ -100,6 +100,9 @@ export default function OrdensServicoPage() {
   const [selectedId, setSelectedId] = useState('');
   const [activities, setActivities] = useState([]);
   const [signatureName, setSignatureName] = useState('');
+  const [signatureData, setSignatureData] = useState('');
+  const signatureCanvasRef = useRef(null);
+  const drawingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -145,6 +148,7 @@ export default function OrdensServicoPage() {
     loadActivities(selectedId).catch(console.error);
     const current = orders.find((x) => x.id === selectedId);
     setSignatureName(current?.customer_signature_name || current?.customer_name || '');
+    setSignatureData('');
   }, [selectedId]);
 
   async function createOrder() {
@@ -175,6 +179,57 @@ export default function OrdensServicoPage() {
     }));
   }
 
+  function canvasPoint(event) {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = event.clientX ?? event.touches?.[0]?.clientX;
+    const clientY = event.clientY ?? event.touches?.[0]?.clientY;
+    if (clientX == null || clientY == null) return null;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function startSignature(event) {
+    const canvas = signatureCanvasRef.current;
+    const point = canvasPoint(event);
+    if (!canvas || !point) return;
+    drawingRef.current = true;
+    const ctx = canvas.getContext('2d');
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+    event.currentTarget?.setPointerCapture?.(event.pointerId);
+  }
+
+  function drawSignature(event) {
+    if (!drawingRef.current) return;
+    const canvas = signatureCanvasRef.current;
+    const point = canvasPoint(event);
+    if (!canvas || !point) return;
+    const ctx = canvas.getContext('2d');
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+  }
+
+  function endSignature() {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    const canvas = signatureCanvasRef.current;
+    if (canvas) setSignatureData(canvas.toDataURL('image/png'));
+  }
+
+  function clearSignature() {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    setSignatureData('');
+  }
+
   async function saveAll() {
     if (!selectedId) return;
     setSaving(true);
@@ -194,13 +249,26 @@ export default function OrdensServicoPage() {
       const { error: activitiesError } = await supabase.from('service_order_activities').insert(rows.map(({ id, ...r }) => r));
       if (activitiesError) throw activitiesError;
 
+      const signedAt = signatureName || signatureData ? new Date().toISOString() : null;
       const { error: orderError } = await supabase.from('service_orders').update({
         customer_signature_name: signatureName || null,
-        customer_signature_at: signatureName ? new Date().toISOString() : null,
+        customer_signature_at: signedAt,
         status: 'concluida',
         completed_at: new Date().toISOString(),
       }).eq('id', selectedId);
       if (orderError) throw orderError;
+
+      if (signatureName || signatureData) {
+        await supabase.from('service_order_signatures').delete().eq('service_order_id', selectedId);
+        const { error: signatureError } = await supabase.from('service_order_signatures').insert({
+          service_order_id: selectedId,
+          signer_name: signatureName || selected.customer_name || 'Responsável',
+          signature_data: signatureData || null,
+          acceptance_text: 'Declaro ciência das atividades e observações registradas neste atendimento.',
+          signed_at: signedAt,
+        });
+        if (signatureError) throw signatureError;
+      }
 
       setMessage('Serviço salvo com sucesso.');
       await loadOrders();
@@ -257,6 +325,11 @@ export default function OrdensServicoPage() {
     y += 3;
     line(`Responsável/cliente: ${signatureName || selected.customer_name || '-'}`, 10, 'bold');
     line('Declaro ciência das atividades e observações registradas neste atendimento.');
+    if (signatureData) {
+      if (y > 245) { doc.addPage(); y = 16; }
+      doc.addImage(signatureData, 'PNG', 15, y + 2, 70, 28);
+      y += 34;
+    }
     doc.save(`OS-${selected.order_number || selected.id.slice(0, 8)}.pdf`);
     supabase.from('service_orders').update({ technical_report_generated_at: new Date().toISOString() }).eq('id', selected.id);
   }
@@ -389,8 +462,25 @@ export default function OrdensServicoPage() {
               onChange={(e) => setSignatureName(e.target.value)}
               placeholder="Nome do cliente ou responsável"
             />
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <strong className="text-sm">Assinatura na tela</strong>
+                <button type="button" className="text-sm underline" onClick={clearSignature}>Limpar</button>
+              </div>
+              <canvas
+                ref={signatureCanvasRef}
+                width="900"
+                height="260"
+                className="w-full h-36 rounded-xl border border-slate-300 bg-white touch-none"
+                onPointerDown={startSignature}
+                onPointerMove={drawSignature}
+                onPointerUp={endSignature}
+                onPointerCancel={endSignature}
+                onPointerLeave={endSignature}
+              />
+            </div>
             <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm">
-              Ao finalizar, fica registrado que o responsável tomou ciência das atividades e observações do atendimento.
+              Ao finalizar, fica registrado o nome, a assinatura e a ciência das atividades e observações do atendimento.
             </div>
           </section>
 
