@@ -9,7 +9,7 @@ import {
 import { getServiceOrderPhotoUrl, uploadServiceOrderPhoto } from '../../services/serviceOrderMediaService.js';
 
 const emptyPhoto = { stage: 'Durante', caption: '' };
-const emptySignature = { signerName: '', signerDocument: '', acceptanceText: 'Declaro que o serviço foi executado e recebido conforme apresentado.' };
+const emptySignature = { signerName: '', signerDocument: '', acceptanceText: 'Declaro, como técnico responsável, que o serviço foi executado, inspecionado e registrado conforme descrito neste atendimento.' };
 
 export default function ServiceOrderMediaPanel({ order, onCompleted, onMessage }) {
   const canvasRef = useRef(null);
@@ -103,7 +103,7 @@ export default function ServiceOrderMediaPanel({ order, onCompleted, onMessage }
       });
       clearSignature();
       setSignatureForm(emptySignature);
-      onMessage('Assinatura salva com sucesso.');
+      onMessage('Assinatura do técnico salva com sucesso.');
       await load();
     } catch (error) {
       onMessage(error?.message || 'Não foi possível salvar a assinatura.');
@@ -139,11 +139,11 @@ export default function ServiceOrderMediaPanel({ order, onCompleted, onMessage }
         {!photos.length && <p>Nenhuma foto registrada.</p>}
       </div>
 
-      <h3><FileSignature size={18} /> Assinatura do cliente</h3>
+      <h3><FileSignature size={18} /> Assinatura do técnico responsável</h3>
       <form onSubmit={saveSignature} className="finance-form-grid">
-        <label>Nome completo<input required value={signatureForm.signerName} onChange={(e) => setSignatureForm({ ...signatureForm, signerName: e.target.value })} /></label>
-        <label>CPF ou documento<input value={signatureForm.signerDocument} onChange={(e) => setSignatureForm({ ...signatureForm, signerDocument: e.target.value })} /></label>
-        <label style={{ gridColumn: '1 / -1' }}>Termo de aceite<textarea rows="2" value={signatureForm.acceptanceText} onChange={(e) => setSignatureForm({ ...signatureForm, acceptanceText: e.target.value })} /></label>
+        <label>Nome do técnico<input required value={signatureForm.signerName} onChange={(e) => setSignatureForm({ ...signatureForm, signerName: e.target.value })} /></label>
+        <label>Registro / documento (opcional)<input value={signatureForm.signerDocument} onChange={(e) => setSignatureForm({ ...signatureForm, signerDocument: e.target.value })} /></label>
+        <label style={{ gridColumn: '1 / -1' }}>Declaração técnica<textarea rows="2" value={signatureForm.acceptanceText} onChange={(e) => setSignatureForm({ ...signatureForm, acceptanceText: e.target.value })} /></label>
         <div style={{ gridColumn: '1 / -1' }}>
           <canvas ref={canvasRef} width="900" height="260" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} style={{ width: '100%', maxWidth: 900, height: 180, border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', touchAction: 'none' }} />
           <button type="button" onClick={clearSignature} style={{ marginTop: 8 }}><Eraser size={17} /> Limpar assinatura</button>
