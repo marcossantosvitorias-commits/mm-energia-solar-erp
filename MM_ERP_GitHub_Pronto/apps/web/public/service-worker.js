@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mm-erp-assets-v1.5.0';
+const CACHE_NAME = 'mm-erp-assets-v1.5.1';
 const STATIC_FILES = ['/logo-mm.png', '/mm-erp-icon.svg'];
 
 self.addEventListener('install', (event) => {
