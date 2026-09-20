@@ -54,16 +54,16 @@ export default function FinalizacaoInstalacaoMobilePage() {
   const clear = () => canvasRef.current?.getContext('2d').clearRect(0, 0, 900, 260);
 
   const saveSignature = async () => {
-    if (!signer.name.trim()) return setMessage('Informe o nome do cliente ou responsável.');
+    if (!signer.name.trim()) return setMessage('Informe o nome do técnico responsável.');
     setBusy(true);
     try {
       await addServiceOrderSignature(id, {
         signerName: signer.name,
         signerDocument: signer.document,
         signatureData: canvasRef.current.toDataURL('image/png'),
-        acceptanceText: 'Declaro que recebi o sistema fotovoltaico instalado, testado e com orientações básicas de uso e monitoramento.',
+        acceptanceText: 'Declaro, como técnico responsável, que os serviços, inspeções, testes e registros descritos neste relatório foram executados conforme informado.',
       });
-      clear(); setSigner({ name: '', document: '' }); setMessage('Assinatura do cliente registrada.'); await load();
+      clear(); setSigner({ name: '', document: '' }); setMessage('Assinatura do técnico registrada.'); await load();
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };
@@ -130,7 +130,7 @@ export default function FinalizacaoInstalacaoMobilePage() {
     addText(`Fotos registradas: ${photos.length}`, 11, true);
     const lastSignature = signatures[0];
     if (lastSignature) {
-      addText(`Assinado por: ${lastSignature.signer_name || '-'}`, 11, true);
+      addText(`Técnico responsável: ${lastSignature.signer_name || '-'}`, 11, true);
       if (lastSignature.signer_document) addText(`Documento: ${lastSignature.signer_document}`);
       if (lastSignature.signature_data?.startsWith('data:image/')) {
         if (y > 235) { doc.addPage(); y = 16; }
@@ -176,15 +176,15 @@ export default function FinalizacaoInstalacaoMobilePage() {
       <label>Observações da entrega<textarea rows="4" value={form.delivery_notes} onChange={(e) => setForm({ ...form, delivery_notes: e.target.value })} /></label>
     </section>
 
-    <section className="finish-card no-print"><div className="finish-title"><FileSignature size={22} /><div><small>ETAPA 3</small><h2>Assinatura do cliente</h2></div></div>
-      <Field label="Nome completo" value={signer.name} onChange={(v) => setSigner({ ...signer, name: v })} />
-      <Field label="CPF ou documento" value={signer.document} onChange={(v) => setSigner({ ...signer, document: v })} />
+    <section className="finish-card no-print"><div className="finish-title"><FileSignature size={22} /><div><small>ETAPA 3</small><h2>Assinatura do técnico responsável</h2></div></div>
+      <Field label="Nome do técnico" value={signer.name} onChange={(v) => setSigner({ ...signer, name: v })} />
+      <Field label="Registro / documento (opcional)" value={signer.document} onChange={(v) => setSigner({ ...signer, document: v })} />
       <canvas ref={canvasRef} width="900" height="260" onMouseDown={start} onMouseMove={draw} onMouseUp={stop} onMouseLeave={stop} onTouchStart={start} onTouchMove={draw} onTouchEnd={stop} />
       <div className="finish-actions"><button onClick={clear}><Eraser size={18} /> Limpar</button><button className="primary" disabled={busy} onClick={saveSignature}><Save size={18} /> Salvar assinatura</button></div>
       <p>{signatures.length} assinatura(s) registrada(s).</p>
     </section>
 
-    <section className="finish-card"><h2>Conferência final</h2><Status ok={pendingRequired.length === 0} text="Checklist obrigatório concluído" /><Status ok={afterPhotos.length > 0} text="Foto da instalação concluída registrada" /><Status ok={signatures.length > 0} text="Assinatura do cliente registrada" /><Status ok={form.insulation_test_ok && form.grounding_test_ok && form.protection_test_ok} text="Testes elétricos aprovados" /></section>
+    <section className="finish-card"><h2>Conferência final</h2><Status ok={pendingRequired.length === 0} text="Checklist obrigatório concluído" /><Status ok={afterPhotos.length > 0} text="Foto da instalação concluída registrada" /><Status ok={signatures.length > 0} text="Assinatura do técnico registrada" /><Status ok={form.insulation_test_ok && form.grounding_test_ok && form.protection_test_ok} text="Testes elétricos aprovados" /></section>
 
     <section className="finish-bottom no-print"><button disabled={busy || completed} onClick={finish}><LocateFixed size={19} /> {completed ? 'Instalação concluída' : 'Finalizar com check-out GPS'}</button><button disabled={!completed} onClick={generatePdf}><Download size={19} /> Gerar PDF para o cliente</button><button disabled={!completed} onClick={printReport}><Printer size={19} /> Imprimir relatório</button></section>
   </main>;
