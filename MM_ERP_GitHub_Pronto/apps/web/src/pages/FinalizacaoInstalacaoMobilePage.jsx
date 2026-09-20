@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Download, Eraser, FileSignature, LocateFixed, Printer, Save, ShieldCheck, Zap } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { addServiceOrderSignature } from '../services/serviceOrderService.js';
+import { addServiceOrderSignature, updateChecklistItem } from '../services/serviceOrderService.js';
 import { getCurrentPosition } from '../services/mobileInstallationService.js';
 import { buildTechnicalReportData, finalizeInstallation, loadInstallationCompletion } from '../services/installationCompletionService.js';
 import { getServiceOrderPhotoUrl } from '../services/serviceOrderMediaService.js';
@@ -31,6 +31,7 @@ export default function FinalizacaoInstalacaoMobilePage() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [finalizeError, setFinalizeError] = useState('');
 
   const load = async () => {
     setBusy(true);
@@ -75,16 +76,53 @@ export default function FinalizacaoInstalacaoMobilePage() {
   };
 
   const finish = async () => {
-    if (!ready) return setMessage('Conclua o checklist obrigatório, registre foto depois, assinatura e aprove os três testes elétricos.');
+    setFinalizeError('');
     setBusy(true);
     try {
+      let pending = checklist.filter((item) => item.required && !item.completed);
+
+      const monitoringPending = pending.filter((item) =>
+        /configurar monitoramento do inversor/i.test(item.item || '')
+      );
+
+      if (form.monitoring_configured && monitoringPending.length) {
+        await Promise.all(monitoringPending.map((item) => updateChecklistItem(item.id, true, item.notes || null)));
+        setChecklist((rows) => rows.map((item) =>
+          monitoringPending.some((pendingItem) => pendingItem.id === item.id)
+            ? { ...item, completed: true, completed_at: new Date().toISOString() }
+            : item
+        ));
+        pending = pending.filter((item) => !monitoringPending.some((pendingItem) => pendingItem.id === item.id));
+      }
+
+      const problems = [];
+      if (pending.length) problems.push(`${pending.length} item(ns) obrigatório(s) do checklist ainda pendente(s)`);
+      if (!afterPhotos.length) problems.push('falta uma foto da etapa Depois');
+      if (!signatures.length) problems.push('falta a assinatura do técnico');
+      if (!(form.insulation_test_ok && form.grounding_test_ok && form.protection_test_ok)) problems.push('faltam aprovar os três testes elétricos');
+
+      if (problems.length) {
+        const detail = pending.length ? ` Pendência: ${pending.map((item) => item.item).join('; ')}.` : '';
+        const warning = `Não é possível finalizar: ${problems.join(', ')}.${detail}`;
+        setFinalizeError(warning);
+        setMessage(warning);
+        return;
+      }
+
+      setMessage('Obtendo localização para concluir a OS...');
       const position = await getCurrentPosition();
       await finalizeInstallation(id, form, position);
       setCompleted(true);
+      setFinalizeError('');
       setMessage(`Instalação concluída com check-out GPS. Precisão aproximada: ${Math.round(position.accuracy)} m.`);
       await load();
-    } catch (error) { setMessage(error.message); }
-    finally { setBusy(false); }
+    } catch (error) {
+      const warning = error?.message || 'Não foi possível finalizar a Ordem de Serviço.';
+      setFinalizeError(warning);
+      setMessage(warning);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const imageUrlToJpegDataUrl = async (url) => {
@@ -419,7 +457,8 @@ export default function FinalizacaoInstalacaoMobilePage() {
 
     <section className="finish-card"><h2>Conferência final</h2><Status ok={pendingRequired.length === 0} text="Checklist obrigatório concluído" /><Status ok={afterPhotos.length > 0} text="Foto da instalação concluída registrada" /><Status ok={signatures.length > 0} text="Assinatura do técnico registrada" /><Status ok={form.insulation_test_ok && form.grounding_test_ok && form.protection_test_ok} text="Testes elétricos aprovados" /></section>
 
-    <section className="finish-bottom no-print"><button disabled={busy || completed} onClick={finish}><LocateFixed size={19} /> {completed ? 'Instalação concluída' : 'Finalizar com check-out GPS'}</button><button disabled={!completed} onClick={generatePdf}><Download size={19} /> Gerar PDF para o cliente</button><button disabled={!completed} onClick={printReport}><Printer size={19} /> Imprimir relatório</button></section>
+    {finalizeError && <div className="finish-finalize-error no-print">{finalizeError}</div>}
+    <section className="finish-bottom no-print"><button disabled={busy || completed} onClick={finish}><LocateFixed size={19} /> {busy ? 'Finalizando...' : completed ? 'Instalação concluída' : 'Finalizar com check-out GPS'}</button><button disabled={!completed} onClick={generatePdf}><Download size={19} /> Gerar PDF para o cliente</button><button disabled={!completed} onClick={printReport}><Printer size={19} /> Imprimir relatório</button></section>
   </main>;
 }
 
