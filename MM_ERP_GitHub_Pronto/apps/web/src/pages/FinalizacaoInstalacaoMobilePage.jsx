@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Eraser, FileSignature, LocateFixed, Printer, Save, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, Eraser, FileSignature, LocateFixed, Printer, Save, ShieldCheck, Zap } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 import { addServiceOrderSignature } from '../services/serviceOrderService.js';
 import { getCurrentPosition } from '../services/mobileInstallationService.js';
 import { buildTechnicalReportData, finalizeInstallation, loadInstallationCompletion } from '../services/installationCompletionService.js';
@@ -80,6 +81,70 @@ export default function FinalizacaoInstalacaoMobilePage() {
     finally { setBusy(false); }
   };
 
+  const generatePdf = () => {
+    const report = buildTechnicalReportData(order, form, checklist, photos, signatures);
+    const doc = new jsPDF();
+    let y = 16;
+
+    const addText = (text, size = 10, bold = false) => {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      const lines = doc.splitTextToSize(String(text || ''), 180);
+      if (y + lines.length * 6 > 280) { doc.addPage(); y = 16; }
+      doc.text(lines, 15, y);
+      y += Math.max(6, lines.length * 5.5);
+    };
+
+    addText('MM Energia Solar', 16, true);
+    addText('Relatório Técnico de Serviço', 14, true);
+    addText(`OS #${report.orderNumber || '-'}`, 11, true);
+    addText(`Cliente: ${report.customerName || '-'}`);
+    addText(`Telefone: ${report.customerPhone || '-'}`);
+    addText(`Endereço: ${report.address || '-'}`);
+    addText(`Equipe: ${report.team || '-'}`);
+    addText(`Conclusão: ${new Date().toLocaleString('pt-BR')}`);
+    y += 3;
+
+    addText('Testes elétricos', 12, true);
+    addText(`Tensão da rede: ${form.grid_voltage_v || '-'} V`);
+    addText(`Tensão do inversor: ${form.inverter_voltage_v || '-'} V`);
+    addText(`Corrente do inversor: ${form.inverter_current_a || '-'} A`);
+    addText(`Isolação: ${form.insulation_test_ok ? 'Aprovado' : 'Não aprovado'}`);
+    addText(`Aterramento: ${form.grounding_test_ok ? 'Verificado' : 'Não verificado'}`);
+    addText(`Proteções: ${form.protection_test_ok ? 'Testadas' : 'Não testadas'}`);
+    y += 3;
+
+    addText('Inversor e monitoramento', 12, true);
+    addText(`Marca: ${form.inverter_brand || '-'}`);
+    addText(`Modelo: ${form.inverter_model || '-'}`);
+    addText(`Número de série: ${form.inverter_serial || '-'}`);
+    addText(`Monitoramento: ${form.monitoring_configured ? 'Configurado' : 'Não configurado'}`);
+    if (form.monitoring_login) addText(`Login/e-mail: ${form.monitoring_login}`);
+    if (form.delivery_notes) addText(`Observações: ${form.delivery_notes}`);
+    y += 3;
+
+    addText('Checklist', 12, true);
+    checklist.forEach((item) => addText(`${item.completed ? '✓' : '•'} ${item.section}: ${item.item}`));
+    y += 3;
+
+    addText(`Fotos registradas: ${photos.length}`, 11, true);
+    const lastSignature = signatures[0];
+    if (lastSignature) {
+      addText(`Assinado por: ${lastSignature.signer_name || '-'}`, 11, true);
+      if (lastSignature.signer_document) addText(`Documento: ${lastSignature.signer_document}`);
+      if (lastSignature.signature_data?.startsWith('data:image/')) {
+        if (y > 235) { doc.addPage(); y = 16; }
+        try {
+          doc.addImage(lastSignature.signature_data, 'PNG', 15, y + 3, 70, 24);
+          y += 31;
+        } catch { /* assinatura textual permanece no PDF */ }
+      }
+    }
+
+    addText('Documento gerado pela MM Energia Solar a partir da Ordem de Serviço registrada no MM ERP.', 8);
+    doc.save(`MM-Energia-Solar-OS-${report.orderNumber || order.id.slice(0, 8)}.pdf`);
+  };
+
   const printReport = () => {
     buildTechnicalReportData(order, form, checklist, photos, signatures);
     window.print();
@@ -121,7 +186,7 @@ export default function FinalizacaoInstalacaoMobilePage() {
 
     <section className="finish-card"><h2>Conferência final</h2><Status ok={pendingRequired.length === 0} text="Checklist obrigatório concluído" /><Status ok={afterPhotos.length > 0} text="Foto da instalação concluída registrada" /><Status ok={signatures.length > 0} text="Assinatura do cliente registrada" /><Status ok={form.insulation_test_ok && form.grounding_test_ok && form.protection_test_ok} text="Testes elétricos aprovados" /></section>
 
-    <section className="finish-bottom no-print"><button disabled={busy || completed} onClick={finish}><LocateFixed size={19} /> {completed ? 'Instalação concluída' : 'Finalizar com check-out GPS'}</button><button disabled={!completed} onClick={printReport}><Printer size={19} /> Gerar relatório técnico</button></section>
+    <section className="finish-bottom no-print"><button disabled={busy || completed} onClick={finish}><LocateFixed size={19} /> {completed ? 'Instalação concluída' : 'Finalizar com check-out GPS'}</button><button disabled={!completed} onClick={generatePdf}><Download size={19} /> Gerar PDF para o cliente</button><button disabled={!completed} onClick={printReport}><Printer size={19} /> Imprimir relatório</button></section>
   </main>;
 }
 
