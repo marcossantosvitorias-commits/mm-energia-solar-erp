@@ -126,11 +126,11 @@ export default function OrdensServicoPage() {
     setSaving(true);
     setMessage('');
     try {
-      await createServiceOrder({ ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : null });
+      const created = await createServiceOrder({ ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : null });
       setForm(emptyOrder);
       setShowCreate(false);
-      setMessage('Ordem de Serviço criada com sucesso.');
-      await load();
+      setMessage('Ordem de Serviço criada com sucesso. Abrindo execução em campo...');
+      navigate(`/app/ordens-servico/${created.id}/campo`);
     } catch (error) {
       setMessage(friendlyError(error, 'Não foi possível criar a OS.'));
     } finally {
