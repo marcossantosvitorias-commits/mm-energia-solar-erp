@@ -65,7 +65,7 @@ function toDatabase(data) {
 const orderSelect = `
   *,
   clients(id, name, phone, email, city, state),
-  sales_proposals(id, proposal_number, total_value, status),
+  sales_proposals(id, total_amount, status),
   appointments(id, appointment_at, appointment_type, status)
 `;
 
