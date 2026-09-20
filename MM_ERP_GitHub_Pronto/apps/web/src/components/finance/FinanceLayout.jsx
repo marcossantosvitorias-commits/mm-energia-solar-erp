@@ -56,7 +56,7 @@ const menuSections = [
 ];
 const roleLabels = { admin: 'Administrador', financeiro: 'Financeiro', comercial: 'Vendedor', engenharia: 'Engenharia', instalador: 'Instalador' };
 
-function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange }) {
+function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSection, onSectionChange, compactHeader = false }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const { user, logout, hasRole, hasPermission } = useAuth();
@@ -109,7 +109,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
         <div className="finance-user" style={{ flexShrink:0, marginTop:18, marginBottom:24 }}><div className="finance-avatar">{initials || 'MM'}</div><div><strong>{displayName}</strong><span>{displayRole}</span></div></div>
       </aside>
       {menuAberto && <button className="finance-overlay" aria-label="Fechar menu" onClick={() => setMenuAberto(false)} />}
-      <main className="finance-main">
+      <main className={`finance-main ${compactHeader ? 'finance-main-compact-header' : ''}`}>
         <header className="finance-header">
           {!pessoal && <div className="erp-page-logo" style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}><img src={logoUrl} alt="MM Energia Solar" style={{ width:64, height:46, objectFit:'contain', objectPosition:'left center' }} /><span style={{ fontWeight:900, color:'#0f2c52' }}>MM Energia Solar</span></div>}
           <span className="finance-eyebrow">{pessoal ? 'Controle pessoal' : 'Gestão empresarial'}</span><h1>{title}</h1><p>{subtitle}</p>
