@@ -33,7 +33,8 @@ alter table public.service_orders
 create or replace function public.set_service_order_activity_updated_at()
 returns trigger
 language plpgsql
-as $$
+set search_path = pg_catalog, public
+as $
 begin
   new.updated_at = now();
   return new;
