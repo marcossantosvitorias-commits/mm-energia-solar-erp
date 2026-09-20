@@ -354,7 +354,7 @@ export async function completeServiceOrder(id) {
     .select('id', { count: 'exact', head: true })
     .eq('service_order_id', id);
   if (signatureError) throw signatureError;
-  if (!count) throw new Error('Colete a assinatura do cliente antes de concluir a OS.');
+  if (!count) throw new Error('Registre a assinatura do técnico responsável antes de concluir a OS.');
 
   return updateServiceOrderStatus(id, 'Concluída');
 }
