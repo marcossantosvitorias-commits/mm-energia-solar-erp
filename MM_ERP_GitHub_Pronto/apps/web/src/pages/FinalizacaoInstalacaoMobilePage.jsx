@@ -5,6 +5,8 @@ import { jsPDF } from 'jspdf';
 import { addServiceOrderSignature } from '../services/serviceOrderService.js';
 import { getCurrentPosition } from '../services/mobileInstallationService.js';
 import { buildTechnicalReportData, finalizeInstallation, loadInstallationCompletion } from '../services/installationCompletionService.js';
+import { getServiceOrderPhotoUrl } from '../services/serviceOrderMediaService.js';
+import { listServiceOrderActivities } from '../services/serviceOrderActivityService.js';
 import './finalizacao-instalacao-mobile.css';
 
 const initialForm = {
@@ -23,6 +25,7 @@ export default function FinalizacaoInstalacaoMobilePage() {
   const [checklist, setChecklist] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [signatures, setSignatures] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [signer, setSigner] = useState({ name: '', document: '' });
   const [message, setMessage] = useState('');
@@ -32,8 +35,11 @@ export default function FinalizacaoInstalacaoMobilePage() {
   const load = async () => {
     setBusy(true);
     try {
-      const data = await loadInstallationCompletion(id);
-      setOrder(data.order); setChecklist(data.checklist); setPhotos(data.photos); setSignatures(data.signatures);
+      const [data, activityRows] = await Promise.all([
+        loadInstallationCompletion(id),
+        listServiceOrderActivities(id).catch(() => []),
+      ]);
+      setOrder(data.order); setChecklist(data.checklist); setPhotos(data.photos); setSignatures(data.signatures); setActivities(activityRows);
       setCompleted(data.order.status === 'Concluída');
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
@@ -81,68 +87,295 @@ export default function FinalizacaoInstalacaoMobilePage() {
     finally { setBusy(false); }
   };
 
-  const generatePdf = () => {
-    const report = buildTechnicalReportData(order, form, checklist, photos, signatures);
-    const doc = new jsPDF();
-    let y = 16;
-
-    const addText = (text, size = 10, bold = false) => {
-      doc.setFontSize(size);
-      doc.setFont('helvetica', bold ? 'bold' : 'normal');
-      const lines = doc.splitTextToSize(String(text || ''), 180);
-      if (y + lines.length * 6 > 280) { doc.addPage(); y = 16; }
-      doc.text(lines, 15, y);
-      y += Math.max(6, lines.length * 5.5);
+  const imageUrlToJpegDataUrl = async (url) => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Falha ao carregar imagem do relatório.');
+    const blob = await response.blob();
+    const bitmap = await createImageBitmap(blob);
+    const maxSide = 1600;
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return {
+      dataUrl: canvas.toDataURL('image/jpeg', 0.86),
+      width: canvas.width,
+      height: canvas.height,
     };
+  };
 
-    addText('MM Energia Solar', 16, true);
-    addText('Relatório Técnico de Serviço', 14, true);
-    addText(`OS #${report.orderNumber || '-'}`, 11, true);
-    addText(`Cliente: ${report.customerName || '-'}`);
-    addText(`Telefone: ${report.customerPhone || '-'}`);
-    addText(`Endereço: ${report.address || '-'}`);
-    addText(`Equipe: ${report.team || '-'}`);
-    addText(`Conclusão: ${new Date().toLocaleString('pt-BR')}`);
-    y += 3;
+  const generatePdf = async () => {
+    setBusy(true);
+    setMessage('Montando relatório com as fotos...');
+    try {
+      const report = buildTechnicalReportData(order, form, checklist, photos, signatures);
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pageW = 210;
+      const pageH = 297;
+      const margin = 14;
+      const contentW = pageW - margin * 2;
+      const navy = [15, 44, 82];
+      const gold = [226, 177, 22];
+      const green = [29, 124, 73];
+      const amber = [184, 120, 8];
+      const red = [185, 48, 48];
+      const soft = [246, 248, 251];
+      const muted = [102, 116, 136];
 
-    addText('Testes elétricos', 12, true);
-    addText(`Tensão da rede: ${form.grid_voltage_v || '-'} V`);
-    addText(`Tensão do inversor: ${form.inverter_voltage_v || '-'} V`);
-    addText(`Corrente do inversor: ${form.inverter_current_a || '-'} A`);
-    addText(`Isolação: ${form.insulation_test_ok ? 'Aprovado' : 'Não aprovado'}`);
-    addText(`Aterramento: ${form.grounding_test_ok ? 'Verificado' : 'Não verificado'}`);
-    addText(`Proteções: ${form.protection_test_ok ? 'Testadas' : 'Não testadas'}`);
-    y += 3;
+      const safe = (v, fallback = '-') => (v == null || String(v).trim() === '' ? fallback : String(v));
+      const ensureSpace = (needed = 20) => {
+        if (y + needed > 280) {
+          doc.addPage();
+          y = 16;
+        }
+      };
+      const text = (value, x, yy, size = 9, bold = false, color = [31, 41, 55], maxWidth = null) => {
+        doc.setTextColor(...color);
+        doc.setFont('helvetica', bold ? 'bold' : 'normal');
+        doc.setFontSize(size);
+        const lines = maxWidth ? doc.splitTextToSize(safe(value), maxWidth) : [safe(value)];
+        doc.text(lines, x, yy);
+        return lines.length * (size * 0.38 + 1.2);
+      };
+      const section = (title) => {
+        ensureSpace(18);
+        doc.setFillColor(...navy);
+        doc.roundedRect(margin, y, contentW, 9, 2, 2, 'F');
+        text(title, margin + 4, y + 6.1, 10, true, [255, 255, 255]);
+        y += 13;
+      };
+      const pill = (label, x, yy, fill) => {
+        doc.setFillColor(...fill);
+        doc.roundedRect(x, yy, 27, 6.5, 3.2, 3.2, 'F');
+        text(label, x + 13.5, yy + 4.4, 6.7, true, [255,255,255]);
+      };
 
-    addText('Inversor e monitoramento', 12, true);
-    addText(`Marca: ${form.inverter_brand || '-'}`);
-    addText(`Modelo: ${form.inverter_model || '-'}`);
-    addText(`Número de série: ${form.inverter_serial || '-'}`);
-    addText(`Monitoramento: ${form.monitoring_configured ? 'Configurado' : 'Não configurado'}`);
-    if (form.monitoring_login) addText(`Login/e-mail: ${form.monitoring_login}`);
-    if (form.delivery_notes) addText(`Observações: ${form.delivery_notes}`);
-    y += 3;
+      let y = 0;
 
-    addText('Checklist', 12, true);
-    checklist.forEach((item) => addText(`${item.completed ? '✓' : '•'} ${item.section}: ${item.item}`));
-    y += 3;
+      // Capa / identificação
+      doc.setFillColor(...navy);
+      doc.rect(0, 0, pageW, 42, 'F');
+      doc.setFillColor(...gold);
+      doc.rect(0, 42, pageW, 2.2, 'F');
+      text('MM ENERGIA SOLAR', margin, 14, 17, true, [255,255,255]);
+      text('RELATÓRIO TÉCNICO DE SERVIÇO', margin, 23, 11, true, [235,241,248]);
+      text(`OS #${safe(report.orderNumber)}`, margin, 32, 9, true, [255,255,255]);
+      const statusText = order.status || 'Concluída';
+      doc.setFillColor(...gold);
+      doc.roundedRect(157, 11, 38, 10, 4, 4, 'F');
+      text(statusText.toUpperCase(), 176, 17.5, 7.2, true, navy);
 
-    addText(`Fotos registradas: ${photos.length}`, 11, true);
-    const lastSignature = signatures[0];
-    if (lastSignature) {
-      addText(`Técnico responsável: ${lastSignature.signer_name || '-'}`, 11, true);
-      if (lastSignature.signer_document) addText(`Documento: ${lastSignature.signer_document}`);
-      if (lastSignature.signature_data?.startsWith('data:image/')) {
-        if (y > 235) { doc.addPage(); y = 16; }
-        try {
-          doc.addImage(lastSignature.signature_data, 'PNG', 15, y + 3, 70, 24);
-          y += 31;
-        } catch { /* assinatura textual permanece no PDF */ }
+      y = 54;
+      text('CLIENTE', margin, y, 7.5, true, muted);
+      text(report.customerName, margin, y + 6, 12, true, navy);
+      text(safe(report.customerPhone), margin, y + 12, 8.5, false, muted);
+      text('ENDEREÇO DA INSTALAÇÃO', 108, y, 7.5, true, muted);
+      text(report.address, 108, y + 6, 8.8, false, [31,41,55], 87);
+      y += 24;
+
+      // resumo executivo
+      const nonCompliant = activities.filter((a) => a.condition === 'nao_conforme').length;
+      const attention = activities.filter((a) => a.condition === 'atencao').length;
+      const completedActivities = activities.filter((a) => a.status === 'concluido').length;
+      const cards = [
+        ['ATIVIDADES', String(activities.length || checklist.length)],
+        ['CONFORMES', String(activities.filter((a) => a.condition === 'conforme').length)],
+        ['ATENÇÕES', String(attention)],
+        ['NÃO CONFORMES', String(nonCompliant)],
+      ];
+      cards.forEach((card, index) => {
+        const x = margin + index * 45.5;
+        doc.setFillColor(...soft);
+        doc.roundedRect(x, y, 42, 20, 3, 3, 'F');
+        text(card[0], x + 3, y + 6, 6.7, true, muted);
+        text(card[1], x + 3, y + 15, 14, true, navy);
+      });
+      y += 28;
+
+      section('Identificação do sistema');
+      const info = [
+        ['Tipo de serviço', order.serviceType],
+        ['Equipe / técnico', order.assignedTeam || signatures[0]?.signer_name],
+        ['Marca do inversor', form.inverter_brand],
+        ['Modelo', form.inverter_model],
+        ['Nº de série', form.inverter_serial],
+        ['Monitoramento', form.monitoring_configured ? 'Configurado' : 'Não configurado'],
+      ];
+      info.forEach((item, index) => {
+        const col = index % 2;
+        const row = Math.floor(index / 2);
+        const x = margin + col * 92;
+        const yy = y + row * 13;
+        text(item[0].toUpperCase(), x, yy, 6.5, true, muted);
+        text(safe(item[1]), x, yy + 5.5, 9, true, [31,41,55], 84);
+      });
+      y += 42;
+
+      section('Testes elétricos');
+      const tests = [
+        ['Tensão da rede', `${safe(form.grid_voltage_v)} V`],
+        ['Tensão do inversor', `${safe(form.inverter_voltage_v)} V`],
+        ['Corrente do inversor', `${safe(form.inverter_current_a)} A`],
+        ['Isolação', form.insulation_test_ok ? 'APROVADO' : 'NÃO APROVADO'],
+        ['Aterramento', form.grounding_test_ok ? 'VERIFICADO' : 'PENDENTE'],
+        ['Proteções', form.protection_test_ok ? 'TESTADAS' : 'PENDENTE'],
+      ];
+      tests.forEach((item, index) => {
+        const col = index % 3;
+        const row = Math.floor(index / 3);
+        const x = margin + col * 61;
+        const yy = y + row * 15;
+        text(item[0], x, yy, 7, true, muted);
+        text(item[1], x, yy + 5.5, 9, true, navy);
+      });
+      y += 34;
+
+      // Atividades
+      section('Atividades da manutenção');
+      if (activities.length) {
+        activities.forEach((activity, index) => {
+          const obs = safe(activity.observation, 'Sem observação.');
+          const obsLines = doc.splitTextToSize(obs, 108);
+          const rowH = Math.max(14, 8 + obsLines.length * 4);
+          ensureSpace(rowH + 3);
+          if (index % 2 === 0) {
+            doc.setFillColor(249,250,252);
+            doc.rect(margin, y - 3, contentW, rowH, 'F');
+          }
+          text(activity.activity_type, margin + 2, y + 2, 8.2, true, navy, 43);
+          const condition = activity.condition === 'nao_conforme' ? 'NÃO CONFORME' : activity.condition === 'atencao' ? 'ATENÇÃO' : 'CONFORME';
+          const fill = activity.condition === 'nao_conforme' ? red : activity.condition === 'atencao' ? amber : green;
+          pill(condition, margin + 48, y - 2.5, fill);
+          text(obs, margin + 80, y + 2, 7.6, false, [55,65,81], 101);
+          y += rowH;
+        });
+      } else {
+        text('Nenhuma atividade técnica detalhada foi registrada.', margin, y, 8.5, false, muted);
+        y += 10;
       }
-    }
 
-    addText('Documento gerado pela MM Energia Solar a partir da Ordem de Serviço registrada no MM ERP.', 8);
-    doc.save(`MM-Energia-Solar-OS-${report.orderNumber || order.id.slice(0, 8)}.pdf`);
+      // não conformidades / recomendações
+      if (attention || nonCompliant) {
+        section('Não conformidades e prioridades');
+        activities.filter((a) => a.condition !== 'conforme').forEach((activity) => {
+          ensureSpace(16);
+          const fill = activity.condition === 'nao_conforme' ? red : amber;
+          doc.setFillColor(...fill);
+          doc.roundedRect(margin, y - 3, 3.5, 12, 1, 1, 'F');
+          text(activity.activity_type, margin + 7, y + 1, 8.5, true, navy);
+          text(activity.observation || 'Requer avaliação técnica.', margin + 7, y + 6.5, 7.5, false, muted, 170);
+          y += 15;
+        });
+      }
+
+      if (form.delivery_notes) {
+        section('Recomendações e observações técnicas');
+        const h = text(form.delivery_notes, margin + 2, y, 8.5, false, [44,55,70], contentW - 4);
+        y += h + 5;
+      }
+
+      // Fotos
+      section('Registro fotográfico');
+      text(`${photos.length} foto(s) registrada(s) na Ordem de Serviço`, margin, y, 8, false, muted);
+      y += 8;
+
+      const loadedPhotos = [];
+      for (const photo of photos) {
+        try {
+          const signedUrl = await getServiceOrderPhotoUrl(photo.storage_path, 1800);
+          const image = await imageUrlToJpegDataUrl(signedUrl);
+          loadedPhotos.push({ ...photo, ...image });
+        } catch (error) {
+          console.warn('Foto ignorada no PDF', photo?.id, error);
+        }
+      }
+
+      if (!loadedPhotos.length) {
+        text('Não foi possível carregar as fotos para este PDF.', margin, y, 8.5, false, red);
+        y += 10;
+      } else {
+        for (let i = 0; i < loadedPhotos.length; i += 2) {
+          ensureSpace(76);
+          const pair = loadedPhotos.slice(i, i + 2);
+          for (let j = 0; j < pair.length; j++) {
+            const photo = pair[j];
+            const x = margin + j * 92;
+            const boxW = 86;
+            const boxH = 58;
+            doc.setFillColor(247,248,250);
+            doc.roundedRect(x, y, boxW, boxH + 12, 2.5, 2.5, 'F');
+            const ratio = photo.width / photo.height;
+            let drawW = boxW - 4;
+            let drawH = drawW / ratio;
+            if (drawH > boxH - 4) {
+              drawH = boxH - 4;
+              drawW = drawH * ratio;
+            }
+            const imageX = x + (boxW - drawW) / 2;
+            const imageY = y + 2 + ((boxH - 4) - drawH) / 2;
+            doc.addImage(photo.dataUrl, 'JPEG', imageX, imageY, drawW, drawH, undefined, 'FAST');
+            text((photo.stage || 'Foto').toUpperCase(), x + 3, y + boxH + 5.5, 6.8, true, navy);
+            if (photo.caption) text(photo.caption, x + 3, y + boxH + 10, 6.5, false, muted, 78);
+          }
+          y += 76;
+        }
+      }
+
+      // Checklist resumido
+      section('Checklist técnico');
+      checklist.forEach((item) => {
+        ensureSpace(9);
+        const fill = item.completed ? green : amber;
+        doc.setFillColor(...fill);
+        doc.circle(margin + 2.5, y - 1, 1.6, 'F');
+        text(`${item.section}: ${item.item}`, margin + 7, y + 1, 7.5, item.completed, [45,55,70], 171);
+        y += 7;
+      });
+      y += 3;
+
+      // Assinatura técnico
+      section('Responsabilidade técnica');
+      const lastSignature = signatures[0];
+      if (lastSignature) {
+        text('TÉCNICO RESPONSÁVEL', margin + 2, y, 6.8, true, muted);
+        text(lastSignature.signer_name || '-', margin + 2, y + 6, 10, true, navy);
+        if (lastSignature.signer_document) text(`Registro / documento: ${lastSignature.signer_document}`, margin + 2, y + 12, 7.5, false, muted);
+        if (lastSignature.signature_data?.startsWith('data:image/')) {
+          try {
+            doc.addImage(lastSignature.signature_data, 'PNG', 118, y - 3, 68, 24);
+            doc.setDrawColor(180,186,196);
+            doc.line(118, y + 23, 186, y + 23);
+          } catch {}
+        }
+        y += 29;
+      } else {
+        text('Assinatura do técnico não registrada.', margin + 2, y, 8.5, false, red);
+        y += 10;
+      }
+
+      // Rodapé + paginação
+      const pages = doc.getNumberOfPages();
+      for (let page = 1; page <= pages; page++) {
+        doc.setPage(page);
+        doc.setDrawColor(224,228,234);
+        doc.line(margin, 286, pageW - margin, 286);
+        text('MM Energia Solar · Relatório gerado pelo MM ERP', margin, 291, 6.5, false, muted);
+        text(`Página ${page} de ${pages}`, 176, 291, 6.5, false, muted);
+      }
+
+      doc.save(`MM-Energia-Solar-OS-${report.orderNumber || order.id.slice(0, 8)}.pdf`);
+      setMessage(`PDF gerado com ${loadedPhotos.length} foto(s).`);
+    } catch (error) {
+      console.error(error);
+      setMessage(error?.message || 'Não foi possível gerar o PDF.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const printReport = () => {
