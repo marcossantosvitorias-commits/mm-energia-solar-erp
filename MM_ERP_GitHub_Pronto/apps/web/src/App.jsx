@@ -24,6 +24,7 @@ import BlingIntegracaoPage from './pages/BlingIntegracaoPage.jsx';
 import ContratosPage from './pages/ContratosPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
 import GeradorInstagramPage from './pages/GeradorInstagramPage.jsx';
+import OrdensServicoPage from './pages/OrdensServicoPage.jsx';
 
 const privateRoute = (element) => (
   <ProtectedRoute>{element}</ProtectedRoute>
@@ -42,6 +43,7 @@ function App() {
           <Route path="/app/dashboard" element={privateRoute(<ErpDashboardPage />)} />
           <Route path="/app/clientes" element={privateRoute(<ClientesPage />)} />
           <Route path="/app/agenda" element={privateRoute(<AgendaPage />)} />
+          <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />)} />
           <Route path="/app" element={privateRoute(<FinanceiroPage />)} />
           <Route path="/app/precos" element={privateRoute(<CotacoesBelenusPage pricingMode />)} />
           <Route path="/app/equipamentos" element={privateRoute(<EquipamentosPage />)} />
