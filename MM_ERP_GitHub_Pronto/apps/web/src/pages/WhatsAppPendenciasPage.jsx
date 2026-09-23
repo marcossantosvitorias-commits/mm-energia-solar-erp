@@ -245,7 +245,16 @@ function WhatsAppPendenciasPage() {
     if (rpcError || data?.ok === false) {
       setError(rpcError?.message || 'Não foi possível marcar o lead como ruim.');
     } else {
-      setNotice('Lead marcado como ruim. O ERP não enviará este contato como lead qualificado para a Meta.');
+      const eventIds = Array.isArray(data?.meta_event_ids) ? data.meta_event_ids : [];
+      for (const eventId of eventIds) {
+        const { error: sendError } = await supabase.functions.invoke('meta-capi-send', {
+          body: { event_id: eventId },
+        });
+        if (sendError) console.warn('Meta lead disqualified feedback pending:', sendError);
+      }
+      setNotice(eventIds.length
+        ? 'Lead desqualificado e feedback enviado para a Meta.'
+        : 'Lead desqualificado. Sem identificação do anúncio para enviar feedback à Meta.');
       await loadConversations();
     }
     setSaving(false);
