@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays, ChevronDown, CircleDollarSign, Filter, GripVertical,
   LayoutGrid, List, MessageCircle, MoreVertical, Phone, Plus, Search,
-  SlidersHorizontal, UserRound,
+  SlidersHorizontal, ThumbsDown, UserRound,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
-import { createClient, listClients, updateClient } from '../services/clientService.js';
+import { createClient, listClients, markClientAsBadLead, updateClient } from '../services/clientService.js';
 import { syncLeadConnector } from '../services/leadConnectorService.js';
 import './LeadsPipelinePage.css';
 
@@ -34,7 +34,7 @@ const emptyOpportunity = {
   document: '', address: '', zipCode: '',
 };
 
-function LeadCard({ lead, onDragStart, onOpenWhatsApp }) {
+function LeadCard({ lead, onDragStart, onOpenWhatsApp, onMarkBad, markingBad }) {
   const sourceLabel = lead.leadSource || (lead.externalProvider === 'leadconnector' ? '1North' : 'ERP / WhatsApp');
   return (
     <article
@@ -61,6 +61,15 @@ function LeadCard({ lead, onDragStart, onOpenWhatsApp }) {
         <a href={lead.phone ? `tel:${lead.phone}` : undefined} title="Ligar"><Phone size={16} /></a>
         <button type="button" title="Cliente"><UserRound size={16} /></button>
         <button type="button" title="Próxima ação"><CalendarDays size={16} /></button>
+        <button
+          type="button"
+          className="bad-lead-button"
+          title="Marcar como lead ruim"
+          disabled={markingBad}
+          onClick={() => onMarkBad(lead)}
+        >
+          <ThumbsDown size={16} />
+        </button>
       </div>
     </article>
   );
@@ -81,6 +90,7 @@ export default function LeadsPipelinePage() {
   const [form, setForm] = useState(emptyOpportunity);
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverStage, setDragOverStage] = useState('');
+  const [markingBadId, setMarkingBadId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -145,6 +155,31 @@ export default function LeadsPipelinePage() {
     const digits = String(phone || '').replace(/\D/g, '');
     if (!digits) return;
     window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const markBadLead = async (lead) => {
+    if (!lead) return;
+    const reason = window.prompt(
+      'Motivo do lead ruim (opcional):',
+      lead.monthlyBill > 0 && lead.monthlyBill < 150
+        ? 'Conta de energia muito baixa para viabilizar o sistema.'
+        : 'Lead sem interesse ou sem potencial comercial.'
+    );
+    if (reason === null) return;
+
+    setMarkingBadId(lead.id);
+    setMessage('');
+    try {
+      await markClientAsBadLead(lead.id, lead.phone, reason);
+      setClients((current) => current.map((item) => (
+        item.id === lead.id ? { ...item, status: 'perdido' } : item
+      )));
+      setMessage('Lead marcado como ruim. O ERP bloqueou o envio de conversão qualificada desse contato para a Meta.');
+    } catch (error) {
+      setMessage(error?.message || 'Não foi possível marcar o lead como ruim.');
+    } finally {
+      setMarkingBadId(null);
+    }
   };
 
   const importFrom1North = async () => {
@@ -239,7 +274,16 @@ export default function LeadsPipelinePage() {
                   <b>{formatCurrency(stageLeads.reduce((sum, lead) => sum + Number(lead.monthlyBill || 0), 0))}</b>
                 </header>
                 <div className="lead-column-body">
-                  {stageLeads.map((lead) => <LeadCard key={lead.id} lead={lead} onDragStart={onDragStart} onOpenWhatsApp={openWhatsApp} />)}
+                  {stageLeads.map((lead) => (
+                    <LeadCard
+                      key={lead.id}
+                      lead={lead}
+                      onDragStart={onDragStart}
+                      onOpenWhatsApp={openWhatsApp}
+                      onMarkBad={markBadLead}
+                      markingBad={markingBadId === lead.id}
+                    />
+                  ))}
                   {!stageLeads.length ? <div className="lead-empty-stage">Arraste uma oportunidade para cá</div> : null}
                 </div>
               </div>
