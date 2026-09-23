@@ -100,6 +100,17 @@ export async function updateClient(id, data) {
   return fromDatabase(updated);
 }
 
+export async function markClientAsBadLead(id, phone, reason = '') {
+  ensureDatabase();
+  const { data, error } = await supabase.rpc('mark_bad_lead', {
+    p_client_id: id || null,
+    p_phone: phone || null,
+    p_reason: reason || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteClient(id) {
   ensureDatabase();
   const { error } = await supabase.from('clients').delete().eq('id', id);
