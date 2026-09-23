@@ -108,6 +108,15 @@ export async function markClientAsBadLead(id, phone, reason = '') {
     p_reason: reason || null,
   });
   if (error) throw error;
+
+  const eventIds = Array.isArray(data?.meta_event_ids) ? data.meta_event_ids : [];
+  for (const eventId of eventIds) {
+    const { error: sendError } = await supabase.functions.invoke('meta-capi-send', {
+      body: { event_id: eventId },
+    });
+    if (sendError) console.warn('Meta lead disqualified feedback pending:', sendError);
+  }
+
   return data;
 }
 
