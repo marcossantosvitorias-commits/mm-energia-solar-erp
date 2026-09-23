@@ -10,7 +10,7 @@ import './WhatsAppPendenciasPage.css';
 const STAGES = [
   ['new', 'Novo lead'], ['qualifying', 'Qualificando'], ['qualified', 'Qualificado'],
   ['proposal', 'Proposta enviada'], ['follow_up', 'Follow-up'], ['won', 'Vendido'],
-  ['lost', 'Perdido'], ['not_lead', 'Não é lead'],
+  ['lost', 'Perdido'], ['not_lead', 'Desqualificado'],
 ];
 const TEMPERATURES = [['cold', 'Frio'], ['warm', 'Morno'], ['hot', 'Quente']];
 const PRIORITIES = [['low', 'Baixa'], ['normal', 'Normal'], ['high', 'Alta'], ['urgent', 'Urgente']];
