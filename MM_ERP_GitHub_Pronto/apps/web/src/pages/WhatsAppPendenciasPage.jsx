@@ -153,6 +153,14 @@ function WhatsAppPendenciasPage() {
       const next = data || [];
       setItems(next);
       setSelectedId((current) => keepSelection && current && next.some((item) => item.id === current) ? current : (next[0]?.id || null));
+
+      const { data: pendingMetaIds } = await supabase.rpc('get_pending_meta_disqualified_events');
+      for (const eventId of (pendingMetaIds || [])) {
+        const { error: sendError } = await supabase.functions.invoke('meta-capi-send', {
+          body: { event_id: eventId },
+        });
+        if (sendError) console.warn('Meta disqualified feedback pending:', sendError);
+      }
     } catch (err) {
       setError(err.message || 'Não foi possível carregar as conversas.');
     } finally {
@@ -199,6 +207,32 @@ function WhatsAppPendenciasPage() {
   const saveQualification = async () => {
     if (!selected) return;
     setSaving(true); setError(''); setNotice('');
+
+    if (qualification.lead_stage === 'not_lead') {
+      const { data, error: rpcError } = await supabase.rpc('mark_bad_lead', {
+        p_client_id: selected.client_id || null,
+        p_phone: selected.phone || null,
+        p_reason: qualification.qualification_notes?.trim() || 'Lead desqualificado manualmente.',
+      });
+      if (rpcError || data?.ok === false) {
+        setError(rpcError?.message || 'Não foi possível marcar o lead como desqualificado.');
+      } else {
+        const eventIds = Array.isArray(data?.meta_event_ids) ? data.meta_event_ids : [];
+        for (const eventId of eventIds) {
+          const { error: sendError } = await supabase.functions.invoke('meta-capi-send', {
+            body: { event_id: eventId },
+          });
+          if (sendError) console.warn('Meta lead disqualified feedback pending:', sendError);
+        }
+        setNotice(eventIds.length
+          ? 'Desqualificação salva e feedback enviado para a Meta.'
+          : 'Desqualificação salva. Sem identificação do anúncio para enviar feedback à Meta.');
+        await loadConversations();
+      }
+      setSaving(false);
+      return;
+    }
+
     const bill = qualification.estimated_monthly_bill === '' ? null : Number(String(qualification.estimated_monthly_bill).replace(',', '.'));
     const { error: updateError } = await supabase.from('whatsapp_conversations').update({
       lead_stage: qualification.lead_stage,
