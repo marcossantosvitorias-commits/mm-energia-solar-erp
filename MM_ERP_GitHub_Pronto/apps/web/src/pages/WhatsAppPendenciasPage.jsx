@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, CheckCircle2, Clock3, Download, ExternalLink, FileText, Flame,
-  Image as ImageIcon, MessageCircle, Mic, RefreshCw, Save, Search, Send, UserRound, Video,
+  Image as ImageIcon, MessageCircle, Mic, RefreshCw, Save, Search, Send, ThumbsDown, UserRound, Video,
 } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
@@ -226,6 +226,31 @@ function WhatsAppPendenciasPage() {
     if (updateError) setError(updateError.message); else await loadConversations();
   };
 
+  const markBadLead = async () => {
+    if (!selected || !supabase) return;
+    const reason = window.prompt(
+      'Motivo do lead ruim (opcional):',
+      Number(selected.estimated_monthly_bill || 0) > 0 && Number(selected.estimated_monthly_bill || 0) < 150
+        ? 'Conta de energia muito baixa para viabilizar o sistema.'
+        : 'Lead sem interesse ou sem potencial comercial.'
+    );
+    if (reason === null) return;
+
+    setSaving(true); setError(''); setNotice('');
+    const { data, error: rpcError } = await supabase.rpc('mark_bad_lead', {
+      p_client_id: selected.client_id || null,
+      p_phone: selected.phone || null,
+      p_reason: reason || null,
+    });
+    if (rpcError || data?.ok === false) {
+      setError(rpcError?.message || 'Não foi possível marcar o lead como ruim.');
+    } else {
+      setNotice('Lead marcado como ruim. O ERP não enviará este contato como lead qualificado para a Meta.');
+      await loadConversations();
+    }
+    setSaving(false);
+  };
+
   const sendReply = async () => {
     const body = reply.trim();
     if (!selected || !body || sending) return;
@@ -269,7 +294,7 @@ function WhatsAppPendenciasPage() {
 
         <main className="wa-chat">
           {!selected ? <div className="wa-chat-empty"><div><MessageCircle size={38} /><p>Selecione uma conversa para abrir o atendimento.</p></div></div> : <>
-            <header className="wa-chat-header"><div className="wa-contact"><button type="button" className="wa-icon-btn wa-mobile-back" onClick={() => setMobileChatOpen(false)}><ArrowLeft size={17} /></button><div className="wa-avatar">{(selected.contact_name || selected.phone || '?').trim().charAt(0).toUpperCase()}</div><div className="wa-contact-meta"><strong>{selected.contact_name || formatPhone(selected.phone)}</strong><span>{formatPhone(selected.phone)}{selected.city ? ` • ${selected.city}` : ''}</span></div></div><div className="wa-header-actions"><button type="button" className="wa-secondary-btn" onClick={() => openWhatsAppBusiness(selected.phone)}><ExternalLink size={15} /><span>Business</span></button>{selected.needs_reply && <button type="button" className="wa-primary-btn" onClick={markAnswered}><CheckCircle2 size={15} /><span>Respondido</span></button>}</div></header>
+            <header className="wa-chat-header"><div className="wa-contact"><button type="button" className="wa-icon-btn wa-mobile-back" onClick={() => setMobileChatOpen(false)}><ArrowLeft size={17} /></button><div className="wa-avatar">{(selected.contact_name || selected.phone || '?').trim().charAt(0).toUpperCase()}</div><div className="wa-contact-meta"><strong>{selected.contact_name || formatPhone(selected.phone)}</strong><span>{formatPhone(selected.phone)}{selected.city ? ` • ${selected.city}` : ''}</span></div></div><div className="wa-header-actions"><button type="button" className="wa-secondary-btn wa-bad-lead-btn" onClick={markBadLead} disabled={saving}><ThumbsDown size={15} /><span>Lead ruim</span></button><button type="button" className="wa-secondary-btn" onClick={() => openWhatsAppBusiness(selected.phone)}><ExternalLink size={15} /><span>Business</span></button>{selected.needs_reply && <button type="button" className="wa-primary-btn" onClick={markAnswered}><CheckCircle2 size={15} /><span>Respondido</span></button>}</div></header>
             <div className="wa-messages">
               {loadingMessages && <div className="wa-loading">Carregando histórico...</div>}
               {!loadingMessages && !messages.length && <div className="wa-chat-empty"><div><MessageCircle size={34} /><p>Ainda não há mensagens armazenadas para este contato.</p></div></div>}
