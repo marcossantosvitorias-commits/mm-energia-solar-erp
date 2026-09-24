@@ -36,10 +36,23 @@ Deno.serve(async (req: Request) => {
   if (body.length > 4096) return json({ error: "message_too_long" }, 400);
   if (!metaToken) return json({ error: "meta_token_missing", message: "Configure META_WHATSAPP_ACCESS_TOKEN no Supabase." }, 503);
 
-  const { data: conversation, error: convError } = await admin.from("whatsapp_conversations").select("id,phone,contact_name").eq("id", conversationId).single();
+  const { data: conversation, error: convError } = await admin.from("whatsapp_conversations").select("id,phone,contact_name,ai_enabled,ai_paused,ai_handoff").eq("id", conversationId).single();
   if (convError || !conversation?.phone) return json({ error: "conversation_not_found" }, 404);
 
   const to = String(conversation.phone).replace(/\D/g, "");
+  // Resposta humana assume a conversa imediatamente, antes do envio ao WhatsApp.
+  // Evita que a IA responda em paralelo enquanto o webhook ainda está chegando.
+  const handoffNow = new Date().toISOString();
+  const { error: pauseError } = await admin.from("whatsapp_conversations").update({
+    ai_paused: true,
+    ai_handoff: true,
+    needs_reply: false,
+    status: "waiting_customer",
+    next_action: "Atendimento humano assumido",
+    updated_at: handoffNow,
+  }).eq("id", conversation.id);
+  if (pauseError) return json({ error: "conversation_pause_failed", details: pauseError.message }, 500);
+
   const metaResponse = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${metaToken}`, "Content-Type": "application/json" },
