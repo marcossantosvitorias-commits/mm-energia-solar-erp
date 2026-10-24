@@ -64,10 +64,10 @@ export default function CalculadoraSolarErpPage() {
       setBillAnalyses((current) => [...current, ...extractedItems]);
       setForm((current) => ({
         ...current,
-        name: extracted.customer_name || current.name,
+        name: extracted.customer_name || extracted.account_holder || extracted.holder_name || current.name,
         city: extracted.city || current.city,
         state: extracted.state || current.state,
-        utilityCompany: extracted.utility_company || current.utilityCompany,
+        utilityCompany: extracted.utility_company || extracted.concessionaire || extracted.distributor || current.utilityCompany,
         tariffPerKwh: FIXED_TARIFF_PER_KWH,
         connectionType: ['monofasica', 'bifasica', 'trifasica'].includes(extracted.connection_type) ? extracted.connection_type : current.connectionType,
       }));
@@ -107,7 +107,7 @@ export default function CalculadoraSolarErpPage() {
       <form onSubmit={handleSubmit} style={styles.card}>
         <div style={styles.cardHeader}><div><span style={styles.eyebrow}>NOVA SIMULAÇÃO</span><h2 style={styles.title}><Calculator size={22} /> Dimensionar sistema</h2></div><a href={`${import.meta.env.BASE_URL}simulacao-solar`} target="_blank" rel="noreferrer" style={styles.secondaryButton}>Página pública <ExternalLink size={15} /></a></div>
         <div style={styles.billBox}><div><strong><Sparkles size={17} /> Analisar histórico com IA</strong><small>Anexe a conta que mostra o histórico de 13 meses. A IA extrai os 13 gastos, soma e calcula a média.</small></div><label style={styles.uploadButton}><Upload size={16} /> {analyzingBill ? 'Analisando...' : 'Anexar conta'}<input type="file" accept="image/*,application/pdf" multiple onChange={handleBillUpload} disabled={analyzingBill} style={{ display: 'none' }} /></label></div>
-        {billAnalyses.length > 0 && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>{billAnalyses.length} conta(s) analisada(s)</strong><small>{billAnalyses[billAnalyses.length - 1].utility_company || 'Concessionária não identificada'} · {billAnalyses[billAnalyses.length - 1].energy_consumption_kwh ? `${billAnalyses[billAnalyses.length - 1].energy_consumption_kwh} kWh` : 'consumo não identificado'} · tarifa unitária conferida por TE + TUSD{billAnalyses[billAnalyses.length - 1].warnings?.length ? ` · ${billAnalyses[billAnalyses.length - 1].warnings.length} aviso(s)` : ''}</small></span></div>}
+        {billAnalyses.length > 0 && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>{billAnalyses.length} conta(s) analisada(s)</strong><small>Titular: {billAnalyses[billAnalyses.length - 1].customer_name || billAnalyses[billAnalyses.length - 1].account_holder || 'não identificado'} · Concessionária: {billAnalyses[billAnalyses.length - 1].utility_company || billAnalyses[billAnalyses.length - 1].concessionaire || 'não identificada'} · {billAnalyses[billAnalyses.length - 1].history_kind === 'consumption_converted_to_bill' ? 'histórico em kWh convertido para R$ 0,90/kWh' : 'histórico em reais'}{billAnalyses[billAnalyses.length - 1].warnings?.length ? ` · ${billAnalyses[billAnalyses.length - 1].warnings.length} aviso(s)` : ''}</small></span></div>}
         <div style={styles.formGrid}>
           <Field label="Nome do cliente" name="name" value={form.name} onChange={update} required /><Field label="WhatsApp" name="phone" value={form.phone} onChange={update} required /><Field label="E-mail" name="email" type="email" value={form.email} onChange={update} /><CityField label="Cidade" name="city" value={form.city} onChange={update} required /><Field label="Concessionária" name="utilityCompany" value={form.utilityCompany} onChange={update} />
           <Select label="Ligação" name="connectionType" value={form.connectionType} onChange={update}><option value="monofasica">Monofásica</option><option value="bifasica">Bifásica</option><option value="trifasica">Trifásica</option></Select>
