@@ -14,6 +14,7 @@ const FIXED_TARIFF_PER_KWH = 0.9;
 const HISTORY_MONTHS_REQUIRED = 13;
 const initialForm = { name: '', phone: '', email: '', city: 'Bauru', state: 'SP', utilityCompany: 'CPFL Piratininga', connectionType: 'bifasica', proposalMode: 'venda', subscriptionDiscountPercent: 15, marginPercent: 25, taxPercent: 4, monthlyBill: '', tariffPerKwh: FIXED_TARIFF_PER_KWH, panelPowerW: 620, irradiation: 5.2, performanceRatio: 0.78, targetOffsetPercent: 95, source: 'erp-venda' };
 const statusOptions = ['', 'Novo', 'Contatado', 'Convertido', 'Descartado'];
+const annualHistoryStorageKey = 'erp-solar-annual-history-v1';
 function parseBrazilianNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   const text = String(value ?? '').replace(/R\$|\s/gi, '').trim();
@@ -33,7 +34,12 @@ export default function CalculadoraSolarErpPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [analyzingBill, setAnalyzingBill] = useState(false);
   const [billAnalyses, setBillAnalyses] = useState([]);
-  const [annualBills, setAnnualBills] = useState(() => Array(HISTORY_MONTHS_REQUIRED).fill(''));
+  const [annualBills, setAnnualBills] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(annualHistoryStorageKey) || 'null');
+      return Array.isArray(saved) && saved.length === HISTORY_MONTHS_REQUIRED ? saved.map((value) => String(value ?? '')) : Array(HISTORY_MONTHS_REQUIRED).fill('');
+    } catch { return Array(HISTORY_MONTHS_REQUIRED).fill(''); }
+  });
   const [error, setError] = useState('');
 
   const load = async () => { setLoadingList(true); setError(''); try { setSimulations(await listSolarSimulations({ search, status })); } catch (err) { setError(err.message); } finally { setLoadingList(false); } };
@@ -46,6 +52,7 @@ export default function CalculadoraSolarErpPage() {
     return { total, filled: values.length, average, annualized: average * 12 };
   }, [annualBills]);
   const updateAnnualBill = (index, value) => setAnnualBills((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
+  useEffect(() => { try { localStorage.setItem(annualHistoryStorageKey, JSON.stringify(annualBills)); } catch { /* armazenamento local indisponível */ } }, [annualBills]);
 
   const handleBillUpload = async (event) => {
     const files = Array.from(event.target.files || []);
@@ -79,7 +86,7 @@ export default function CalculadoraSolarErpPage() {
   const handleSubmit = async (event) => {
     event.preventDefault(); setLoading(true); setError('');
     if (annualSummary.filled !== HISTORY_MONTHS_REQUIRED) { setLoading(false); setError(`Informe os ${HISTORY_MONTHS_REQUIRED} meses do histórico de gastos para calcular a média.`); return; }
-    try { const data = await submitSolarSimulation({ ...form, monthlyBill: annualSummary.average, tariffPerKwh: FIXED_TARIFF_PER_KWH }); setResult(data); setForm((current) => ({ ...initialForm, city: current.city, utilityCompany: current.utilityCompany })); setAnnualBills(Array(HISTORY_MONTHS_REQUIRED).fill('')); setBillAnalyses([]); await load(); }
+    try { const data = await submitSolarSimulation({ ...form, monthlyBill: annualSummary.average, tariffPerKwh: FIXED_TARIFF_PER_KWH }); setResult(data); setForm((current) => ({ ...initialForm, city: current.city, utilityCompany: current.utilityCompany })); await load(); }
     catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
