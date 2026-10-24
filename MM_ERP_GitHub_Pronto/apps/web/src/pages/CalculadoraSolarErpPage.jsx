@@ -14,6 +14,14 @@ const FIXED_TARIFF_PER_KWH = 0.9;
 const HISTORY_MONTHS_REQUIRED = 13;
 const initialForm = { name: '', phone: '', email: '', city: 'Bauru', state: 'SP', utilityCompany: 'CPFL Piratininga', connectionType: 'bifasica', proposalMode: 'venda', subscriptionDiscountPercent: 15, marginPercent: 25, taxPercent: 4, monthlyBill: '', tariffPerKwh: FIXED_TARIFF_PER_KWH, panelPowerW: 620, irradiation: 5.2, performanceRatio: 0.78, targetOffsetPercent: 95, source: 'erp-venda' };
 const statusOptions = ['', 'Novo', 'Contatado', 'Convertido', 'Descartado'];
+function parseBrazilianNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const text = String(value ?? '').replace(/R\$|\s/gi, '').trim();
+  if (!text) return 0;
+  const normalized = text.includes(',') ? text.replace(/\./g, '').replace(',', '.') : text;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
 
 export default function CalculadoraSolarErpPage() {
   const [form, setForm] = useState(initialForm);
@@ -49,7 +57,7 @@ export default function CalculadoraSolarErpPage() {
       for (const file of files) {
         const extracted = await analyzeEnergyBill(file);
         extractedItems.push(extracted);
-        const history = Array.isArray(extracted.historical_monthly_bills) ? extracted.historical_monthly_bills.map(Number).filter((value) => Number.isFinite(value) && value > 0) : [];
+        const history = Array.isArray(extracted.historical_monthly_bills) ? extracted.historical_monthly_bills.map((item) => parseBrazilianNumber(typeof item === 'object' ? (item?.value ?? item?.amount ?? item?.bill ?? item?.total) : item)).filter((value) => value > 0) : [];
         if (history.length === HISTORY_MONTHS_REQUIRED) setAnnualBills(history.map(String));
       }
       const extracted = extractedItems[extractedItems.length - 1];

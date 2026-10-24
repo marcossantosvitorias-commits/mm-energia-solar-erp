@@ -33,7 +33,11 @@ function parseJson(value: string) {
 }
 
 function finiteNumber(value: unknown) {
-  const number = Number(value);
+  if (typeof value === "number") return Number.isFinite(value) && value >= 0 ? value : null;
+  const text = String(value ?? "").replace(/R\$|\s/gi, "").trim();
+  if (!text) return null;
+  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+  const number = Number(normalized);
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
@@ -79,7 +83,7 @@ Deno.serve(async (request: Request) => {
     if (!response.ok) return json({ error: "ai_provider_failed", detail: payload?.error?.message || "Falha no provedor de IA." }, 502);
     let extracted: any;
     try { extracted = parseJson(outputText(payload)); } catch { return json({ error: "invalid_ai_output", message: "A IA não retornou dados estruturados." }, 502); }
-    const history = Array.isArray(extracted.historical_monthly_bills) ? extracted.historical_monthly_bills.map(finiteNumber) : [];
+    const history = Array.isArray(extracted.historical_monthly_bills) ? extracted.historical_monthly_bills.map((item: any) => finiteNumber(typeof item === "object" ? (item?.value ?? item?.amount ?? item?.bill ?? item?.total) : item)) : [];
     extracted.historical_monthly_bills = history.length === 13 && history.every((value) => value !== null) ? history : [];
     extracted.tariff_per_kwh = 0.9;
     return json({ ok: true, extracted, model });
