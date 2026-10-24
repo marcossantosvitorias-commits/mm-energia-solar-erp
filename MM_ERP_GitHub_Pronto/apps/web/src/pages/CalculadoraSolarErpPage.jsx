@@ -9,17 +9,11 @@ import { analyzeEnergyBill } from '../services/energyBillAiService.js';
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const decimal = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
 const dateTime = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-const annualMonths = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const initialForm = { name: '', phone: '', email: '', city: 'Bauru', state: 'SP', utilityCompany: 'CPFL Piratininga', connectionType: 'bifasica', proposalMode: 'venda', subscriptionDiscountPercent: 15, marginPercent: 25, taxPercent: 4, monthlyBill: '', tariffPerKwh: 0.9, panelPowerW: 620, irradiation: 5.2, performanceRatio: 0.78, targetOffsetPercent: 95, source: 'erp-venda' };
+const annualMonths = ['M-12', 'M-11', 'M-10', 'M-9', 'M-8', 'M-7', 'M-6', 'M-5', 'M-4', 'M-3', 'M-2', 'M-1', 'Atual'];
+const FIXED_TARIFF_PER_KWH = 0.9;
+const HISTORY_MONTHS_REQUIRED = 13;
+const initialForm = { name: '', phone: '', email: '', city: 'Bauru', state: 'SP', utilityCompany: 'CPFL Piratininga', connectionType: 'bifasica', proposalMode: 'venda', subscriptionDiscountPercent: 15, marginPercent: 25, taxPercent: 4, monthlyBill: '', tariffPerKwh: FIXED_TARIFF_PER_KWH, panelPowerW: 620, irradiation: 5.2, performanceRatio: 0.78, targetOffsetPercent: 95, source: 'erp-venda' };
 const statusOptions = ['', 'Novo', 'Contatado', 'Convertido', 'Descartado'];
-function monthIndexFromReference(reference) {
-  const value = String(reference || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const namedIndex = monthNames.findIndex((month) => value.includes(month));
-  if (namedIndex >= 0) return namedIndex;
-  const numeric = value.match(/(?:^|[-/ ])(0?[1-9]|1[0-2])(?:[-/ ]|$)/);
-  return numeric ? Number(numeric[1]) - 1 : new Date().getMonth();
-}
 
 export default function CalculadoraSolarErpPage() {
   const [form, setForm] = useState(initialForm);
@@ -31,7 +25,7 @@ export default function CalculadoraSolarErpPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [analyzingBill, setAnalyzingBill] = useState(false);
   const [billAnalyses, setBillAnalyses] = useState([]);
-  const [annualBills, setAnnualBills] = useState(() => Array(12).fill(''));
+  const [annualBills, setAnnualBills] = useState(() => Array(HISTORY_MONTHS_REQUIRED).fill(''));
   const [error, setError] = useState('');
 
   const load = async () => { setLoadingList(true); setError(''); try { setSimulations(await listSolarSimulations({ search, status })); } catch (err) { setError(err.message); } finally { setLoadingList(false); } };
@@ -40,7 +34,7 @@ export default function CalculadoraSolarErpPage() {
   const annualSummary = useMemo(() => {
     const values = annualBills.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0);
     const total = values.reduce((sum, value) => sum + value, 0);
-    return { total, filled: values.length, average: values.length ? total / values.length : 0 };
+    return { total, filled: values.length, average: values.length === HISTORY_MONTHS_REQUIRED ? total / HISTORY_MONTHS_REQUIRED : 0 };
   }, [annualBills]);
   const updateAnnualBill = (index, value) => setAnnualBills((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
 
@@ -55,16 +49,10 @@ export default function CalculadoraSolarErpPage() {
       for (const file of files) {
         const extracted = await analyzeEnergyBill(file);
         extractedItems.push(extracted);
-        const extractedBill = Number(extracted.energy_bill_without_fines || extracted.total_bill || 0);
-        if (extractedBill > 0) {
-          const monthIndex = monthIndexFromReference(extracted.reference_month);
-          setAnnualBills((current) => current.map((value, index) => index === monthIndex ? String(extractedBill) : value));
-        }
+        const history = Array.isArray(extracted.historical_monthly_bills) ? extracted.historical_monthly_bills.map(Number).filter((value) => Number.isFinite(value) && value > 0) : [];
+        if (history.length === HISTORY_MONTHS_REQUIRED) setAnnualBills(history.map(String));
       }
       const extracted = extractedItems[extractedItems.length - 1];
-      const te = Number(extracted.te_per_kwh || 0);
-      const tusd = Number(extracted.tusd_per_kwh || 0);
-      const tariffFromComponents = te > 0 && tusd > 0 && te + tusd <= 1.5 ? te + tusd : Number(extracted.tariff_per_kwh || 0);
       setBillAnalyses((current) => [...current, ...extractedItems]);
       setForm((current) => ({
         ...current,
@@ -72,7 +60,7 @@ export default function CalculadoraSolarErpPage() {
         city: extracted.city || current.city,
         state: extracted.state || current.state,
         utilityCompany: extracted.utility_company || current.utilityCompany,
-        tariffPerKwh: tariffFromComponents > 0 ? Number(tariffFromComponents.toFixed(6)) : current.tariffPerKwh,
+        tariffPerKwh: FIXED_TARIFF_PER_KWH,
         connectionType: ['monofasica', 'bifasica', 'trifasica'].includes(extracted.connection_type) ? extracted.connection_type : current.connectionType,
       }));
     } catch (err) { setError(err.message || 'Não foi possível analisar a conta.'); }
@@ -81,8 +69,8 @@ export default function CalculadoraSolarErpPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault(); setLoading(true); setError('');
-    if (!annualSummary.average) { setLoading(false); setError('Informe pelo menos um mês do histórico de gastos.'); return; }
-    try { const data = await submitSolarSimulation({ ...form, monthlyBill: annualSummary.average }); setResult(data); setForm((current) => ({ ...initialForm, city: current.city, utilityCompany: current.utilityCompany })); setAnnualBills(Array(12).fill('')); setBillAnalyses([]); await load(); }
+    if (annualSummary.filled !== HISTORY_MONTHS_REQUIRED) { setLoading(false); setError(`Informe os ${HISTORY_MONTHS_REQUIRED} meses do histórico de gastos para calcular a média.`); return; }
+    try { const data = await submitSolarSimulation({ ...form, monthlyBill: annualSummary.average, tariffPerKwh: FIXED_TARIFF_PER_KWH }); setResult(data); setForm((current) => ({ ...initialForm, city: current.city, utilityCompany: current.utilityCompany })); setAnnualBills(Array(HISTORY_MONTHS_REQUIRED).fill('')); setBillAnalyses([]); await load(); }
     catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
@@ -110,7 +98,7 @@ export default function CalculadoraSolarErpPage() {
     <section className="erp-calculator-columns" style={{ ...styles.twoColumns, gridTemplateColumns: result ? 'minmax(0,1.2fr) minmax(360px,.8fr)' : '1fr' }}>
       <form onSubmit={handleSubmit} style={styles.card}>
         <div style={styles.cardHeader}><div><span style={styles.eyebrow}>NOVA SIMULAÇÃO</span><h2 style={styles.title}><Calculator size={22} /> Dimensionar sistema</h2></div><a href={`${import.meta.env.BASE_URL}simulacao-solar`} target="_blank" rel="noreferrer" style={styles.secondaryButton}>Página pública <ExternalLink size={15} /></a></div>
-        <div style={styles.billBox}><div><strong><Sparkles size={17} /> Analisar histórico com IA</strong><small>Anexe uma ou várias contas. Cada mês é lançado pelo período de referência e a média é calculada abaixo.</small></div><label style={styles.uploadButton}><Upload size={16} /> {analyzingBill ? 'Analisando...' : 'Anexar contas'}<input type="file" accept="image/*,application/pdf" multiple onChange={handleBillUpload} disabled={analyzingBill} style={{ display: 'none' }} /></label></div>
+        <div style={styles.billBox}><div><strong><Sparkles size={17} /> Analisar histórico com IA</strong><small>Anexe a conta que mostra o histórico de 13 meses. A IA extrai os 13 gastos, soma e calcula a média.</small></div><label style={styles.uploadButton}><Upload size={16} /> {analyzingBill ? 'Analisando...' : 'Anexar conta'}<input type="file" accept="image/*,application/pdf" multiple onChange={handleBillUpload} disabled={analyzingBill} style={{ display: 'none' }} /></label></div>
         {billAnalyses.length > 0 && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>{billAnalyses.length} conta(s) analisada(s)</strong><small>{billAnalyses[billAnalyses.length - 1].utility_company || 'Concessionária não identificada'} · {billAnalyses[billAnalyses.length - 1].energy_consumption_kwh ? `${billAnalyses[billAnalyses.length - 1].energy_consumption_kwh} kWh` : 'consumo não identificado'} · tarifa unitária conferida por TE + TUSD{billAnalyses[billAnalyses.length - 1].warnings?.length ? ` · ${billAnalyses[billAnalyses.length - 1].warnings.length} aviso(s)` : ''}</small></span></div>}
         <div style={styles.formGrid}>
           <Field label="Nome do cliente" name="name" value={form.name} onChange={update} required /><Field label="WhatsApp" name="phone" value={form.phone} onChange={update} required /><Field label="E-mail" name="email" type="email" value={form.email} onChange={update} /><CityField label="Cidade" name="city" value={form.city} onChange={update} required /><Field label="Concessionária" name="utilityCompany" value={form.utilityCompany} onChange={update} />
@@ -118,7 +106,7 @@ export default function CalculadoraSolarErpPage() {
           <Select label="Modelo comercial" name="proposalMode" value={form.proposalMode} onChange={update}><option value="venda">Venda do sistema</option><option value="assinatura">Energia por assinatura</option></Select>
           {form.proposalMode === 'assinatura' && <Field label="Desconto ao cliente (%)" name="subscriptionDiscountPercent" type="number" min="0" max="90" step="1" value={form.subscriptionDiscountPercent} onChange={update} />}
           <Field label="Margem desejada (%)" name="marginPercent" type="number" min="0" max="80" step="1" value={form.marginPercent} onChange={update} /><Field label="Imposto sobre venda (%)" name="taxPercent" type="number" min="0" max="80" step="1" value={form.taxPercent} onChange={update} />
-          <AnnualHistoryField values={annualBills} summary={annualSummary} onChange={updateAnnualBill} /><Field label="Tarifa (R$/kWh)" name="tariffPerKwh" type="number" min="0.01" step="0.01" value={form.tariffPerKwh} onChange={update} /><Field label="Potência do módulo (W)" name="panelPowerW" type="number" min="1" step="1" value={form.panelPowerW} onChange={update} /><Field label="Irradiação média" name="irradiation" type="number" min="0.1" step="0.1" value={form.irradiation} onChange={update} /><Field label="Performance" name="performanceRatio" type="number" min="0.1" max="1" step="0.01" value={form.performanceRatio} onChange={update} /><Field label="Compensação (%)" name="targetOffsetPercent" type="number" min="1" max="100" step="1" value={form.targetOffsetPercent} onChange={update} />
+          <AnnualHistoryField values={annualBills} summary={annualSummary} onChange={updateAnnualBill} /><Field label="Tarifa fixa (R$/kWh)" name="tariffPerKwh" type="number" value={FIXED_TARIFF_PER_KWH} readOnly /><Field label="Potência do módulo (W)" name="panelPowerW" type="number" min="1" step="1" value={form.panelPowerW} onChange={update} /><Field label="Irradiação média" name="irradiation" type="number" min="0.1" step="0.1" value={form.irradiation} onChange={update} /><Field label="Performance" name="performanceRatio" type="number" min="0.1" max="1" step="0.01" value={form.performanceRatio} onChange={update} /><Field label="Compensação (%)" name="targetOffsetPercent" type="number" min="1" max="100" step="1" value={form.targetOffsetPercent} onChange={update} />
         </div>
         <button type="submit" disabled={loading} style={styles.primaryButton}>{loading ? 'Calculando e criando proposta...' : 'Calcular e criar proposta'}</button>
       </form>
@@ -144,7 +132,7 @@ export default function CalculadoraSolarErpPage() {
 }
 
 function Field({ label, ...props }) { return <label style={styles.label}>{label}<input {...props} style={styles.input} /></label>; }
-function AnnualHistoryField({ values, summary, onChange }) { return <div style={styles.annualBox}><div style={styles.annualHeader}><div><strong>Histórico anual de gastos (R$)</strong><small>Preencha os meses disponíveis para calcular a média usada no dimensionamento.</small></div><div style={styles.annualSummary}><span>Total: <strong>{money.format(summary.total)}</strong></span><span>Média: <strong>{money.format(summary.average)}</strong></span></div></div><div style={styles.annualGrid}>{values.map((value, index) => <label key={annualMonths[index]} style={styles.monthField}><span>{annualMonths[index]}</span><input type="number" min="0" step="0.01" value={value} onChange={(event) => onChange(index, event.target.value)} placeholder="0,00" /></label>)}</div><small>{summary.filled}/12 meses preenchidos. A média atual é calculada sobre os meses informados; preencha os 12 para maior precisão.</small></div>; }
+function AnnualHistoryField({ values, summary, onChange }) { return <div style={styles.annualBox}><div style={styles.annualHeader}><div><strong>Histórico de gastos — 13 meses (R$)</strong><small>Informe os 13 valores exibidos no histórico da conta para somar e calcular a média.</small></div><div style={styles.annualSummary}><span>Total: <strong>{money.format(summary.total)}</strong></span><span>Média mensal: <strong>{money.format(summary.average)}</strong></span></div></div><div style={styles.annualGrid}>{values.map((value, index) => <label key={annualMonths[index]} style={styles.monthField}><span>{annualMonths[index]}</span><input type="number" min="0" step="0.01" value={value} onChange={(event) => onChange(index, event.target.value)} placeholder="0,00" /></label>)}</div><small>{summary.filled}/13 meses preenchidos. A média só é liberada quando os 13 valores forem informados.</small></div>; }
 function CityField({ label, ...props }) { return <label style={styles.label}>{label}<SaoPauloCitySelect {...props} style={styles.input} /></label>; }
 function Select({ label, children, ...props }) { return <label style={styles.label}>{label}<select {...props} style={styles.input}>{children}</select></label>; }
 function Metric({ label, value }) { return <div style={styles.metric}><span>{label}</span><strong>{value}</strong></div>; }

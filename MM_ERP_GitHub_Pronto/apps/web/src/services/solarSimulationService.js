@@ -14,7 +14,7 @@ const round = (value, digits = 2) => Number(Number(value).toFixed(digits));
 
 function calculateSolarSimulationLocally(input, persistenceWarning = '') {
   const monthlyBill = Number(input.monthlyBill);
-  const tariffPerKwh = Number(input.tariffPerKwh || DEFAULTS.tariffPerKwh);
+  const tariffPerKwh = 0.9;
   const panelPowerW = Number(input.panelPowerW || DEFAULTS.panelPowerW);
   const irradiation = Number(input.irradiation || DEFAULTS.irradiation);
   const performanceRatio = Number(input.performanceRatio || DEFAULTS.performanceRatio);
@@ -63,7 +63,7 @@ export async function submitSolarSimulation(input) {
     p_email: input.email?.trim() || null,
     p_utility_company: input.utilityCompany?.trim() || null,
     p_connection_type: input.connectionType || null,
-    p_tariff_per_kwh: Number(input.tariffPerKwh || DEFAULTS.tariffPerKwh),
+    p_tariff_per_kwh: 0.9,
     p_panel_power_w: Number(input.panelPowerW || DEFAULTS.panelPowerW),
     p_irradiation: Number(input.irradiation || DEFAULTS.irradiation),
     p_performance_ratio: Number(input.performanceRatio || DEFAULTS.performanceRatio),

@@ -37,11 +37,6 @@ function finiteNumber(value: unknown) {
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
-function validUnitTariff(value: unknown) {
-  const number = finiteNumber(value);
-  return number !== null && number >= 0.05 && number <= 1.5 ? number : null;
-}
-
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -65,8 +60,8 @@ Deno.serve(async (request: Request) => {
       "Extraia somente dados que estejam legíveis. Não invente valores. Se um campo não estiver claro, use null e inclua um aviso.",
       "Remova multas, juros, doações e cobranças não relacionadas ao consumo ao estimar o valor de energia, mas preserve o total da fatura em total_bill.",
       "Responda SOMENTE JSON válido com exatamente estas chaves:",
-      '{"customer_name":null,"consumer_unit":null,"utility_company":null,"reference_month":null,"total_bill":null,"energy_bill_without_fines":null,"energy_consumption_kwh":null,"te_per_kwh":null,"tusd_per_kwh":null,"tariff_per_kwh":null,"city":null,"state":null,"connection_type":null,"confidence":"baixa","warnings":[]}',
-      "Valores monetários e consumo devem ser números sem símbolo. Extraia TE e TUSD SOMENTE do campo de tarifa unitária em R$/kWh (não use o valor total cobrado da linha). A tarifa final tariff_per_kwh deve ser TE + TUSD e normalmente fica entre 0,50 e 1,50 R$/kWh; se os valores estiverem em outra unidade ou fora dessa faixa, use null e avise. connection_type deve ser monofasica, bifasica, trifasica ou null. state deve ser UF.",
+      '{"customer_name":null,"consumer_unit":null,"utility_company":null,"reference_month":null,"total_bill":null,"energy_bill_without_fines":null,"energy_consumption_kwh":null,"historical_monthly_bills":[],"te_per_kwh":null,"tusd_per_kwh":null,"tariff_per_kwh":null,"city":null,"state":null,"connection_type":null,"confidence":"baixa","warnings":[]}',
+      "Valores monetários e consumo devem ser números sem símbolo. Leia a tabela/gráfico de histórico da conta e extraia TODOS os 13 valores mensais de gasto em reais na ordem em que aparecem, dentro de historical_monthly_bills. Não use valores de kWh nessa lista. Se não houver 13 valores de gasto legíveis, deixe a lista vazia e avise. A tarifa será fixa em R$ 0,90/kWh na calculadora; não tente substituir esse valor. connection_type deve ser monofasica, bifasica, trifasica ou null. state deve ser UF.",
       `Arquivo: ${filename}`,
     ].join("\n"),
   }];
@@ -84,14 +79,9 @@ Deno.serve(async (request: Request) => {
     if (!response.ok) return json({ error: "ai_provider_failed", detail: payload?.error?.message || "Falha no provedor de IA." }, 502);
     let extracted: any;
     try { extracted = parseJson(outputText(payload)); } catch { return json({ error: "invalid_ai_output", message: "A IA não retornou dados estruturados." }, 502); }
-    const te = validUnitTariff(extracted.te_per_kwh);
-    const tusd = validUnitTariff(extracted.tusd_per_kwh);
-    const extractedTariff = validUnitTariff(extracted.tariff_per_kwh);
-    if (te !== null && tusd !== null && te + tusd <= 1.5) extracted.tariff_per_kwh = Number((te + tusd).toFixed(6));
-    else if (extractedTariff === null) {
-      extracted.tariff_per_kwh = null;
-      extracted.warnings = [...(Array.isArray(extracted.warnings) ? extracted.warnings : []), "Tarifa unitária TE + TUSD não identificada com segurança; confira o campo Tarifa."];
-    }
+    const history = Array.isArray(extracted.historical_monthly_bills) ? extracted.historical_monthly_bills.map(finiteNumber) : [];
+    extracted.historical_monthly_bills = history.length === 13 && history.every((value) => value !== null) ? history : [];
+    extracted.tariff_per_kwh = 0.9;
     return json({ ok: true, extracted, model });
   } catch (error) {
     console.error("energy bill analysis failed", error);
