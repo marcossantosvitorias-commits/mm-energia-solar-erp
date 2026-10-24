@@ -53,14 +53,6 @@ jobs:
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
 
-      - name: Garantir branch da publicação do GitHub Pages
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method PUT "repos/${{ github.repository }}/pages" \
-            -f 'source[branch]=erp-v2-preview' \
-            -f 'source[path]=/'
-
       - name: Empacotar artefato da Preview
         run: tar --dereference --hard-dereference --directory dist -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
 
