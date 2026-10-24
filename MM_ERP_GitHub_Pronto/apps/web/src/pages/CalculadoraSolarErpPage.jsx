@@ -10,8 +10,16 @@ const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const decimal = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
 const dateTime = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const annualMonths = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const initialForm = { name: '', phone: '', email: '', city: 'Bauru', state: 'SP', utilityCompany: 'CPFL Piratininga', connectionType: 'bifasica', proposalMode: 'venda', subscriptionDiscountPercent: 15, marginPercent: 25, taxPercent: 4, monthlyBill: '', tariffPerKwh: 0.95, panelPowerW: 620, irradiation: 5.2, performanceRatio: 0.78, targetOffsetPercent: 95, source: 'erp-venda' };
+const initialForm = { name: '', phone: '', email: '', city: 'Bauru', state: 'SP', utilityCompany: 'CPFL Piratininga', connectionType: 'bifasica', proposalMode: 'venda', subscriptionDiscountPercent: 15, marginPercent: 25, taxPercent: 4, monthlyBill: '', tariffPerKwh: 0.9, panelPowerW: 620, irradiation: 5.2, performanceRatio: 0.78, targetOffsetPercent: 95, source: 'erp-venda' };
 const statusOptions = ['', 'Novo', 'Contatado', 'Convertido', 'Descartado'];
+function monthIndexFromReference(reference) {
+  const value = String(reference || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const namedIndex = monthNames.findIndex((month) => value.includes(month));
+  if (namedIndex >= 0) return namedIndex;
+  const numeric = value.match(/(?:^|[-/ ])(0?[1-9]|1[0-2])(?:[-/ ]|$)/);
+  return numeric ? Number(numeric[1]) - 1 : new Date().getMonth();
+}
 
 export default function CalculadoraSolarErpPage() {
   const [form, setForm] = useState(initialForm);
@@ -22,7 +30,7 @@ export default function CalculadoraSolarErpPage() {
   const [loading, setLoading] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [analyzingBill, setAnalyzingBill] = useState(false);
-  const [billAnalysis, setBillAnalysis] = useState(null);
+  const [billAnalyses, setBillAnalyses] = useState([]);
   const [annualBills, setAnnualBills] = useState(() => Array(12).fill(''));
   const [error, setError] = useState('');
 
@@ -37,17 +45,27 @@ export default function CalculadoraSolarErpPage() {
   const updateAnnualBill = (index, value) => setAnnualBills((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
 
   const handleBillUpload = async (event) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files || []);
     event.target.value = '';
-    if (!file) return;
+    if (!files.length) return;
     setAnalyzingBill(true);
     setError('');
     try {
-      const extracted = await analyzeEnergyBill(file);
+      const extractedItems = [];
+      for (const file of files) {
+        const extracted = await analyzeEnergyBill(file);
+        extractedItems.push(extracted);
+        const extractedBill = Number(extracted.energy_bill_without_fines || extracted.total_bill || 0);
+        if (extractedBill > 0) {
+          const monthIndex = monthIndexFromReference(extracted.reference_month);
+          setAnnualBills((current) => current.map((value, index) => index === monthIndex ? String(extractedBill) : value));
+        }
+      }
+      const extracted = extractedItems[extractedItems.length - 1];
       const te = Number(extracted.te_per_kwh || 0);
       const tusd = Number(extracted.tusd_per_kwh || 0);
-      const tariffFromComponents = te > 0 && tusd > 0 ? te + tusd : Number(extracted.tariff_per_kwh || 0);
-      setBillAnalysis(extracted);
+      const tariffFromComponents = te > 0 && tusd > 0 && te + tusd <= 1.5 ? te + tusd : Number(extracted.tariff_per_kwh || 0);
+      setBillAnalyses((current) => [...current, ...extractedItems]);
       setForm((current) => ({
         ...current,
         name: extracted.customer_name || current.name,
@@ -57,8 +75,6 @@ export default function CalculadoraSolarErpPage() {
         tariffPerKwh: tariffFromComponents > 0 ? Number(tariffFromComponents.toFixed(6)) : current.tariffPerKwh,
         connectionType: ['monofasica', 'bifasica', 'trifasica'].includes(extracted.connection_type) ? extracted.connection_type : current.connectionType,
       }));
-      const extractedBill = extracted.energy_bill_without_fines || extracted.total_bill;
-      if (Number(extractedBill) > 0) setAnnualBills((current) => current.map((value, index) => index === new Date().getMonth() ? String(extractedBill) : value));
     } catch (err) { setError(err.message || 'Não foi possível analisar a conta.'); }
     finally { setAnalyzingBill(false); }
   };
@@ -66,7 +82,7 @@ export default function CalculadoraSolarErpPage() {
   const handleSubmit = async (event) => {
     event.preventDefault(); setLoading(true); setError('');
     if (!annualSummary.average) { setLoading(false); setError('Informe pelo menos um mês do histórico de gastos.'); return; }
-    try { const data = await submitSolarSimulation({ ...form, monthlyBill: annualSummary.average }); setResult(data); setForm((current) => ({ ...initialForm, city: current.city, utilityCompany: current.utilityCompany })); setAnnualBills(Array(12).fill('')); setBillAnalysis(null); await load(); }
+    try { const data = await submitSolarSimulation({ ...form, monthlyBill: annualSummary.average }); setResult(data); setForm((current) => ({ ...initialForm, city: current.city, utilityCompany: current.utilityCompany })); setAnnualBills(Array(12).fill('')); setBillAnalyses([]); await load(); }
     catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
@@ -94,8 +110,8 @@ export default function CalculadoraSolarErpPage() {
     <section className="erp-calculator-columns" style={{ ...styles.twoColumns, gridTemplateColumns: result ? 'minmax(0,1.2fr) minmax(360px,.8fr)' : '1fr' }}>
       <form onSubmit={handleSubmit} style={styles.card}>
         <div style={styles.cardHeader}><div><span style={styles.eyebrow}>NOVA SIMULAÇÃO</span><h2 style={styles.title}><Calculator size={22} /> Dimensionar sistema</h2></div><a href={`${import.meta.env.BASE_URL}simulacao-solar`} target="_blank" rel="noreferrer" style={styles.secondaryButton}>Página pública <ExternalLink size={15} /></a></div>
-        <div style={styles.billBox}><div><strong><Sparkles size={17} /> Analisar conta com IA</strong><small>Envie uma foto ou PDF. A IA extrai os dados e preenche a simulação para você conferir.</small></div><label style={styles.uploadButton}><Upload size={16} /> {analyzingBill ? 'Analisando...' : 'Anexar conta'}<input type="file" accept="image/*,application/pdf" onChange={handleBillUpload} disabled={analyzingBill} style={{ display: 'none' }} /></label></div>
-        {billAnalysis && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>Dados extraídos para conferência</strong><small>{billAnalysis.utility_company || 'Concessionária não identificada'} · {billAnalysis.energy_consumption_kwh ? `${billAnalysis.energy_consumption_kwh} kWh` : 'consumo não identificado'} · {Number(billAnalysis.te_per_kwh) > 0 && Number(billAnalysis.tusd_per_kwh) > 0 ? `Tarifa: TE ${Number(billAnalysis.te_per_kwh).toFixed(4)} + TUSD ${Number(billAnalysis.tusd_per_kwh).toFixed(4)} = ${Number(billAnalysis.tariff_per_kwh).toFixed(4)} R$/kWh` : 'TE/TUSD não identificados'} · confiança {billAnalysis.confidence || 'não informada'}{billAnalysis.warnings?.length ? ` · ${billAnalysis.warnings.length} aviso(s)` : ''}</small></span></div>}
+        <div style={styles.billBox}><div><strong><Sparkles size={17} /> Analisar histórico com IA</strong><small>Anexe uma ou várias contas. Cada mês é lançado pelo período de referência e a média é calculada abaixo.</small></div><label style={styles.uploadButton}><Upload size={16} /> {analyzingBill ? 'Analisando...' : 'Anexar contas'}<input type="file" accept="image/*,application/pdf" multiple onChange={handleBillUpload} disabled={analyzingBill} style={{ display: 'none' }} /></label></div>
+        {billAnalyses.length > 0 && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>{billAnalyses.length} conta(s) analisada(s)</strong><small>{billAnalyses[billAnalyses.length - 1].utility_company || 'Concessionária não identificada'} · {billAnalyses[billAnalyses.length - 1].energy_consumption_kwh ? `${billAnalyses[billAnalyses.length - 1].energy_consumption_kwh} kWh` : 'consumo não identificado'} · tarifa unitária conferida por TE + TUSD{billAnalyses[billAnalyses.length - 1].warnings?.length ? ` · ${billAnalyses[billAnalyses.length - 1].warnings.length} aviso(s)` : ''}</small></span></div>}
         <div style={styles.formGrid}>
           <Field label="Nome do cliente" name="name" value={form.name} onChange={update} required /><Field label="WhatsApp" name="phone" value={form.phone} onChange={update} required /><Field label="E-mail" name="email" type="email" value={form.email} onChange={update} /><CityField label="Cidade" name="city" value={form.city} onChange={update} required /><Field label="Concessionária" name="utilityCompany" value={form.utilityCompany} onChange={update} />
           <Select label="Ligação" name="connectionType" value={form.connectionType} onChange={update}><option value="monofasica">Monofásica</option><option value="bifasica">Bifásica</option><option value="trifasica">Trifásica</option></Select>

@@ -2,7 +2,7 @@ import { requireSupabase } from '../lib/supabase';
 
 const DEFAULTS = {
   state: 'SP',
-  tariffPerKwh: 0.95,
+  tariffPerKwh: 0.9,
   panelPowerW: 620,
   irradiation: 5.2,
   performanceRatio: 0.78,
