@@ -197,3 +197,62 @@
     min-height: 100px;
   }
 }
+
+/* Calculadora solar: histórico legível no celular */
+.solar-annual-intro small {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+@media (max-width: 640px) {
+  .erp-calculator-columns > * {
+    min-width: 0;
+  }
+
+  .solar-annual-box {
+    padding: 12px !important;
+    gap: 12px !important;
+  }
+
+  .solar-annual-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .solar-annual-intro,
+  .solar-annual-intro strong,
+  .solar-annual-intro small {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .solar-annual-summary {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px !important;
+    padding-top: 9px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .solar-annual-summary span {
+    min-width: 0;
+    line-height: 1.35;
+  }
+
+  .solar-annual-summary span:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .solar-annual-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .solar-annual-grid input {
+    font-size: 14px !important;
+  }
+}
