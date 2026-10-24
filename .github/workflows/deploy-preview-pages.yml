@@ -3,7 +3,7 @@ name: Publicar ERP 2.0 Preview
 on:
   push:
     branches:
-      - erp-v2-preview
+      - main
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
   group: erp-v2-preview-pages
   cancel-in-progress: true
 
-# ERP 2.0 é a única versão usada e publicada nesta branch.
+# ERP 2.0 é a única versão usada e publicada na branch principal.
 # Publicação forçada após liberar edição manual da conta Maira.
 jobs:
   build:
@@ -29,7 +29,7 @@ jobs:
       - name: Baixar código atualizado da ERP 2.0
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: erp-v2-preview
+          ref: main
           fetch-depth: 1
 
       - name: Configurar Node.js
