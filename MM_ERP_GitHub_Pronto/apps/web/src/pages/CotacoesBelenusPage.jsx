@@ -31,6 +31,7 @@ const FORM_PADRAO = {
   imposto: 4,
   comissao: 0,
   margem: 25,
+  acrescimoVendedor: 0,
   desconto: 3,
   taxaCartao: 11.69,
 };
@@ -71,7 +72,10 @@ function CotacoesBelenusPage({ pricingMode = false }) {
     const adicionais = numero(form.materialEletrico) + numero(form.maoDeObra) + rateioEngenharia + numero(form.trt) + numero(form.combustivel) + numero(form.outros);
     const custoTotal = cotacao.total + adicionais;
     const divisor = 1 - porcentagem(form.imposto) - porcentagem(form.comissao) - porcentagem(form.margem);
-    const precoVenda = divisor > 0 ? custoTotal / divisor : 0;
+    const precoBase = divisor > 0 ? custoTotal / divisor : 0;
+    const acrescimoVendedor = Math.max(0, numero(form.acrescimoVendedor));
+    const lucroVendedor = acrescimoVendedor * 0.2;
+    const precoVenda = precoBase + acrescimoVendedor;
     const imposto = precoVenda * porcentagem(form.imposto);
     const comissao = precoVenda * porcentagem(form.comissao);
     const lucro = precoVenda - custoTotal - imposto - comissao;
@@ -82,7 +86,7 @@ function CotacoesBelenusPage({ pricingMode = false }) {
     const parcelaCartao = precoCartao / 12;
     const precoSelecionado = formaPagamento === 'cartao' ? precoCartao : precoVenda;
 
-    return { adicionais, rateioEngenharia, custoTotal, precoVenda, imposto, comissao, lucro, precoComDesconto, markup, precoCartao, parcelaCartao, precoSelecionado };
+    return { adicionais, rateioEngenharia, custoTotal, precoBase, acrescimoVendedor, lucroVendedor, precoVenda, imposto, comissao, lucro, precoComDesconto, markup, precoCartao, parcelaCartao, precoSelecionado };
   }, [cotacao, form, formaPagamento]);
 
   async function copiarResumo() {
@@ -160,9 +164,11 @@ function CotacoesBelenusPage({ pricingMode = false }) {
             ['Margem líquida desejada (%)', 'margem'],
             ['Desconto máximo (%)', 'desconto'],
             ['Taxa do cartão (%)', 'taxaCartao'],
+            ['Acréscimo do vendedor (R$)', 'acrescimoVendedor'],
           ].map(([label, name]) => (
             <label className="finance-field" key={name}><span>{label}</span><input type="number" step="0.01" name={name} value={form[name]} onChange={atualizar} /></label>
           ))}
+          <small className="seller-profit-help">O valor informado é somado ao preço da proposta. O vendedor recebe 20% desse acréscimo.</small>
         </div>
       </section>
 
@@ -171,13 +177,14 @@ function CotacoesBelenusPage({ pricingMode = false }) {
         <article><span>Custos adicionais</span><strong>{moeda.format(resultado.adicionais)}</strong></article>
         <article><span>Custo total</span><strong>{moeda.format(resultado.custoTotal)}</strong></article>
         <article className="profit"><span>Lucro líquido</span><strong>{moeda.format(resultado.lucro)}</strong></article>
+        <article className="profit seller-profit-card"><span>Lucro do vendedor (20%)</span><strong>{moeda.format(resultado.lucroVendedor)}</strong><small>Sobre {moeda.format(resultado.acrescimoVendedor)} de acréscimo</small></article>
       </section>
 
       <section className="belenus-final-price">
         <div>
           <span>Preço recomendado à vista</span>
           <strong>{moeda.format(resultado.precoVenda)}</strong>
-          <small>Markup {resultado.markup.toFixed(2)}x · Imposto {moeda.format(resultado.imposto)}{resultado.comissao > 0 ? ` · Comissão ${moeda.format(resultado.comissao)}` : ''}</small>
+          <small>Markup {resultado.markup.toFixed(2)}x · Imposto {moeda.format(resultado.imposto)}{resultado.comissao > 0 ? ` · Comissão ${moeda.format(resultado.comissao)}` : ''}{resultado.acrescimoVendedor > 0 ? ` · Acréscimo vendedor ${moeda.format(resultado.acrescimoVendedor)}` : ''}</small>
           <div style={{ marginTop: 18 }}>
             <span>Cartão 12x sem juros</span>
             <strong style={{ display: 'block' }}>{moeda.format(resultado.precoCartao)}</strong>
