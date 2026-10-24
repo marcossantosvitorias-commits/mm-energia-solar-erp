@@ -39,7 +39,7 @@ export default function ServiceOrderMediaPanel({ order, onCompleted, onMessage }
     }
   };
 
-  useEffect(() => { load(); }, [order?.id]);
+  useEffect(() => { queueMicrotask(load); }, [order?.id]);
 
   const pointerPosition = (event) => {
     const canvas = canvasRef.current;

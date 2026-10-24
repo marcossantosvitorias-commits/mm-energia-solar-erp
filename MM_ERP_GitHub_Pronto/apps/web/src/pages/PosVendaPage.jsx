@@ -13,7 +13,7 @@ export default function PosVendaPage() {
   const [query, setQuery] = useState(''); const [message, setMessage] = useState('');
 
   const load = async () => { try { setRows(await listInstalledSystems()); } catch (e) { setMessage(e.message); } };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { queueMicrotask(load); }, []);
   const open = async (item) => { setSelected(item); setForm({ ...item }); const [w, i] = await Promise.all([listWarranties(item.id), listAfterSalesInteractions(item.id)]); setWarranties(w); setInteractions(i); };
   const filtered = useMemo(() => rows.filter((r) => `${r.service_orders?.customer_name || ''} ${r.service_orders?.city || ''} ${r.consumer_unit || ''}`.toLowerCase().includes(query.toLowerCase())), [rows, query]);
   const stats = useMemo(() => ({ total: rows.length, homologation: rows.filter((r) => r.homologation_status !== 'Aprovada').length, monitoring: rows.filter((r) => r.monitoring_status !== 'Ativo').length, followups: rows.filter((r) => r.next_follow_up_at && new Date(r.next_follow_up_at) <= new Date()).length }), [rows]);

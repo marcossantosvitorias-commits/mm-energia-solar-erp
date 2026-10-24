@@ -47,7 +47,7 @@ export default function FluxosKanbanPage() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { loadBoards(); }, []);
+  useEffect(() => { queueMicrotask(loadBoards); }, []);
 
   const changeBoard = async (boardId) => {
     setActiveBoardId(boardId);

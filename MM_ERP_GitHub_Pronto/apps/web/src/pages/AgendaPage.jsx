@@ -75,7 +75,7 @@ function AgendaPage() {
   }
 
   useEffect(() => {
-    carregarAgenda();
+    queueMicrotask(carregarAgenda);
     const atualizarAoVoltar = () => {
       if (document.visibilityState === 'visible') carregarAgenda();
     };

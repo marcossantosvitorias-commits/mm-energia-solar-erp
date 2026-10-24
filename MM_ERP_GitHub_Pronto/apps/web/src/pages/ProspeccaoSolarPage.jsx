@@ -41,7 +41,7 @@ export default function ProspeccaoSolarPage() {
   const [loadingMap, setLoadingMap] = useState(true); const [searching, setSearching] = useState(false); const [message, setMessage] = useState('');
   const [tab, setTab] = useState('mapa'); const [filter, setFilter] = useState('todos'); const [term, setTerm] = useState('');
 
-  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); setProspects(Array.isArray(saved) ? saved : []); } catch { setProspects([]); } }, []);
+  useEffect(() => { queueMicrotask(() => { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); setProspects(Array.isArray(saved) ? saved : []); } catch { setProspects([]); } }); }, []);
   const persist = (items) => { setProspects(items); localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); };
 
   useEffect(() => {

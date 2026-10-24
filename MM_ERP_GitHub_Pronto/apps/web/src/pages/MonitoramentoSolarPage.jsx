@@ -48,7 +48,7 @@ function MonitoramentoSolarPage() {
   };
 
   useEffect(() => {
-    loadPlants();
+    queueMicrotask(loadPlants);
   }, []);
 
   const handleImport = async (event) => {

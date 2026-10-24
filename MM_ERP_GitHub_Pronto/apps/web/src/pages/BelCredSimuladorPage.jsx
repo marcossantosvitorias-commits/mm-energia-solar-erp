@@ -84,7 +84,7 @@ function BelCredSimuladorPage() {
   }
 
   useEffect(() => {
-    carregarDados('');
+    queueMicrotask(() => carregarDados(''));
   }, []);
 
   async function aplicarFiltroCliente(event) {

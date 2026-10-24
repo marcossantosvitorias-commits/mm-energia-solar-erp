@@ -260,8 +260,8 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
     } catch {}
   };
 
-  useEffect(() => { carregarDados(); cardFeeService.list('My Gateway').then(setTaxasCartao).catch(() => setTaxasCartao([])); }, []);
-  useEffect(() => { setDados((a) => ({ ...a, valorProposta: Number(precoRecomendado || 0).toFixed(2), marcaPlaca: modulo || a.marcaPlaca, inversor: inversor || a.inversor })); }, [precoRecomendado, modulo, inversor]);
+  useEffect(() => { queueMicrotask(carregarDados); cardFeeService.list('My Gateway').then(setTaxasCartao).catch(() => setTaxasCartao([])); }, []);
+  useEffect(() => { queueMicrotask(() => setDados((a) => ({ ...a, valorProposta: Number(precoRecomendado || 0).toFixed(2), marcaPlaca: modulo || a.marcaPlaca, inversor: inversor || a.inversor }))); }, [precoRecomendado, modulo, inversor]);
 
   const selecionarCliente = (id) => {
     setClienteId(id);

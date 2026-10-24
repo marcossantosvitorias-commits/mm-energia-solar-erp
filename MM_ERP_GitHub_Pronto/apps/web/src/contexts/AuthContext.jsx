@@ -41,8 +41,6 @@ export function AuthProvider({ children }) {
     let active = true;
 
     if (!isSupabaseConfigured || !supabase) {
-      setUser(null);
-      setLoading(false);
       return undefined;
     }
 

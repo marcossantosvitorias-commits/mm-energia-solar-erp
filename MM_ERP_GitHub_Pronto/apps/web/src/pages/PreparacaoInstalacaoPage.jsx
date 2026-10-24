@@ -48,7 +48,7 @@ export default function PreparacaoInstalacaoPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { queueMicrotask(load); }, [id]);
 
   const progress = useMemo(() => {
     const reserved = items.filter((item) => item.reserved).length;

@@ -91,7 +91,7 @@ function FinanceiroSupabasePage() {
     }
   }, []);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { queueMicrotask(carregar); }, [carregar]);
 
   const totais = useMemo(() => {
     const entradas = movimentacoes.filter((x) => x.tipo === 'entrada').reduce((s, x) => s + x.valor, 0);

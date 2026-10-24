@@ -202,10 +202,12 @@ export default function MarcosFinancePage() {
   }), [contas]);
 
   useEffect(() => {
-    setDados((atual) => ({ ...atual, [mes]: completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes) }));
+    queueMicrotask(() => {
+      setDados((atual) => ({ ...atual, [mes]: completarContasDoMes(atual[mes] || criarContasDoMes(mes), mes) }));
     setFinancas((atual) => ({ ...atual, [mes]: completarFinancasDoMes(atual[mes], mes) }));
     setMairaPorMes((atual) => atual[mes] ? atual : ({ ...atual, [mes]: copiarMaira(CONTAS_MAIRA) }));
-    setMairaAberta(false);
+      setMairaAberta(false);
+    });
   }, [mes]);
 
   useEffect(() => {
@@ -251,7 +253,7 @@ export default function MarcosFinancePage() {
   useEffect(() => { localStorage.setItem(CHAVE_MAIRA, JSON.stringify(mairaPorMes)); }, [mairaPorMes]);
 
   useEffect(() => {
-    setDados((atual) => {
+    queueMicrotask(() => setDados((atual) => {
       const lista = atual[mes] || criarContasDoMes(mes);
       const existe = lista.some((conta) => String(conta.nome || '').trim().toLowerCase() === 'maira');
       if (!existe) return atual;
@@ -263,7 +265,7 @@ export default function MarcosFinancePage() {
         return { ...conta, valor: totalMaira };
       });
       return alterou ? { ...atual, [mes]: novaLista } : atual;
-    });
+    }));
   }, [mes, totalMaira]);
 
   const atualizarConta = (id, campo, valor) => setDados((atual) => ({

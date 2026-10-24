@@ -46,7 +46,7 @@ export default function UserAccessPage() {
     }
   }
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { queueMicrotask(loadUsers); }, []);
 
   const selectedCount = useMemo(() => form.permissions.length, [form.permissions]);
 

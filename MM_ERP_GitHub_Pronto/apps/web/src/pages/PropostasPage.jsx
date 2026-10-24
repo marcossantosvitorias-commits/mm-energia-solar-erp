@@ -39,7 +39,7 @@ export default function PropostasPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { queueMicrotask(load); }, []);
 
   const filtered = useMemo(() => rows.filter((item) => {
     const text = `${item.client_name} ${item.phone} ${item.city || ''}`.toLowerCase();

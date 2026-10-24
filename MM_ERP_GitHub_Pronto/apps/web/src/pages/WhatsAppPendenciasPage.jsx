@@ -176,11 +176,11 @@ function WhatsAppPendenciasPage() {
     setLoadingMessages(false);
   }, []);
 
-  useEffect(() => { loadConversations({ keepSelection: false }); }, [loadConversations]);
-  useEffect(() => { if (selectedId) loadMessages(selectedId); else setMessages([]); }, [selectedId, loadMessages]);
+  useEffect(() => { queueMicrotask(() => loadConversations({ keepSelection: false })); }, [loadConversations]);
+  useEffect(() => { queueMicrotask(() => { if (selectedId) loadMessages(selectedId); else setMessages([]); }); }, [selectedId, loadMessages]);
   useEffect(() => {
     if (!selected) return;
-    setQualification({
+    queueMicrotask(() => setQualification({
       lead_stage: selected.lead_stage || 'new',
       lead_temperature: selected.lead_temperature || 'warm',
       priority: selected.priority || 'normal',
@@ -194,7 +194,7 @@ function WhatsAppPendenciasPage() {
       next_action: selected.next_action || '',
       follow_up_at: toLocalInput(selected.follow_up_at),
       qualification_notes: selected.qualification_notes || '',
-    });
+    }));
   }, [selected]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 

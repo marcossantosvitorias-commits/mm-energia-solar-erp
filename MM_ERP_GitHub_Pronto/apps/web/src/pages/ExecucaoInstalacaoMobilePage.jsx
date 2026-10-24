@@ -51,7 +51,7 @@ export default function ExecucaoInstalacaoMobilePage() {
     finally { setBusy(false); }
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { queueMicrotask(load); }, [id]);
   useEffect(() => {
     const update = () => { setOnline(isOnline()); setPending(getPendingFieldActions().length); };
     window.addEventListener('online', update);

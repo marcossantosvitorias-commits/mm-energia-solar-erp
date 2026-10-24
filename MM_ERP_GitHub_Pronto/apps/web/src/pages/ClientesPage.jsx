@@ -56,6 +56,7 @@ export default function ClientesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [renderNow] = useState(() => Date.now());
   const [selectedClient, setSelectedClient] = useState(null);
   const [interactions, setInteractions] = useState([]);
   const [interaction, setInteraction] = useState(emptyInteraction);
@@ -72,7 +73,7 @@ export default function ClientesPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { queueMicrotask(load); }, []);
 
   const filteredClients = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -279,7 +280,7 @@ export default function ClientesPage() {
             <thead><tr><th>Cliente</th><th>Contato</th><th>Local</th><th>Etapa</th><th>Conta média</th><th>Próximo retorno</th><th>Ações</th></tr></thead>
             <tbody>
               {loading ? <tr><td className="finance-empty-cell" colSpan="7">Carregando clientes...</td></tr> : filteredClients.length === 0 ? <tr><td className="finance-empty-cell" colSpan="7">Nenhum cliente encontrado.</td></tr> : filteredClients.map((client) => {
-                const overdue = client.nextContactAt && !client.reminderDone && new Date(client.nextContactAt).getTime() <= Date.now();
+                const overdue = client.nextContactAt && !client.reminderDone && new Date(client.nextContactAt).getTime() <= renderNow;
                 return (
                   <tr key={client.id}>
                     <td><strong className="crm-client-name"><UserRound size={16} /> {client.name}</strong><small>{client.document || 'Sem documento'}</small></td>

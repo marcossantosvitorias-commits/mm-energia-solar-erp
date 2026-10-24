@@ -104,7 +104,7 @@ export default function LeadsPipelinePage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { queueMicrotask(load); }, []);
 
   const leads = useMemo(() => {
     const term = query.trim().toLowerCase();

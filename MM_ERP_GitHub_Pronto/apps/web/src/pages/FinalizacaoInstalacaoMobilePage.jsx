@@ -45,7 +45,7 @@ export default function FinalizacaoInstalacaoMobilePage() {
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { queueMicrotask(load); }, [id]);
 
   const pendingRequired = useMemo(() => checklist.filter((item) => item.required && !item.completed), [checklist]);
   const afterPhotos = useMemo(() => photos.filter((photo) => photo.stage === 'Depois'), [photos]);

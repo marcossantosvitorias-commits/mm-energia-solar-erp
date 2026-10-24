@@ -424,7 +424,7 @@ function FinanceiroPage() {
     ]);
   }
 
-  function Dashboard() {
+  function renderDashboard() {
     const proximasPagar = contasPagar
       .filter((item) => item.status === 'pendente')
       .slice(0, 5);
@@ -600,7 +600,7 @@ function FinanceiroPage() {
     },
   ];
 
-  function Fluxo() {
+  function renderFluxo() {
     return (
       <>
         <section className="finance-panel">
@@ -708,7 +708,7 @@ function FinanceiroPage() {
     );
   }
 
-  function ContasPagar() {
+  function renderContasPagar() {
     return (
       <>
         <section className="finance-panel">
@@ -837,7 +837,7 @@ function FinanceiroPage() {
     );
   }
 
-  function ContasReceber() {
+  function renderContasReceber() {
     return (
       <>
         <section className="finance-panel">
@@ -910,7 +910,7 @@ function FinanceiroPage() {
     );
   }
 
-  function Relatorios() {
+  function renderRelatorios() {
     const lucro = totais.entradas - totais.saidas;
 
     return (
@@ -957,11 +957,11 @@ function FinanceiroPage() {
       activeSection={secao}
       onSectionChange={setSecao}
     >
-      {secao === 'dashboard' && <Dashboard />}
-      {secao === 'fluxo' && <Fluxo />}
-      {secao === 'pagar' && <ContasPagar />}
-      {secao === 'receber' && <ContasReceber />}
-      {secao === 'relatorios' && <Relatorios />}
+      {secao === 'dashboard' && renderDashboard()}
+      {secao === 'fluxo' && renderFluxo()}
+      {secao === 'pagar' && renderContasPagar()}
+      {secao === 'receber' && renderContasReceber()}
+      {secao === 'relatorios' && renderRelatorios()}
     </FinanceLayout>
   );
 }

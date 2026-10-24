@@ -77,7 +77,7 @@ export default function ContratosPage() {
     } catch (error) { setMensagem(error.message || 'Não foi possível carregar os contratos do banco.'); }
     finally { setCarregando(false); }
   }
-  useEffect(() => { carregarTudo(); }, []);
+  useEffect(() => { queueMicrotask(carregarTudo); }, []);
 
   const selecionarCliente = (id) => {
     const client = clientes.find((item) => item.id === id);

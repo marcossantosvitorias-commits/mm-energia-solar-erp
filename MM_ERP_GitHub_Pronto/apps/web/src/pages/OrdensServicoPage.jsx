@@ -73,7 +73,7 @@ export default function OrdensServicoPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { queueMicrotask(load); }, []);
 
   const openOrder = async (order) => {
     setSelected(order);

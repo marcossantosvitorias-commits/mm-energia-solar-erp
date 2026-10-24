@@ -39,7 +39,7 @@ function EquipamentosSupabasePage() {
     }
   }, []);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { queueMicrotask(carregar); }, [carregar]);
 
   const fornecedores = useMemo(() => [
     'Todos',
