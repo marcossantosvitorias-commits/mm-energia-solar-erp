@@ -32,6 +32,11 @@ function parseJson(value: string) {
   return JSON.parse(cleaned);
 }
 
+function finiteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -55,8 +60,8 @@ Deno.serve(async (request: Request) => {
       "Extraia somente dados que estejam legíveis. Não invente valores. Se um campo não estiver claro, use null e inclua um aviso.",
       "Remova multas, juros, doações e cobranças não relacionadas ao consumo ao estimar o valor de energia, mas preserve o total da fatura em total_bill.",
       "Responda SOMENTE JSON válido com exatamente estas chaves:",
-      '{"customer_name":null,"consumer_unit":null,"utility_company":null,"reference_month":null,"total_bill":null,"energy_bill_without_fines":null,"energy_consumption_kwh":null,"tariff_per_kwh":null,"city":null,"state":null,"connection_type":null,"confidence":"baixa","warnings":[]}',
-      "Valores monetários e consumo devem ser números sem símbolo. connection_type deve ser monofasica, bifasica, trifasica ou null. state deve ser UF.",
+      '{"customer_name":null,"consumer_unit":null,"utility_company":null,"reference_month":null,"total_bill":null,"energy_bill_without_fines":null,"energy_consumption_kwh":null,"te_per_kwh":null,"tusd_per_kwh":null,"tariff_per_kwh":null,"city":null,"state":null,"connection_type":null,"confidence":"baixa","warnings":[]}',
+      "Valores monetários e consumo devem ser números sem símbolo. Extraia TE e TUSD em R$/kWh quando aparecerem. A tarifa final tariff_per_kwh deve ser TE + TUSD; se uma delas não estiver legível, use null e avise. connection_type deve ser monofasica, bifasica, trifasica ou null. state deve ser UF.",
       `Arquivo: ${filename}`,
     ].join("\n"),
   }];
@@ -74,6 +79,9 @@ Deno.serve(async (request: Request) => {
     if (!response.ok) return json({ error: "ai_provider_failed", detail: payload?.error?.message || "Falha no provedor de IA." }, 502);
     let extracted: any;
     try { extracted = parseJson(outputText(payload)); } catch { return json({ error: "invalid_ai_output", message: "A IA não retornou dados estruturados." }, 502); }
+    const te = finiteNumber(extracted.te_per_kwh);
+    const tusd = finiteNumber(extracted.tusd_per_kwh);
+    if (te !== null && tusd !== null) extracted.tariff_per_kwh = Number((te + tusd).toFixed(6));
     return json({ ok: true, extracted, model });
   } catch (error) {
     console.error("energy bill analysis failed", error);

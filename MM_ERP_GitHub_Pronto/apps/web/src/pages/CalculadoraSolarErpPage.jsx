@@ -44,6 +44,9 @@ export default function CalculadoraSolarErpPage() {
     setError('');
     try {
       const extracted = await analyzeEnergyBill(file);
+      const te = Number(extracted.te_per_kwh || 0);
+      const tusd = Number(extracted.tusd_per_kwh || 0);
+      const tariffFromComponents = te > 0 && tusd > 0 ? te + tusd : Number(extracted.tariff_per_kwh || 0);
       setBillAnalysis(extracted);
       setForm((current) => ({
         ...current,
@@ -51,7 +54,7 @@ export default function CalculadoraSolarErpPage() {
         city: extracted.city || current.city,
         state: extracted.state || current.state,
         utilityCompany: extracted.utility_company || current.utilityCompany,
-        tariffPerKwh: extracted.tariff_per_kwh || current.tariffPerKwh,
+        tariffPerKwh: tariffFromComponents > 0 ? Number(tariffFromComponents.toFixed(6)) : current.tariffPerKwh,
         connectionType: ['monofasica', 'bifasica', 'trifasica'].includes(extracted.connection_type) ? extracted.connection_type : current.connectionType,
       }));
       const extractedBill = extracted.energy_bill_without_fines || extracted.total_bill;
@@ -92,7 +95,7 @@ export default function CalculadoraSolarErpPage() {
       <form onSubmit={handleSubmit} style={styles.card}>
         <div style={styles.cardHeader}><div><span style={styles.eyebrow}>NOVA SIMULAÇÃO</span><h2 style={styles.title}><Calculator size={22} /> Dimensionar sistema</h2></div><a href={`${import.meta.env.BASE_URL}simulacao-solar`} target="_blank" rel="noreferrer" style={styles.secondaryButton}>Página pública <ExternalLink size={15} /></a></div>
         <div style={styles.billBox}><div><strong><Sparkles size={17} /> Analisar conta com IA</strong><small>Envie uma foto ou PDF. A IA extrai os dados e preenche a simulação para você conferir.</small></div><label style={styles.uploadButton}><Upload size={16} /> {analyzingBill ? 'Analisando...' : 'Anexar conta'}<input type="file" accept="image/*,application/pdf" onChange={handleBillUpload} disabled={analyzingBill} style={{ display: 'none' }} /></label></div>
-        {billAnalysis && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>Dados extraídos para conferência</strong><small>{billAnalysis.utility_company || 'Concessionária não identificada'} · {billAnalysis.energy_consumption_kwh ? `${billAnalysis.energy_consumption_kwh} kWh` : 'consumo não identificado'} · confiança {billAnalysis.confidence || 'não informada'}{billAnalysis.warnings?.length ? ` · ${billAnalysis.warnings.length} aviso(s)` : ''}</small></span></div>}
+        {billAnalysis && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>Dados extraídos para conferência</strong><small>{billAnalysis.utility_company || 'Concessionária não identificada'} · {billAnalysis.energy_consumption_kwh ? `${billAnalysis.energy_consumption_kwh} kWh` : 'consumo não identificado'} · {Number(billAnalysis.te_per_kwh) > 0 && Number(billAnalysis.tusd_per_kwh) > 0 ? `Tarifa: TE ${Number(billAnalysis.te_per_kwh).toFixed(4)} + TUSD ${Number(billAnalysis.tusd_per_kwh).toFixed(4)} = ${Number(billAnalysis.tariff_per_kwh).toFixed(4)} R$/kWh` : 'TE/TUSD não identificados'} · confiança {billAnalysis.confidence || 'não informada'}{billAnalysis.warnings?.length ? ` · ${billAnalysis.warnings.length} aviso(s)` : ''}</small></span></div>}
         <div style={styles.formGrid}>
           <Field label="Nome do cliente" name="name" value={form.name} onChange={update} required /><Field label="WhatsApp" name="phone" value={form.phone} onChange={update} required /><Field label="E-mail" name="email" type="email" value={form.email} onChange={update} /><CityField label="Cidade" name="city" value={form.city} onChange={update} required /><Field label="Concessionária" name="utilityCompany" value={form.utilityCompany} onChange={update} />
           <Select label="Ligação" name="connectionType" value={form.connectionType} onChange={update}><option value="monofasica">Monofásica</option><option value="bifasica">Bifásica</option><option value="trifasica">Trifásica</option></Select>
