@@ -42,7 +42,8 @@ export default function CalculadoraSolarErpPage() {
   const annualSummary = useMemo(() => {
     const values = annualBills.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0);
     const total = values.reduce((sum, value) => sum + value, 0);
-    return { total, filled: values.length, average: values.length === HISTORY_MONTHS_REQUIRED ? total / HISTORY_MONTHS_REQUIRED : 0 };
+    const average = values.length === HISTORY_MONTHS_REQUIRED ? total / HISTORY_MONTHS_REQUIRED : 0;
+    return { total, filled: values.length, average, annualized: average * 12 };
   }, [annualBills]);
   const updateAnnualBill = (index, value) => setAnnualBills((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
 
@@ -140,7 +141,7 @@ export default function CalculadoraSolarErpPage() {
 }
 
 function Field({ label, ...props }) { return <label style={styles.label}>{label}<input {...props} style={styles.input} /></label>; }
-function AnnualHistoryField({ values, summary, onChange }) { return <div style={styles.annualBox}><div style={styles.annualHeader}><div><strong>Histórico de gastos — 13 meses (R$)</strong><small>Informe os 13 valores exibidos no histórico da conta para somar e calcular a média.</small></div><div style={styles.annualSummary}><span>Total: <strong>{money.format(summary.total)}</strong></span><span>Média mensal: <strong>{money.format(summary.average)}</strong></span></div></div><div style={styles.annualGrid}>{values.map((value, index) => <label key={annualMonths[index]} style={styles.monthField}><span>{annualMonths[index]}</span><input type="number" min="0" step="0.01" value={value} onChange={(event) => onChange(index, event.target.value)} placeholder="0,00" /></label>)}</div><small>{summary.filled}/13 meses preenchidos. A média só é liberada quando os 13 valores forem informados.</small></div>; }
+function AnnualHistoryField({ values, summary, onChange }) { return <div style={styles.annualBox}><div style={styles.annualHeader}><div><strong>Histórico de gastos — 13 meses (R$)</strong><small>Informe os 13 valores exibidos no histórico da conta para somar e calcular a média anual.</small></div><div style={styles.annualSummary}><span>Total histórico: <strong>{money.format(summary.total)}</strong></span><span>Média anual: <strong>{money.format(summary.average)}/mês</strong></span><span>Projeção anual: <strong>{money.format(summary.annualized)}</strong></span></div></div><div style={styles.annualGrid}>{values.map((value, index) => <label key={annualMonths[index]} style={styles.monthField}><span>{annualMonths[index]}</span><input type="number" min="0" step="0.01" value={value} onChange={(event) => onChange(index, event.target.value)} placeholder="0,00" /></label>)}</div><small>{summary.filled}/13 meses preenchidos. Média anual mensalizada = total histórico ÷ 13.</small></div>; }
 function CityField({ label, ...props }) { return <label style={styles.label}>{label}<SaoPauloCitySelect {...props} style={styles.input} /></label>; }
 function Select({ label, children, ...props }) { return <label style={styles.label}>{label}<select {...props} style={styles.input}>{children}</select></label>; }
 function Metric({ label, value }) { return <div style={styles.metric}><span>{label}</span><strong>{value}</strong></div>; }
