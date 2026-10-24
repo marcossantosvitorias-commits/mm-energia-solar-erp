@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calculator, ExternalLink, MessageCircle, RefreshCw, Search, X } from 'lucide-react';
+import { Calculator, ExternalLink, FileCheck2, MessageCircle, RefreshCw, Search, Sparkles, Upload, X } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import SaoPauloCitySelect from '../components/SaoPauloCitySelect.jsx';
 import MonthlyGenerationChart from '../components/solar/MonthlyGenerationChart.jsx';
 import { listSolarSimulations, submitSolarSimulation, updateSolarSimulationStatus } from '../services/solarSimulationService.js';
+import { analyzeEnergyBill } from '../services/energyBillAiService.js';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const decimal = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
@@ -19,11 +20,36 @@ export default function CalculadoraSolarErpPage() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
+  const [analyzingBill, setAnalyzingBill] = useState(false);
+  const [billAnalysis, setBillAnalysis] = useState(null);
   const [error, setError] = useState('');
 
   const load = async () => { setLoadingList(true); setError(''); try { setSimulations(await listSolarSimulations({ search, status })); } catch (err) { setError(err.message); } finally { setLoadingList(false); } };
   useEffect(() => { const timer = setTimeout(load, 250); return () => clearTimeout(timer); }, [search, status]);
   const update = ({ target: { name, value } }) => setForm((current) => ({ ...current, [name]: value, ...(name === 'proposalMode' ? { source: value === 'assinatura' ? 'erp-assinatura' : 'erp-venda' } : {}) }));
+
+  const handleBillUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setAnalyzingBill(true);
+    setError('');
+    try {
+      const extracted = await analyzeEnergyBill(file);
+      setBillAnalysis(extracted);
+      setForm((current) => ({
+        ...current,
+        name: extracted.customer_name || current.name,
+        city: extracted.city || current.city,
+        state: extracted.state || current.state,
+        utilityCompany: extracted.utility_company || current.utilityCompany,
+        monthlyBill: extracted.energy_bill_without_fines || extracted.total_bill || current.monthlyBill,
+        tariffPerKwh: extracted.tariff_per_kwh || current.tariffPerKwh,
+        connectionType: ['monofasica', 'bifasica', 'trifasica'].includes(extracted.connection_type) ? extracted.connection_type : current.connectionType,
+      }));
+    } catch (err) { setError(err.message || 'Não foi possível analisar a conta.'); }
+    finally { setAnalyzingBill(false); }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault(); setLoading(true); setError('');
@@ -55,6 +81,8 @@ export default function CalculadoraSolarErpPage() {
     <section className="erp-calculator-columns" style={{ ...styles.twoColumns, gridTemplateColumns: result ? 'minmax(0,1.2fr) minmax(360px,.8fr)' : '1fr' }}>
       <form onSubmit={handleSubmit} style={styles.card}>
         <div style={styles.cardHeader}><div><span style={styles.eyebrow}>NOVA SIMULAÇÃO</span><h2 style={styles.title}><Calculator size={22} /> Dimensionar sistema</h2></div><a href={`${import.meta.env.BASE_URL}simulacao-solar`} target="_blank" rel="noreferrer" style={styles.secondaryButton}>Página pública <ExternalLink size={15} /></a></div>
+        <div style={styles.billBox}><div><strong><Sparkles size={17} /> Analisar conta com IA</strong><small>Envie uma foto ou PDF. A IA extrai os dados e preenche a simulação para você conferir.</small></div><label style={styles.uploadButton}><Upload size={16} /> {analyzingBill ? 'Analisando...' : 'Anexar conta'}<input type="file" accept="image/*,application/pdf" onChange={handleBillUpload} disabled={analyzingBill} style={{ display: 'none' }} /></label></div>
+        {billAnalysis && <div style={styles.billResult}><FileCheck2 size={17} /><span><strong>Dados extraídos para conferência</strong><small>{billAnalysis.utility_company || 'Concessionária não identificada'} · {billAnalysis.energy_consumption_kwh ? `${billAnalysis.energy_consumption_kwh} kWh` : 'consumo não identificado'} · confiança {billAnalysis.confidence || 'não informada'}{billAnalysis.warnings?.length ? ` · ${billAnalysis.warnings.length} aviso(s)` : ''}</small></span></div>}
         <div style={styles.formGrid}>
           <Field label="Nome do cliente" name="name" value={form.name} onChange={update} required /><Field label="WhatsApp" name="phone" value={form.phone} onChange={update} required /><Field label="E-mail" name="email" type="email" value={form.email} onChange={update} /><CityField label="Cidade" name="city" value={form.city} onChange={update} required /><Field label="Concessionária" name="utilityCompany" value={form.utilityCompany} onChange={update} />
           <Select label="Ligação" name="connectionType" value={form.connectionType} onChange={update}><option value="monofasica">Monofásica</option><option value="bifasica">Bifásica</option><option value="trifasica">Trifásica</option></Select>
@@ -94,4 +122,4 @@ function SummaryCard({ label, value }) { return <div style={styles.summaryCard}>
 function Th({ children }) { return <th style={styles.th}>{children}</th>; }
 function Td({ children }) { return <td style={styles.td}>{children}</td>; }
 
-const styles = { twoColumns:{display:'grid',gap:22,alignItems:'start'},card:{background:'#fff',border:'1px solid #e2e8f0',borderRadius:18,padding:22,boxShadow:'0 8px 30px rgba(15,23,42,.06)'},cardHeader:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginBottom:18,flexWrap:'wrap'},eyebrow:{color:'#64748b',fontSize:11,fontWeight:900,letterSpacing:1.2},title:{display:'flex',alignItems:'center',gap:8,margin:'5px 0 0',fontSize:22,color:'#0f172a'},resultTitle:{fontSize:28,margin:'8px 0 18px',color:'#0f172a'},formGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:14},label:{fontSize:13,fontWeight:800,color:'#334155'},input:{width:'100%',boxSizing:'border-box',marginTop:6,padding:'11px 12px',border:'1px solid #cbd5e1',borderRadius:10,background:'#fff',fontSize:14},primaryButton:{width:'100%',marginTop:18,border:0,borderRadius:11,padding:'14px 18px',background:'#f5c400',fontWeight:900},secondaryButton:{display:'inline-flex',alignItems:'center',gap:7,border:'1px solid #cbd5e1',borderRadius:9,padding:'9px 12px',background:'#fff',color:'#334155',textDecoration:'none',fontWeight:800},summaryGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:14,marginBottom:22},summaryCard:{display:'grid',gap:6,background:'#fff',border:'1px solid #e2e8f0',borderRadius:14,padding:17},metricGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:11},metric:{padding:13,borderRadius:11,background:'#f8fafc',border:'1px solid #e2e8f0'},success:{marginTop:16,padding:13,borderRadius:10,background:'#dcfce7',color:'#166534',fontWeight:800},commercialBox:{display:'grid',gap:10,marginTop:16,padding:14,borderRadius:12,background:'#eff6ff',border:'1px solid #bfdbfe',color:'#1e3a8a'},commercialGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))',gap:10},filters:{display:'grid',gridTemplateColumns:'minmax(240px,1fr) 220px',gap:12,marginBottom:16},searchBox:{display:'flex',alignItems:'center',gap:8,padding:'0 12px',border:'1px solid #cbd5e1',borderRadius:10},table:{width:'100%',borderCollapse:'collapse',minWidth:900},th:{textAlign:'left',padding:'11px 10px',borderBottom:'1px solid #cbd5e1',color:'#64748b',fontSize:12},td:{padding:'12px 10px',borderBottom:'1px solid #e2e8f0',color:'#334155',fontSize:13},tableEmpty:{textAlign:'center',padding:28,color:'#64748b'},compactSelect:{padding:'8px 9px',border:'1px solid #cbd5e1',borderRadius:8,background:'#fff'},whatsappButton:{display:'inline-flex',alignItems:'center',gap:6,padding:'8px 10px',borderRadius:8,background:'#16a34a',color:'#fff',textDecoration:'none',fontWeight:800},muted:{marginTop:3,color:'#64748b',fontSize:11},error:{marginBottom:16,padding:13,borderRadius:10,background:'#fee2e2',color:'#991b1b',fontWeight:800},closeButton:{border:0,background:'#f1f5f9',borderRadius:8,padding:7,cursor:'pointer'} };
+const styles = { twoColumns:{display:'grid',gap:22,alignItems:'start'},card:{background:'#fff',border:'1px solid #e2e8f0',borderRadius:18,padding:22,boxShadow:'0 8px 30px rgba(15,23,42,.06)'},cardHeader:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginBottom:18,flexWrap:'wrap'},eyebrow:{color:'#64748b',fontSize:11,fontWeight:900,letterSpacing:1.2},title:{display:'flex',alignItems:'center',gap:8,margin:'5px 0 0',fontSize:22,color:'#0f172a'},resultTitle:{fontSize:28,margin:'8px 0 18px',color:'#0f172a'},formGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:14},label:{fontSize:13,fontWeight:800,color:'#334155'},input:{width:'100%',boxSizing:'border-box',marginTop:6,padding:'11px 12px',border:'1px solid #cbd5e1',borderRadius:10,background:'#fff',fontSize:14},primaryButton:{width:'100%',marginTop:18,border:0,borderRadius:11,padding:'14px 18px',background:'#f5c400',fontWeight:900},secondaryButton:{display:'inline-flex',alignItems:'center',gap:7,border:'1px solid #cbd5e1',borderRadius:9,padding:'9px 12px',background:'#fff',color:'#334155',textDecoration:'none',fontWeight:800},summaryGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:14,marginBottom:22},summaryCard:{display:'grid',gap:6,background:'#fff',border:'1px solid #e2e8f0',borderRadius:14,padding:17},metricGrid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:11},metric:{padding:13,borderRadius:11,background:'#f8fafc',border:'1px solid #e2e8f0'},billBox:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,marginBottom:18,padding:14,borderRadius:12,background:'#fefce8',border:'1px solid #fde68a'},billResult:{display:'flex',alignItems:'flex-start',gap:9,marginBottom:18,padding:12,borderRadius:10,background:'#ecfdf5',border:'1px solid #a7f3d0',color:'#166534'},uploadButton:{display:'inline-flex',alignItems:'center',gap:7,padding:'10px 13px',borderRadius:9,background:'#f5c400',color:'#0f172a',fontWeight:900,cursor:'pointer',whiteSpace:'nowrap'},success:{marginTop:16,padding:13,borderRadius:10,background:'#dcfce7',color:'#166534',fontWeight:800},commercialBox:{display:'grid',gap:10,marginTop:16,padding:14,borderRadius:12,background:'#eff6ff',border:'1px solid #bfdbfe',color:'#1e3a8a'},commercialGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))',gap:10},filters:{display:'grid',gridTemplateColumns:'minmax(240px,1fr) 220px',gap:12,marginBottom:16},searchBox:{display:'flex',alignItems:'center',gap:8,padding:'0 12px',border:'1px solid #cbd5e1',borderRadius:10},table:{width:'100%',borderCollapse:'collapse',minWidth:900},th:{textAlign:'left',padding:'11px 10px',borderBottom:'1px solid #cbd5e1',color:'#64748b',fontSize:12},td:{padding:'12px 10px',borderBottom:'1px solid #e2e8f0',color:'#334155',fontSize:13},tableEmpty:{textAlign:'center',padding:28,color:'#64748b'},compactSelect:{padding:'8px 9px',border:'1px solid #cbd5e1',borderRadius:8,background:'#fff'},whatsappButton:{display:'inline-flex',alignItems:'center',gap:6,padding:'8px 10px',borderRadius:8,background:'#16a34a',color:'#fff',textDecoration:'none',fontWeight:800},muted:{marginTop:3,color:'#64748b',fontSize:11},error:{marginBottom:16,padding:13,borderRadius:10,background:'#fee2e2',color:'#991b1b',fontWeight:800},closeButton:{border:0,background:'#f1f5f9',borderRadius:8,padding:7,cursor:'pointer'} };
