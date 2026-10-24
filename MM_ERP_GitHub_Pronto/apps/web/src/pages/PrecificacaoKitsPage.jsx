@@ -83,6 +83,7 @@ export default function PrecificacaoKitsPage() {
       impostoVenda: 4,
       comissao: 0,
       margemDesejada: 25,
+      acrescimoVendedor: 0,
     },
     inversor: {
       custoPlaca: 0,
@@ -99,6 +100,7 @@ export default function PrecificacaoKitsPage() {
       impostoVenda: 4,
       comissao: 0,
       margemDesejada: 25,
+      acrescimoVendedor: 0,
     },
     hibrido: {
       custoPlaca: 508.40,
@@ -115,6 +117,7 @@ export default function PrecificacaoKitsPage() {
       impostoVenda: 4,
       comissao: 0,
       margemDesejada: 25,
+      acrescimoVendedor: 0,
     },
   });
 
@@ -176,7 +179,10 @@ export default function PrecificacaoKitsPage() {
     const comissao = percentual(form.comissao);
     const margem = percentual(form.margemDesejada);
     const divisor = 1 - imposto - comissao - margem;
-    const precoVenda = divisor > 0 ? custoTotal / divisor : 0;
+    const precoBase = divisor > 0 ? custoTotal / divisor : 0;
+    const acrescimoVendedor = Math.max(0, numero(form.acrescimoVendedor));
+    const lucroVendedor = acrescimoVendedor * 0.2;
+    const precoVenda = precoBase + acrescimoVendedor;
     const precoCartao = precoVenda / (1 - TAXA_CARTAO_12X / 100);
     const valorProposta = formaPagamento === 'cartao' ? precoCartao : precoVenda;
     const valorImposto = precoVenda * imposto;
@@ -184,7 +190,7 @@ export default function PrecificacaoKitsPage() {
     const lucro = precoVenda - custoTotal - valorImposto - valorComissao;
     const margemReal = precoVenda > 0 ? (lucro / precoVenda) * 100 : 0;
 
-    return { custoEquipamentos, custoTotal, precoVenda, precoCartao, valorProposta, lucro, margemReal };
+    return { custoEquipamentos, custoTotal, precoBase, acrescimoVendedor, lucroVendedor, precoVenda, precoCartao, valorProposta, lucro, margemReal };
   }, [form, quantidadePlacas, formaPagamento]);
 
   return (
@@ -278,6 +284,8 @@ export default function PrecificacaoKitsPage() {
               <label className="finance-field"><span>Imposto sobre a venda (%)</span><input type="number" step="0.01" name="impostoVenda" value={form.impostoVenda} onChange={atualizar} /></label>
               <label className="finance-field"><span>Comissão de venda (%)</span><input type="number" step="0.01" name="comissao" value={form.comissao} onChange={atualizar} /></label>
               <label className="finance-field"><span>Margem líquida desejada (%)</span><input type="number" step="0.01" name="margemDesejada" value={form.margemDesejada} onChange={atualizar} /></label>
+              <label className="finance-field"><span>Acréscimo do vendedor (R$)</span><input type="number" min="0" step="0.01" name="acrescimoVendedor" value={form.acrescimoVendedor} onChange={atualizar} /></label>
+              <small className="seller-profit-help">O cliente paga o acréscimo informado e o vendedor recebe automaticamente 20% desse valor.</small>
             </div>
           </article>
         </div>
@@ -287,6 +295,7 @@ export default function PrecificacaoKitsPage() {
         <StatCard label="Preço à vista" value={formatarMoeda(resultado.precoVenda)} helper={`${quantidadePlacas} placas de ${potenciaPlaca} W • valores internos ocultos`} tone="primary" />
         <StatCard label="Potência do sistema" value={`${potenciaSistemaKw.toFixed(2).replace('.', ',')} kWp`} helper={`Geração estimada: ${Math.round(geracaoMensalKwh).toLocaleString('pt-BR')} kWh/mês`} tone="primary" />
         <StatCard label="Lucro estimado" value={formatarMoeda(resultado.lucro)} helper={`Margem real de ${resultado.margemReal.toFixed(2)}%`} tone="positive" />
+        <StatCard label="Lucro do vendedor" value={formatarMoeda(resultado.lucroVendedor)} helper={`20% do acréscimo de ${formatarMoeda(resultado.acrescimoVendedor)}`} tone="positive" />
       </section>
 
       <section className="finance-panel">
