@@ -16,7 +16,11 @@ export function gerarId() {
 }
 
 export function dataHoje() {
-  return new Date().toISOString().slice(0, 10);
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
 
 export function formatarMoeda(valor) {

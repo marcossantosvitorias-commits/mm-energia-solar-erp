@@ -107,11 +107,18 @@ export default function ClientesPage() {
       setMessage('Informe pelo menos o nome e o telefone do cliente.');
       return;
     }
+    const phoneDigits = form.phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 13) {
+      setMessage('Informe um telefone válido com DDD.');
+      return;
+    }
 
     setSaving(true);
     try {
       const payload = {
         ...form,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
         state: 'SP',
         monthlyBill: Number(form.monthlyBill || 0),
         nextContactAt: form.nextContactAt ? new Date(form.nextContactAt).toISOString() : null,
@@ -238,8 +245,8 @@ export default function ClientesPage() {
           <button type="button" className="finance-secondary-button" onClick={enableNotifications}><Bell size={16} /> Ativar notificações no celular</button>
         </div>
         <form className="finance-form" onSubmit={handleSubmit}>
-          <label className="finance-field"><span>Nome completo *</span><input name="name" value={form.name} onChange={handleChange} /></label>
-          <label className="finance-field"><span>Telefone / WhatsApp *</span><input name="phone" value={form.phone} onChange={handleChange} /></label>
+          <label className="finance-field"><span>Nome completo *</span><input required name="name" value={form.name} onChange={handleChange} /></label>
+          <label className="finance-field"><span>Telefone / WhatsApp *</span><input required name="phone" value={form.phone} onChange={handleChange} inputMode="tel" /></label>
           <label className="finance-field"><span>CPF ou CNPJ</span><input name="document" value={form.document} onChange={handleChange} /></label>
           <label className="finance-field"><span>E-mail</span><input type="email" name="email" value={form.email} onChange={handleChange} /></label>
           <label className="finance-field"><span>Endereço</span><input name="address" value={form.address} onChange={handleChange} /></label>

@@ -122,7 +122,7 @@ function ErpDashboardPage() {
       .reduce((soma, item) => soma + Number(item.amount || 0), 0);
     const aReceber = contasReceber.filter((item) => item.status === 'pendente')
       .reduce((soma, item) => soma + Number(item.amount || 0), 0);
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeSaoPaulo();
     const vencendoHoje = contasPagar.filter(
       (item) => item.status === 'pendente' && String(item.due_date).slice(0, 10) === hoje,
     );
