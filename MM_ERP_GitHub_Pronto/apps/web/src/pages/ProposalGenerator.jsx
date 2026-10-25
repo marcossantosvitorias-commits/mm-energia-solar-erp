@@ -6,7 +6,7 @@ import { MICROINVERSOR_IMAGE } from '../assets/proposalImages.js';
 import { PAINEL_620_BELENUS_IMAGE, INVERSOR_BELENUS_IMAGE, INVERSOR_75_BELENUS_IMAGE } from '../assets/proposalBelenusImages.js';
 import { JA_SOLAR_620_AUXSOL_QUOTE_IMAGE, AUXSOL_20KW_QUOTE_IMAGE } from '../assets/proposalAuxsol20Images.js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
-import { createClientInteraction, listClients } from '../services/clientService.js';
+import { createClient, createClientInteraction, listClients } from '../services/clientService.js';
 import { closeProposalAsSale } from '../services/proposalWorkflowService.js';
 import { cardFeeService } from '../services/cardFeeService.js';
 import { buildMonthlyGeneration } from '../components/solar/MonthlyGenerationChart.jsx';
@@ -270,14 +270,22 @@ export default function ProposalGenerator({ quantidadePlacas, precoRecomendado, 
   };
   const atualizar = ({ target: { name, value } }) => setDados((a) => name === 'potenciaPlaca' ? { ...a, potenciaPlaca: value, geracaoMensal: Math.round(gerarPorPainel(value) * quantidadePlacas) } : { ...a, [name]: value });
   const paymentOptions = { cash: { total: valor }, card: { provider: 'My Gateway', total: opcoesCartao.at(-1)?.total || totalCartao, options: opcoesCartao }, belcred: { installments: belcredSelecionado.parcelas, monthlyRate: belcredSelecionado.taxa, installmentValue: belcredSelecionado.valor } };
-  const payload = (status = 'Gerada') => ({ client_id: clienteId || null, client_name: dados.cliente.trim(), phone: String(dados.telefone || ''), city: dados.cidade || null, status, total_amount: Number(valor.toFixed(2)), panel_count: Math.round(Number(quantidadePlacas || 0)), panel_power_w: Math.round(Number(dados.potenciaPlaca || 0)), system_power_kw: Number(potenciaSistema.toFixed(2)), monthly_generation_kwh: Math.round(Number(dados.geracaoMensal || geracaoCalculada)), panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Math.round(Number(dados.validade || 7)), notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null, proposal_data: { ...dados, telefone: String(dados.telefone || ''), clienteId, quantidadePlacas, potenciaSistema, paymentOptions } });
+  const payload = (status = 'Gerada', resolvedClientId = clienteId) => ({ client_id: resolvedClientId || null, client_name: dados.cliente.trim(), phone: String(dados.telefone || ''), city: dados.cidade || null, status, total_amount: Number(valor.toFixed(2)), panel_count: Math.round(Number(quantidadePlacas || 0)), panel_power_w: Math.round(Number(dados.potenciaPlaca || 0)), system_power_kw: Number(potenciaSistema.toFixed(2)), monthly_generation_kwh: Math.round(Number(dados.geracaoMensal || geracaoCalculada)), panel_model: dados.marcaPlaca, inverter_model: dados.inversor, validity_days: Math.round(Number(dados.validade || 7)), notes: dados.observacoes || null, sent_at: status === 'Enviada' ? new Date().toISOString() : null, proposal_data: { ...dados, telefone: String(dados.telefone || ''), clienteId: resolvedClientId || clienteId, quantidadePlacas, potenciaSistema, paymentOptions } });
 
   const salvarProposta = async (status = 'Gerada') => {
     if (!isSupabaseConfigured || !supabase) return { saved: false, warning: 'Supabase indisponível.' };
     try {
-      const { data, error } = await supabase.from('sales_proposals').insert(payload(status)).select('*').single();
+      let resolvedClientId = clienteId;
+      if (!resolvedClientId && dados.cliente.trim() && String(dados.telefone || '').trim()) {
+        const cidadePartes = String(dados.cidade || '').split('/');
+        const cliente = await createClient({ name: dados.cliente.trim(), phone: String(dados.telefone).trim(), city: cidadePartes[0] || '', state: cidadePartes[1] || 'SP', status: 'proposta' });
+        resolvedClientId = cliente.id;
+        setClienteId(resolvedClientId);
+        setClientes((current) => [cliente, ...current.filter((item) => item.id !== cliente.id)]);
+      }
+      const { data, error } = await supabase.from('sales_proposals').insert(payload(status, resolvedClientId)).select('*').single();
       if (error) return { saved: false, warning: `Não registrado no CRM: ${error.message}` };
-      if (clienteId) { try { await createClientInteraction(clienteId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' }); } catch {} }
+      if (resolvedClientId) { try { await createClientInteraction(resolvedClientId, { type: 'proposta', description: `Proposta ${status.toLowerCase()} no valor de ${moeda.format(valor)}.`, nextActionAt: '' }); } catch {} }
       await carregarDados();
       return { saved: true, data };
     } catch (e) {

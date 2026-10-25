@@ -65,6 +65,20 @@ async function pushClientToLeadConnector(clientId) {
   }
 }
 
+async function findExistingClient(data) {
+  const candidates = [
+    ['document', data.document?.trim()],
+    ['email', data.email?.trim().toLowerCase()],
+    ['phone', data.phone?.trim()],
+  ].filter(([, value]) => value);
+  for (const [field, value] of candidates) {
+    const { data: existing, error } = await supabase.from('clients').select('*').eq(field, value).limit(1).maybeSingle();
+    if (error) throw error;
+    if (existing) return existing;
+  }
+  return null;
+}
+
 export async function listClients() {
   ensureDatabase();
   const { data, error } = await supabase
@@ -77,6 +91,17 @@ export async function listClients() {
 
 export async function createClient(data) {
   ensureDatabase();
+  const existing = await findExistingClient(data);
+  if (existing) {
+    const merged = {
+      ...fromDatabase(existing),
+      ...data,
+      id: existing.id,
+      name: data.name?.trim() || existing.name,
+      phone: data.phone?.trim() || existing.phone,
+    };
+    return updateClient(existing.id, merged);
+  }
   const { data: created, error } = await supabase
     .from('clients')
     .insert(toDatabase(data))

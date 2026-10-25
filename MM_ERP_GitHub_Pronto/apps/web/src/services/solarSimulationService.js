@@ -80,6 +80,21 @@ export async function submitSolarSimulation(input) {
     throw new Error('Informe um valor válido para a conta de energia.');
   }
 
+  try {
+    const { error: clientError } = await supabase.rpc('upsert_client_contact', {
+      p_name: payload.p_name,
+      p_phone: payload.p_phone,
+      p_email: payload.p_email,
+      p_city: payload.p_city,
+      p_state: payload.p_state,
+      p_monthly_bill: payload.p_monthly_bill,
+      p_source: payload.p_source,
+    });
+    if (clientError) console.warn('Cadastro central do cliente pendente:', clientError.message);
+  } catch (error) {
+    console.warn('Cadastro central do cliente indisponível:', error);
+  }
+
   const localResult = calculateSolarSimulationLocally(input);
 
   try {
