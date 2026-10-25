@@ -96,6 +96,7 @@ function App() {
 
           <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.INTERNAL)} />
           <Route path="/app/projetos-engenharia" element={privateRoute(<ProjetosEngenhariaPage />, ROLES.INTERNAL)} />
+          <Route path="/app/projetos" element={privateRoute(<ProjetosEngenhariaPage />, ROLES.INTERNAL)} />
           <Route path="/app/ordens-servico/:id/preparacao" element={privateRoute(<PreparacaoInstalacaoPage />, ROLES.INTERNAL)} />
           <Route path="/app/ordens-servico/:id/campo" element={privateRoute(<ExecucaoInstalacaoMobilePage />, ROLES.INTERNAL)} />
           <Route path="/app/ordens-servico/:id/finalizacao" element={privateRoute(<FinalizacaoInstalacaoMobilePage />, ROLES.INTERNAL)} />

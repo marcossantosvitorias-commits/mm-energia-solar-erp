@@ -4,7 +4,7 @@ import {
   LayoutDashboard, LayoutPanelTop, WalletCards, Calculator, SunMedium,
   BadgeDollarSign, FileSpreadsheet, FileSignature, FileText, PackageSearch, Scale,
   UserRound, UsersRound, CalendarDays, DatabaseBackup, PlugZap, RadioTower,
-  ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog, MessageCircle, Bot,
+  ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog, MessageCircle, Bot, ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { accessKeyForPath } from '../../config/accessControl.js';
@@ -13,6 +13,7 @@ import './finance.css';
 import './erp-compact.css';
 import './engineering-label-fix.css';
 import './auth-layout.css';
+import './erp-command-bar.css';
 import '../crm/crm.css';
 
 const precosItem = {
@@ -32,13 +33,13 @@ const menuSections = [
     { to: '/app/whatsapp', label: 'WhatsApp / Pendências', icon: MessageCircle, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro'] },
     { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
-    { to: '/app/propostas', label: 'Propostas comerciais', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/propostas', label: 'Propostas comerciais · HISTÓRICO', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro'] },
   ]},
   { title: 'Operacional', items: [
-    { to: '/app/projetos-engenharia', label: 'Projetos de engenharia', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
+    { to: '/app/projetos-engenharia', label: 'Projetos de engenharia · NOVO', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
     { to: '/app/ordens-servico', label: 'Ordens de serviço', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
     { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower, roles: ['admin', 'engenharia'] },
     { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch, roles: ['admin', 'engenharia'] },
@@ -115,6 +116,7 @@ function FinanceLayout({ title, subtitle, children, theme = 'empresa', activeSec
           {!pessoal && <div className="erp-page-logo" style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}><img src={logoUrl} alt="MM Energia Solar" style={{ width:64, height:46, objectFit:'contain', objectPosition:'left center' }} /><span style={{ fontWeight:900, color:'#0f2c52' }}>MM Energia Solar</span></div>}
           <span className="finance-eyebrow">{pessoal ? 'Controle pessoal' : 'Gestão empresarial'}</span><h1>{title}</h1><p>{subtitle}</p>
         </header>
+        {!pessoal && <div className="erp-command-bar"><div className="erp-command-intro"><span>ATUALIZAÇÃO DA ERP</span><strong>Operação mais organizada</strong><small>Acesse rapidamente os novos módulos.</small></div><NavLink to="/app/projetos-engenharia" className="erp-command-link"><ClipboardCheck size={20} /><span><strong>Projetos de engenharia</strong><small>Cadastro, documentos e timeline</small></span><ArrowUpRight size={17} /></NavLink><NavLink to="/app/propostas" className="erp-command-link"><FileText size={20} /><span><strong>Histórico de propostas</strong><small>Todas as propostas salvas</small></span><ArrowUpRight size={17} /></NavLink></div>}
         <div className="finance-content-scroll">{children}</div>
       </main>
     </div>

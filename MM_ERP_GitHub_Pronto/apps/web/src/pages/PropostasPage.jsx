@@ -133,7 +133,7 @@ export default function PropostasPage() {
     finally { setSendingId(null); }
   };
 
-  return <FinanceLayout title="Propostas comerciais" subtitle="Gerencie propostas, aceite do cliente, confirmação interna da venda e geração da Ordem de Serviço.">
+  return <FinanceLayout title="Propostas comerciais" subtitle="Histórico permanente: todas as propostas geradas ficam salvas para consulta, edição, PDF e acompanhamento da venda.">
     <section className="finance-panel">
       <div className="finance-kpi-grid"><Kpi label="Propostas" value={summary.total} /><Kpi label="Em negociação" value={money.format(summary.pipeline)} /><Kpi label="Aguardando confirmação" value={summary.pending} /><Kpi label="Vendas fechadas" value={money.format(summary.closed)} /></div>
       <div className="finance-toolbar" style={{ marginTop: 18 }}><label className="finance-search"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente, telefone ou cidade" /></label><select value={status} onChange={(e) => setStatus(e.target.value)}><option>Todos</option>{statuses.map((item) => <option key={item}>{item}</option>)}</select><button className="finance-button secondary" onClick={load}><RefreshCw size={18} /> Atualizar</button></div>
