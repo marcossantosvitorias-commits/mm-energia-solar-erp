@@ -30,6 +30,7 @@ const FORM_PADRAO = {
   imposto: 4,
   comissao: 0,
   margem: 25,
+  acrescimoVendedor: 0,
   desconto: 3,
 };
 
@@ -97,7 +98,10 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
     const aliquotaImposto = csosn === '400' ? porcentagem(form.imposto) : 0;
     const divisor = 1 - aliquotaImposto - porcentagem(form.comissao) - porcentagem(form.margem);
     const precoCalculado = divisor > 0 ? custoTotal / divisor : 0;
-    const precoVenda = numero(cotacao.precoAvista) || precoCalculado;
+    const precoBaseVenda = numero(cotacao.precoAvista) || precoCalculado;
+    const acrescimoVendedor = Math.max(0, numero(form.acrescimoVendedor));
+    const lucroVendedor = acrescimoVendedor * 0.2;
+    const precoVenda = precoBaseVenda + acrescimoVendedor;
     const impostoFinal = precoVenda * aliquotaImposto;
     const comissao = precoVenda * porcentagem(form.comissao);
     const lucro = precoVenda - custoTotal - impostoFinal - comissao;
@@ -111,6 +115,9 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
       rateioEngenharia,
       adicionais,
       custoTotal,
+      precoBaseVenda,
+      acrescimoVendedor,
+      lucroVendedor,
       precoVenda,
       csosn,
       impostoFinal,
@@ -167,6 +174,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
     ['outros', 'Outros custos', '0.01'],
     ['comissao', 'Comissão (%)', '0.01'],
     ['margem', 'Margem líquida (%)', '0.01'],
+    ['acrescimoVendedor', 'Acréscimo do vendedor (R$)', '0.01'],
     ['desconto', 'Desconto máximo (%)', '0.01'],
   ];
 
@@ -281,6 +289,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
                     <label className="finance-field" key={name}><span>{label}</span><input type="number" step={step} min="0" name={name} value={form[name]} onChange={atualizar} /></label>
                   ))}
                   <div className="belenus-engineering-share"><span>Engenharia rateada</span><strong>{moeda.format(resultado.rateioEngenharia)}</strong></div>
+                  <small className="seller-profit-help">O acréscimo é somado ao preço da proposta. O vendedor recebe 20% desse valor.</small>
                   <label className="finance-field"><span>CSOSN — Simples Nacional</span><select name="csosn" value={form.csosn} onChange={atualizar}><option value="400">400 — Não tributada</option></select></label>
                   <label className="finance-field"><span>Alíquota do imposto final (%)</span><input type="number" step="0.01" min="0" name="imposto" value={form.imposto} onChange={atualizar} /></label>
                 </div>
@@ -297,7 +306,7 @@ export default function CotacoesBelenusSupabasePage({ pricingMode = false }) {
             </section>
 
             <section className="belenus-final-price">
-              <div><span>Preço à vista</span><strong>{moeda.format(resultado.precoVenda)}</strong><small>Imposto final {moeda.format(resultado.impostoFinal)} · Lucro {moeda.format(resultado.lucro)}</small></div>
+              <div><span>Preço à vista</span><strong>{moeda.format(resultado.precoVenda)}</strong><small>Imposto final {moeda.format(resultado.impostoFinal)} · Lucro {moeda.format(resultado.lucro)} · Vendedor (20%) {moeda.format(resultado.lucroVendedor)}</small></div>
               <div className="belenus-final-actions"><div><span>Cartão {installments}x</span><strong>{moeda.format(resultado.precoCartao)}</strong><small>{installments}x de {moeda.format(resultado.valorParcela)}</small></div><button type="button" onClick={copiarResumo}>{copiado ? <Check size={17} /> : <Copy size={17} />}{copiado ? 'Copiado' : 'Copiar proposta'}</button></div>
             </section>
 
