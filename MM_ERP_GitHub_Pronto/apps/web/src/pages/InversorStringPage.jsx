@@ -28,14 +28,17 @@ const FORM_PADRAO = {
   freteAdicional: 0,
   materialEletrico: 350,
   maoDeObra: 700,
-  engenharia: 250,
+  mensalidadeTreviso: 1000,
+  instalacoesMes: 4,
   trt: 68,
   combustivel: 100,
   outros: 0,
   imposto: 4,
+  csosn: '400',
   comissao: 0,
   margem: 25,
   acrescimoVendedor: 0,
+  desconto: 3,
 };
 
 export default function InversorStringPage() {
@@ -45,10 +48,11 @@ export default function InversorStringPage() {
   const [formaPagamento, setFormaPagamento] = useState('avista');
 
   const resultado = useMemo(() => {
+    const rateioEngenharia = numero(form.mensalidadeTreviso) / Math.max(1, numero(form.instalacoesMes));
     const custoTotal = numero(form.custoEquipamentos) + numero(form.freteAdicional) + numero(form.materialEletrico)
-      + numero(form.maoDeObra) + numero(form.engenharia) + numero(form.trt)
+      + numero(form.maoDeObra) + rateioEngenharia + numero(form.trt)
       + numero(form.combustivel) + numero(form.outros);
-    const imposto = percentual(form.imposto);
+    const imposto = String(form.csosn || '400') === '400' ? percentual(form.imposto) : 0;
     const comissao = percentual(form.comissao);
     const margem = percentual(form.margem);
     const divisor = 1 - imposto - comissao - margem;
@@ -59,6 +63,7 @@ export default function InversorStringPage() {
     const precoCartao = precoVista / (1 - 0.1169);
     return {
       custoTotal,
+      rateioEngenharia,
       precoBase,
       acrescimoVendedor,
       lucroVendedor,
@@ -86,20 +91,17 @@ export default function InversorStringPage() {
   };
 
   const campos = [
-    ['placas', 'Quantidade de placas', '1'],
-    ['potenciaPlaca', 'Potência de cada placa (W)', '1'],
-    ['custoEquipamentos', 'Valor total da distribuidora', '0.01'],
-    ['freteAdicional', 'Frete adicional (se houver)', '0.01'],
     ['materialEletrico', 'Material elétrico adicional', '0.01'],
     ['maoDeObra', 'Mão de obra', '0.01'],
-    ['engenharia', 'Engenharia', '0.01'],
+    ['mensalidadeTreviso', 'Engenharia', '0.01'],
+    ['instalacoesMes', 'Instalações previstas no mês', '1'],
     ['trt', 'TRT', '0.01'],
     ['combustivel', 'Combustível', '0.01'],
     ['outros', 'Outros custos', '0.01'],
-    ['imposto', 'Imposto (%)', '0.01'],
     ['comissao', 'Comissão (%)', '0.01'],
     ['margem', 'Margem líquida (%)', '0.01'],
     ['acrescimoVendedor', 'Acréscimo do vendedor (R$)', '0.01'],
+    ['desconto', 'Desconto máximo (%)', '0.01'],
   ];
 
   return (
@@ -146,6 +148,9 @@ export default function InversorStringPage() {
               <input type="number" min="0" step={step} name={name} value={form[name]} onChange={atualizar} />
             </label>
           ))}
+          <div className="belenus-engineering-share"><span>Engenharia rateada</span><strong>{moeda.format(resultado.rateioEngenharia)}</strong></div>
+          <label className="finance-field"><span>CSOSN — Simples Nacional</span><select name="csosn" value={form.csosn} onChange={atualizar}><option value="400">400 — Não tributada</option></select></label>
+          <label className="finance-field"><span>Alíquota do imposto final (%)</span><input type="number" step="0.01" min="0" name="imposto" value={form.imposto} onChange={atualizar} /></label>
           <small className="seller-profit-help">O acréscimo é somado ao preço da proposta. O vendedor recebe 20% desse valor.</small>
         </div>
       </section>
