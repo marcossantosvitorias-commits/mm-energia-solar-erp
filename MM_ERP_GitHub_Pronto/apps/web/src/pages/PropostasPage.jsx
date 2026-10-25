@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Copy, ExternalLink, FileDown, FileText, History, MessageCircle, Pencil, RefreshCw, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
+import { CheckCircle2, Copy, ExternalLink, FileDown, FileText, History, MessageCircle, Pencil, RefreshCw, RotateCcw, Save, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import {
   confirmAcceptedProposalSale,
-  deleteSalesProposal,
   listProposalVersions,
   listSalesProposals,
   rejectAcceptedProposalConfirmation,
@@ -107,12 +106,6 @@ export default function PropostasPage() {
     } catch (error) { setMessage(error.message); }
   };
 
-  const remove = async (proposal) => {
-    if (!window.confirm(`Excluir a proposta de ${proposal.client_name}?`)) return;
-    try { await deleteSalesProposal(proposal.id); setRows((current) => current.filter((item) => item.id !== proposal.id)); }
-    catch (error) { setMessage(error.message); }
-  };
-
   const publicUrl = (proposal) => proposal.public_token ? buildPublicProposalUrl(proposal.public_token) : '';
   const copyPublicLink = async (proposal) => {
     const url = publicUrl(proposal);
@@ -150,7 +143,7 @@ export default function PropostasPage() {
         <td>{proposal.panel_count || 0} módulos · {proposal.system_power_kw || 0} kWp</td><td><strong>{money.format(proposal.total_amount || 0)}</strong></td>
         <td><select value={proposal.status} onChange={(e) => changeStatus(proposal, e.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></td>
         <td><small>{proposal.public_view_count || 0} visualização(ões)</small>{proposal.public_viewed_at && <small>Última: {new Date(proposal.public_viewed_at).toLocaleString('pt-BR')}</small>}</td>
-        <td><div className="finance-actions compact">{proposal.status === 'Aceita' && proposal.sale_confirmation_status === 'Pendente' && <><button title="Confirmar venda e gerar OS" disabled={confirmingId === proposal.id} onClick={() => confirmSale(proposal)}><CheckCircle2 size={17} /></button><button title="Retornar à negociação" onClick={() => returnToNegotiation(proposal)}><RotateCcw size={17} /></button></>}<button title="Gerar PDF" onClick={() => navigate(`/app/propostas/${proposal.id}/pdf`)}><FileDown size={17} /></button><button title="Copiar link público" onClick={() => copyPublicLink(proposal)}><Copy size={17} /></button>{proposal.public_token && <button title="Abrir link público" onClick={() => window.open(publicUrl(proposal), '_blank', 'noopener,noreferrer')}><ExternalLink size={17} /></button>}<button title="Editar" onClick={() => openEditor(proposal)}><Pencil size={17} /></button><button title="Enviar PDF no WhatsApp Business" disabled={sendingId === proposal.id} onClick={() => whatsapp(proposal)}><MessageCircle size={17} /></button><button title="Excluir" onClick={() => remove(proposal)}><Trash2 size={17} /></button></div></td>
+        <td><div className="finance-actions compact">{proposal.status === 'Aceita' && proposal.sale_confirmation_status === 'Pendente' && <><button title="Confirmar venda e gerar OS" disabled={confirmingId === proposal.id} onClick={() => confirmSale(proposal)}><CheckCircle2 size={17} /></button><button title="Retornar à negociação" onClick={() => returnToNegotiation(proposal)}><RotateCcw size={17} /></button></>}<button title="Gerar PDF" onClick={() => navigate(`/app/propostas/${proposal.id}/pdf`)}><FileDown size={17} /></button><button title="Copiar link público" onClick={() => copyPublicLink(proposal)}><Copy size={17} /></button>{proposal.public_token && <button title="Abrir link público" onClick={() => window.open(publicUrl(proposal), '_blank', 'noopener,noreferrer')}><ExternalLink size={17} /></button>}<button title="Editar" onClick={() => openEditor(proposal)}><Pencil size={17} /></button><button title="Enviar PDF no WhatsApp Business" disabled={sendingId === proposal.id} onClick={() => whatsapp(proposal)}><MessageCircle size={17} /></button></div></td>
       </tr>)}</tbody></table></div>
     </section>
     {editor && <div className="finance-modal-backdrop" onMouseDown={() => setEditor(null)}><div className="finance-modal" onMouseDown={(e) => e.stopPropagation()}><div className="finance-panel-header"><div><h2><FileText size={22} /> Editar proposta</h2><p>{editor.client_name}</p></div><button onClick={() => setEditor(null)}><X size={22} /></button></div><div className="finance-form">

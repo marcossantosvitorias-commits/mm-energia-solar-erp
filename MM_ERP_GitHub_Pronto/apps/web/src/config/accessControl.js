@@ -37,7 +37,7 @@ export function accessKeyForPath(pathname = '') {
   if (pathname.startsWith('/app/fluxos')) return 'fluxos';
   if (pathname.startsWith('/app/prospeccao-solar')) return 'radar';
   if (pathname.startsWith('/app/ordens-servico') || pathname.startsWith('/app/pos-venda')) return 'ordens_servico';
-  if (pathname.startsWith('/app/projetos-engenharia')) return 'projetos_engenharia';
+  if (pathname.startsWith('/app/projetos-engenharia')) return 'ordens_servico';
   if (pathname.startsWith('/app/monitoramento')) return 'monitoramento';
   if (pathname.startsWith('/app/equipamentos')) return 'equipamentos';
   if (pathname.startsWith('/app/belcred')) return 'belcred';
