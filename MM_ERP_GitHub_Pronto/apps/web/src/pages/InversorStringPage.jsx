@@ -35,6 +35,7 @@ const FORM_PADRAO = {
   imposto: 4,
   comissao: 0,
   margem: 25,
+  acrescimoVendedor: 0,
 };
 
 export default function InversorStringPage() {
@@ -51,10 +52,16 @@ export default function InversorStringPage() {
     const comissao = percentual(form.comissao);
     const margem = percentual(form.margem);
     const divisor = 1 - imposto - comissao - margem;
-    const precoVista = divisor > 0 ? custoTotal / divisor : 0;
+    const precoBase = divisor > 0 ? custoTotal / divisor : 0;
+    const acrescimoVendedor = Math.max(0, numero(form.acrescimoVendedor));
+    const lucroVendedor = acrescimoVendedor * 0.2;
+    const precoVista = precoBase + acrescimoVendedor;
     const precoCartao = precoVista / (1 - 0.1169);
     return {
       custoTotal,
+      precoBase,
+      acrescimoVendedor,
+      lucroVendedor,
       precoVista,
       precoCartao,
       valorProposta: formaPagamento === 'cartao' ? precoCartao : precoVista,
@@ -92,6 +99,7 @@ export default function InversorStringPage() {
     ['imposto', 'Imposto (%)', '0.01'],
     ['comissao', 'Comissão (%)', '0.01'],
     ['margem', 'Margem líquida (%)', '0.01'],
+    ['acrescimoVendedor', 'Acréscimo do vendedor (R$)', '0.01'],
   ];
 
   return (
@@ -138,6 +146,7 @@ export default function InversorStringPage() {
               <input type="number" min="0" step={step} name={name} value={form[name]} onChange={atualizar} />
             </label>
           ))}
+          <small className="seller-profit-help">O acréscimo é somado ao preço da proposta. O vendedor recebe 20% desse valor.</small>
         </div>
       </section>
 
@@ -152,6 +161,7 @@ export default function InversorStringPage() {
           </button>
         </div>
         <div className="pricing-highlight"><span>Valor que irá para a proposta</span><strong>{moeda.format(resultado.valorProposta)}</strong></div>
+        <div className="pricing-highlight"><span>Lucro do vendedor (20%)</span><strong>{moeda.format(resultado.lucroVendedor)}</strong></div>
       </section>
 
       <ProposalGenerator
