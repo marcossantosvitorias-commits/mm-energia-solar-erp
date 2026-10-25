@@ -38,6 +38,7 @@ const menuSections = [
     { to: '/app/cotacoes-belenus', label: 'Cotações Belenus', icon: FileSpreadsheet, roles: ['admin', 'financeiro'] },
   ]},
   { title: 'Operacional', items: [
+    { to: '/app/projetos-engenharia', label: 'Projetos de engenharia', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
     { to: '/app/ordens-servico', label: 'Ordens de serviço', icon: ClipboardCheck, roles: ['admin', 'financeiro', 'engenharia'] },
     { to: '/app/monitoramento', label: 'Monitoramento solar', icon: RadioTower, roles: ['admin', 'engenharia'] },
     { to: '/app/equipamentos', label: 'Equipamentos', icon: PackageSearch, roles: ['admin', 'engenharia'] },

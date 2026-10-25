@@ -13,6 +13,7 @@ export const ERP_ACCESS_OPTIONS = [
   { key: 'fluxos', label: 'Fluxos e Kanbans' },
   { key: 'radar', label: 'Radar Solar' },
   { key: 'ordens_servico', label: 'Ordens de serviço' },
+  { key: 'projetos_engenharia', label: 'Projetos de engenharia' },
   { key: 'monitoramento', label: 'Monitoramento solar' },
   { key: 'equipamentos', label: 'Equipamentos' },
   { key: 'financeiro', label: 'Financeiro' },
@@ -36,6 +37,7 @@ export function accessKeyForPath(pathname = '') {
   if (pathname.startsWith('/app/fluxos')) return 'fluxos';
   if (pathname.startsWith('/app/prospeccao-solar')) return 'radar';
   if (pathname.startsWith('/app/ordens-servico') || pathname.startsWith('/app/pos-venda')) return 'ordens_servico';
+  if (pathname.startsWith('/app/projetos-engenharia')) return 'projetos_engenharia';
   if (pathname.startsWith('/app/monitoramento')) return 'monitoramento';
   if (pathname.startsWith('/app/equipamentos')) return 'equipamentos';
   if (pathname.startsWith('/app/belcred')) return 'belcred';

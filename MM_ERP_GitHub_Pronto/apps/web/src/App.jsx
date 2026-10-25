@@ -28,6 +28,7 @@ import ContratosPage from './pages/ContratosPage.jsx';
 import AgendaPage from './pages/AgendaPage.jsx';
 import MonitoramentoSolarPage from './pages/MonitoramentoSolarPage.jsx';
 import OrdensServicoPage from './pages/OrdensServicoPage.jsx';
+import ProjetosEngenhariaPage from './pages/ProjetosEngenhariaPage.jsx';
 import PreparacaoInstalacaoPage from './pages/PreparacaoInstalacaoPage.jsx';
 import ExecucaoInstalacaoMobilePage from './pages/ExecucaoInstalacaoMobilePage.jsx';
 import FinalizacaoInstalacaoMobilePage from './pages/FinalizacaoInstalacaoMobilePage.jsx';
@@ -94,6 +95,7 @@ function App() {
           <Route path="/app/kits-hibridos" element={privateRoute(<Navigate to="/app/precos/hibrido" replace />, ROLES.SALES)} />
 
           <Route path="/app/ordens-servico" element={privateRoute(<OrdensServicoPage />, ROLES.INTERNAL)} />
+          <Route path="/app/projetos-engenharia" element={privateRoute(<ProjetosEngenhariaPage />, ROLES.INTERNAL)} />
           <Route path="/app/ordens-servico/:id/preparacao" element={privateRoute(<PreparacaoInstalacaoPage />, ROLES.INTERNAL)} />
           <Route path="/app/ordens-servico/:id/campo" element={privateRoute(<ExecucaoInstalacaoMobilePage />, ROLES.INTERNAL)} />
           <Route path="/app/ordens-servico/:id/finalizacao" element={privateRoute(<FinalizacaoInstalacaoMobilePage />, ROLES.INTERNAL)} />
