@@ -59,6 +59,8 @@ export async function createEngineeringProject(project) {
   }).select(projectFields).single();
   if (error) throw error;
   await addProjectActivity(data.id, 'Status', 'Projeto cadastrado', 'Cadastro inicial do projeto de engenharia.');
+  const documentosIniciais = ['Fatura de energia', 'Documento do titular', 'ART ou TRT', 'Diagrama unifilar'];
+  await Promise.all(documentosIniciais.map((name) => addProjectDocument(data.id, { name, documentType: 'Checklist inicial' })));
   return fromProject(data);
 }
 
@@ -110,6 +112,13 @@ export async function listProjectDocuments(projectId) {
 export async function addProjectDocument(projectId, document) {
   ensureDatabase();
   const { data, error } = await supabase.from('engineering_project_documents').insert({ project_id: projectId, document_type: document.documentType || 'Outro', name: document.name.trim(), status: document.status || 'Pendente', notes: document.notes?.trim() || null }).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateProjectDocument(id, status) {
+  ensureDatabase();
+  const { data, error } = await supabase.from('engineering_project_documents').update({ status }).eq('id', id).select('*').single();
   if (error) throw error;
   return data;
 }
