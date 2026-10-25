@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Save } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
 import ProposalGenerator from './ProposalGenerator.jsx';
 
@@ -6,6 +7,7 @@ const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
 const QUANTIDADES_KITS = [...Array.from({ length: 19 }, (_, indice) => indice + 4), 64];
+const STORAGE_KEY = 'mm-erp-inversor-config-v1';
 
 // Sempre usamos o maior valor exibido no orçamento: "Valor total".
 // Esse valor já contempla o frete quando o orçamento da distribuidora o inclui.
@@ -42,10 +44,24 @@ const FORM_PADRAO = {
 };
 
 export default function InversorStringPage() {
-  const [form, setForm] = useState(FORM_PADRAO);
-  const [inversorSelecionado, setInversorSelecionado] = useState('Auxsol monofásico 5 kW');
-  const [referencia, setReferencia] = useState('Orçamento WEB-006496328');
-  const [formaPagamento, setFormaPagamento] = useState('avista');
+  const [configInicial] = useState(() => {
+    try {
+      const salvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      return {
+        form: { ...FORM_PADRAO, ...(salvo?.form || {}) },
+        inversorSelecionado: salvo?.inversorSelecionado || 'Auxsol monofásico 5 kW',
+        referencia: salvo?.referencia || 'Orçamento WEB-006496328',
+        formaPagamento: salvo?.formaPagamento || 'avista',
+      };
+    } catch {
+      return { form: FORM_PADRAO, inversorSelecionado: 'Auxsol monofásico 5 kW', referencia: 'Orçamento WEB-006496328', formaPagamento: 'avista' };
+    }
+  });
+  const [form, setForm] = useState(configInicial.form);
+  const [inversorSelecionado, setInversorSelecionado] = useState(configInicial.inversorSelecionado);
+  const [referencia, setReferencia] = useState(configInicial.referencia);
+  const [formaPagamento, setFormaPagamento] = useState(configInicial.formaPagamento);
+  const [mensagem, setMensagem] = useState('');
 
   const resultado = useMemo(() => {
     const rateioEngenharia = numero(form.mensalidadeTreviso) / Math.max(1, numero(form.instalacoesMes));
@@ -75,6 +91,15 @@ export default function InversorStringPage() {
   }, [form, formaPagamento]);
 
   const atualizar = ({ target: { name, value } }) => setForm((atual) => ({ ...atual, [name]: value }));
+
+  const salvarConfiguracao = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, inversorSelecionado, referencia, formaPagamento }));
+      setMensagem('Alterações salvas neste dispositivo.');
+    } catch {
+      setMensagem('Não foi possível salvar as alterações neste dispositivo.');
+    }
+  };
 
   const selecionarKit = (kit) => {
     if (!kit) return;
@@ -140,7 +165,8 @@ export default function InversorStringPage() {
       </section>
 
       <section className="finance-panel">
-        <div className="finance-panel-header"><div><h2>Custos e margem</h2><p>Esses custos ficam somente no ERP e não aparecem nos cartões dos kits.</p></div></div>
+        <div className="finance-panel-header"><div><h2>Custos e margem</h2><p>Esses custos ficam somente no ERP e não aparecem nos cartões dos kits.</p></div><button className="finance-button inline-button" type="button" onClick={salvarConfiguracao}><Save size={16} /> Salvar alterações</button></div>
+        {mensagem && <p className="finance-notice">{mensagem}</p>}
         <div className="finance-form">
           {campos.map(([name, label, step]) => (
             <label className="finance-field" key={name}>
