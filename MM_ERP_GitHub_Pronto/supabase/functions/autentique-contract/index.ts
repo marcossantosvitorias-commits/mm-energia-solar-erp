@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,29 +7,53 @@ const corsHeaders = {
 };
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
+function clean(value: unknown) { return String(value || '').trim(); }
 function normalizePhone(value: string) {
   const digits = String(value || '').replace(/\D/g, '');
   if (!digits) return '';
   return `+${digits.startsWith('55') ? digits : `55${digits}`}`;
 }
+function latest(values: Array<string | undefined | null>) { return values.filter(Boolean).sort().at(-1) || null; }
 
-function clean(value: unknown) {
-  return String(value || '').trim();
-}
+const validationTranslations: Record<string, string> = {
+  field_required: 'campo obrigatório',
+  must_be_a_valid_email_address: 'e-mail inválido',
+  unavailable_credits: 'sem créditos/documentos disponíveis no plano do Autentique',
+  unavailable_verifications_credits: 'sem créditos para verificação adicional',
+  format_is_invalid: 'formato inválido',
+  must_be_a_valid_file: 'arquivo inválido',
+  must_be_a_file: 'arquivo não reconhecido',
+  failed_to_upload: 'falha ao enviar o PDF',
+  could_not_upload_file: 'não foi possível enviar o PDF',
+  without_permission: 'a conta/token não possui permissão para esta operação',
+  not_a_member_of_organization: 'o usuário/token não pertence à organização correta',
+};
 
-function latest(values: Array<string | undefined | null>) {
-  return values.filter(Boolean).sort().at(-1) || null;
-}
-
-function friendlyAutentiqueError(message: string) {
-  if (/Cannot query field/i.test(message)) return 'A integração solicitou um campo que a API do Autentique não disponibiliza. A consulta precisa ser atualizada.';
-  return message || 'O Autentique recusou a solicitação.';
+function extractAutentiqueError(result: any) {
+  const errors = Array.isArray(result?.errors) ? result.errors : [];
+  const parts: string[] = [];
+  for (const error of errors) {
+    const validation = error?.extensions?.validation;
+    if (validation && typeof validation === 'object') {
+      for (const [field, codes] of Object.entries(validation)) {
+        const list = Array.isArray(codes) ? codes : [codes];
+        for (const codeRaw of list) {
+          const code = String(codeRaw || '');
+          const base = code.split(':')[0];
+          const translated = validationTranslations[base] || code;
+          parts.push(`${field}: ${translated}`);
+        }
+      }
+    } else if (error?.message && error.message !== 'validation') {
+      parts.push(String(error.message));
+    }
+  }
+  return parts.join(' | ') || (errors[0]?.message === 'validation'
+    ? 'O Autentique recusou algum dado do envio. Tente novamente; se persistir, verifique e-mail, telefone e créditos do plano.'
+    : 'O Autentique recusou a solicitação.');
 }
 
 async function autentiqueRequest(token: string, query: string, variables: Record<string, unknown> = {}) {
@@ -38,43 +62,32 @@ async function autentiqueRequest(token: string, query: string, variables: Record
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables }),
   });
-  const result = await response.json();
-  if (!response.ok || result.errors?.length) {
-    const raw = result.errors?.map((item: { message?: string }) => item.message).filter(Boolean).join(' | ') || '';
-    throw new Error(friendlyAutentiqueError(raw));
-  }
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.errors?.length) throw new Error(extractAutentiqueError(result));
   return result.data;
 }
 
-async function findClient(supabase: ReturnType<typeof createClient>, signer: Record<string, any>) {
+async function findClient(supabase: SupabaseClient, signer: Record<string, any>) {
   const document = clean(signer.document || signer.cpf || signer.user?.document);
   const email = clean(signer.email || signer.user?.email).toLowerCase();
   const phone = normalizePhone(signer.phone || signer.user?.phone || '');
-
-  if (document) {
-    const { data } = await supabase.from('clients').select('*').eq('document', document).limit(1).maybeSingle();
-    if (data) return data;
-  }
-  if (email) {
-    const { data } = await supabase.from('clients').select('*').ilike('email', email).limit(1).maybeSingle();
-    if (data) return data;
-  }
+  if (document) { const { data } = await supabase.from('clients').select('*').eq('document', document).limit(1).maybeSingle(); if (data) return data; }
+  if (email) { const { data } = await supabase.from('clients').select('*').ilike('email', email).limit(1).maybeSingle(); if (data) return data; }
   if (phone) {
     const digits = phone.replace(/\D/g, '');
-    const { data } = await supabase.from('clients').select('*').limit(200);
-    const match = (data || []).find((item: Record<string, any>) => String(item.phone || '').replace(/\D/g, '') === digits);
+    const { data } = await supabase.from('clients').select('*').limit(300);
+    const match = (data || []).find((item: Record<string, any>) => String(item.phone || '').replace(/\D/g, '') === digits || `55${String(item.phone || '').replace(/\D/g, '')}` === digits);
     if (match) return match;
   }
   return null;
 }
 
-async function saveClient(supabase: ReturnType<typeof createClient>, signer: Record<string, any>, userId: string) {
+async function saveClient(supabase: SupabaseClient, signer: Record<string, any>, userId: string) {
   const existing = await findClient(supabase, signer);
   const name = clean(signer.name || signer.user?.name) || 'Cliente do Autentique';
   const document = clean(signer.document || signer.cpf || signer.user?.document) || null;
   const email = clean(signer.email || signer.user?.email) || null;
   const phone = normalizePhone(signer.phone || signer.user?.phone || '') || existing?.phone || 'Não informado';
-
   const patch = {
     name: existing?.name || name,
     document: existing?.document || document,
@@ -89,13 +102,11 @@ async function saveClient(supabase: ReturnType<typeof createClient>, signer: Rec
     notes: existing?.notes || 'Cadastro criado automaticamente a partir de contrato do Autentique.',
     created_by: existing?.created_by || userId,
   };
-
   if (existing?.id) {
     const { data, error } = await supabase.from('clients').update(patch).eq('id', existing.id).select('*').single();
     if (error) throw new Error(`Cliente ${name}: ${error.message}`);
     return data;
   }
-
   const { data, error } = await supabase.from('clients').insert(patch).select('*').single();
   if (error) throw new Error(`Cliente ${name}: ${error.message}`);
   return data;
@@ -106,15 +117,10 @@ function documentStatus(signatures: Array<Record<string, any>>) {
   const signedAt = latest(signatures.map((item) => item.signed?.created_at));
   const viewedAt = latest(signatures.map((item) => item.viewed?.created_at));
   const allSigned = signatures.length > 0 && signatures.every((item) => item.signed?.created_at);
-  return {
-    status: rejectedAt ? 'recusado' : allSigned ? 'assinado' : viewedAt ? 'visualizado' : 'enviado',
-    rejectedAt,
-    signedAt,
-    viewedAt,
-  };
+  return { status: rejectedAt ? 'recusado' : allSigned ? 'assinado' : viewedAt ? 'visualizado' : 'enviado', rejectedAt, signedAt, viewedAt };
 }
 
-async function saveAutentiqueDocument(supabase: ReturnType<typeof createClient>, document: Record<string, any>, userId: string) {
+async function saveAutentiqueDocument(supabase: SupabaseClient, document: Record<string, any>, userId: string) {
   const signatures = document.signatures || [];
   const signer = signatures[0] || {};
   const client = await saveClient(supabase, signer, userId);
@@ -147,16 +153,13 @@ async function saveAutentiqueDocument(supabase: ReturnType<typeof createClient>,
     synced_at: new Date().toISOString(),
     source: 'Autentique',
     notes: 'Sincronizado automaticamente da conta Autentique.',
-    payload: {
-      sistema: document.name || 'Contrato importado do Autentique',
-      endereco: client?.address || '',
-      pagamento: '',
-      signerName: signer.name || signer.user?.name || '',
-    },
+    payload: { sistema: document.name || 'Contrato importado do Autentique', endereco: client?.address || '', pagamento: '', signerName: signer.name || signer.user?.name || '' },
     raw_data: document,
     created_by: userId,
   };
-
+  const { data: existingContract } = await supabase.from('contracts').select('id, created_by')
+    .eq('external_id', payload.external_id).maybeSingle();
+  if (existingContract) payload.created_by = existingContract.created_by;
   const { data, error } = await supabase.from('contracts').upsert(payload, { onConflict: 'external_id' }).select('*').single();
   if (error) throw new Error(`Contrato ${document.name || document.id}: ${error.message}`);
   return data;
@@ -165,56 +168,39 @@ async function saveAutentiqueDocument(supabase: ReturnType<typeof createClient>,
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
-
   try {
     const authHeader = request.headers.get('Authorization') || '';
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const autentiqueToken = Deno.env.get('AUTENTIQUE_API_TOKEN') || '';
-    if (!autentiqueToken) return json({ error: 'A integração com o Autentique ainda não possui a chave de acesso configurada.' }, 500);
+    if (!autentiqueToken) return json({ error: 'A chave da API do Autentique não está configurada no Supabase.' }, 500);
 
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
-    });
+    const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } });
     const { data: userData, error: userError } = await authClient.auth.getUser();
     if (userError || !userData.user) return json({ error: 'Sessão inválida. Entre novamente no ERP.' }, 401);
 
-    const database = createClient(supabaseUrl, serviceRoleKey || anonKey, {
-      global: serviceRoleKey ? undefined : { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
-    });
-
+    const { data: profile, error: profileError } = await authClient.from('profiles')
+      .select('role, active').eq('id', userData.user.id).maybeSingle();
+    if (profileError || !profile?.active || !['admin', 'financeiro', 'comercial'].includes(profile.role)) {
+      return json({ error: 'Sem permissão para acessar contratos.' }, 403);
+    }
+    const isSeller = profile.role === 'comercial';
+    // Vendedor nunca usa service_role: consultas e gravações respeitam RLS.
+    const database = isSeller ? authClient : createClient(supabaseUrl, serviceRoleKey || anonKey, { global: serviceRoleKey ? undefined : { headers: { Authorization: authHeader } }, auth: { persistSession: false } });
     const contentType = request.headers.get('content-type') || '';
+
     if (contentType.includes('application/json')) {
       const payload = await request.json().catch(() => ({}));
       if (payload.action !== 'list') return json({ error: 'Ação não reconhecida.' }, 400);
-
+      if (isSeller) {
+        return json({ error: 'A sincronização global de contratos é exclusiva da administração. Sua lista mostra apenas os seus novos contratos.' }, 403);
+      }
       const limit = Math.min(Math.max(Number(payload.limit || 60), 1), 60);
       const maxPages = Math.min(Math.max(Number(payload.pages || 10), 1), 20);
       const all: Record<string, any>[] = [];
       let total = 0;
-      const query = `
-        query ListDocuments($limit: Int!, $page: Int!) {
-          documents(limit: $limit, page: $page) {
-            total
-            data {
-              id name created_at
-              signatures {
-                public_id name email created_at
-                link { short_link }
-                viewed { created_at }
-                signed { created_at }
-                rejected { created_at }
-                user { id name email }
-              }
-              files { original signed }
-            }
-          }
-        }
-      `;
-
+      const query = `query ListDocuments($limit: Int!, $page: Int!) { documents(limit: $limit, page: $page) { total data { id name created_at signatures { public_id name email created_at link { short_link } viewed { created_at } signed { created_at } rejected { created_at } user { id name email } } files { original signed } } } }`;
       for (let page = 1; page <= maxPages; page += 1) {
         const data = await autentiqueRequest(autentiqueToken, query, { limit, page });
         const result = data?.documents;
@@ -223,62 +209,45 @@ Deno.serve(async (request) => {
         all.push(...rows);
         if (!rows.length || all.length >= total || rows.length < limit) break;
       }
-
-      const saved = [];
-      const errors = [];
+      const saved = []; const errors = [];
       for (const document of all) {
-        try {
-          saved.push(await saveAutentiqueDocument(database, document, userData.user.id));
-        } catch (error) {
-          errors.push({ id: document.id, name: document.name, error: error instanceof Error ? error.message : String(error) });
-        }
+        try { saved.push(await saveAutentiqueDocument(database, document, userData.user.id)); }
+        catch (error) { errors.push({ id: document.id, name: document.name, error: error instanceof Error ? error.message : String(error) }); }
       }
-
       const { data: contracts, error: listError } = await database.from('contracts').select('*').order('created_at', { ascending: false });
       if (listError) throw listError;
-
       return json({ ok: true, total, imported: saved.length, failed: errors.length, errors, contracts: contracts || [] });
     }
 
     const body = await request.formData();
     const file = body.get('file');
     if (!(file instanceof File)) return json({ error: 'Arquivo PDF não recebido.' }, 400);
-
-    const name = String(body.get('name') || 'Contrato de energia solar');
-    const clientName = String(body.get('clientName') || 'Cliente');
-    const clientEmail = String(body.get('clientEmail') || '').trim();
-    const clientPhone = normalizePhone(String(body.get('clientPhone') || ''));
-    const clientDocument = String(body.get('clientDocument') || '').trim();
-    const deliveryMethod = String(body.get('deliveryMethod') || 'email');
+    const name = clean(body.get('name')) || 'Contrato de energia solar';
+    const clientName = clean(body.get('clientName')) || 'Cliente';
+    const clientEmail = clean(body.get('clientEmail'));
+    const clientPhone = normalizePhone(clean(body.get('clientPhone')));
+    const clientDocument = clean(body.get('clientDocument'));
+    const deliveryMethod = clean(body.get('deliveryMethod')) || 'email';
 
     if (deliveryMethod === 'email' && !clientEmail) return json({ error: 'O cliente não possui e-mail cadastrado.' }, 422);
     if (deliveryMethod === 'whatsapp' && !clientPhone) return json({ error: 'O cliente não possui WhatsApp cadastrado.' }, 422);
 
     const signer = deliveryMethod === 'whatsapp'
-      ? { name: clientName, phone: clientPhone, delivery_method: 'DELIVERY_METHOD_WHATSAPP', action: 'SIGN' }
-      : { name: clientName, email: clientEmail, action: 'SIGN' };
+      ? { phone: clientPhone, delivery_method: 'DELIVERY_METHOD_WHATSAPP', action: 'SIGN' }
+      : { email: clientEmail, action: 'SIGN' };
 
-    const mutation = `
-      mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) {
-        createDocument(document: $document, signers: $signers, file: $file) {
-          id name created_at
-          signatures { public_id name email link { short_link } }
-        }
-      }
-    `;
+    const mutation = `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) { createDocument(document: $document, signers: $signers, file: $file) { id name created_at signatures { public_id name email link { short_link } } } }`;
     const operations = JSON.stringify({ query: mutation, variables: { document: { name, refusable: true }, signers: [signer], file: null } });
     const upload = new FormData();
     upload.append('operations', operations);
     upload.append('map', JSON.stringify({ file: ['variables.file'] }));
     upload.append('file', file, file.name || 'contrato.pdf');
 
-    const response = await fetch('https://api.autentique.com.br/v2/graphql', {
-      method: 'POST', headers: { Authorization: `Bearer ${autentiqueToken}` }, body: upload,
-    });
-    const result = await response.json();
+    const response = await fetch('https://api.autentique.com.br/v2/graphql', { method: 'POST', headers: { Authorization: `Bearer ${autentiqueToken}` }, body: upload });
+    const result = await response.json().catch(() => ({}));
     if (!response.ok || result.errors?.length) {
-      const raw = result.errors?.map((item: { message?: string }) => item.message).filter(Boolean).join(' | ') || '';
-      return json({ error: friendlyAutentiqueError(raw), details: result.errors || result }, 422);
+      console.error('Autentique createDocument error:', JSON.stringify(result));
+      return json({ error: extractAutentiqueError(result), details: result.errors || result }, 422);
     }
 
     const document = result.data?.createDocument;
@@ -307,14 +276,9 @@ Deno.serve(async (request) => {
     const { error: saveError } = await database.from('contracts').upsert(contractPayload, { onConflict: 'external_id' });
     if (saveError) throw saveError;
 
-    return json({
-      ok: true,
-      documentId: document?.id || '',
-      signingLink: signature.link?.short_link || '',
-      signerPublicId: signature.public_id || '',
-      deliveryMethod,
-    });
+    return json({ ok: true, documentId: document?.id || '', signingLink: signature.link?.short_link || '', signerPublicId: signature.public_id || '', deliveryMethod });
   } catch (error) {
+    console.error('autentique-contract unexpected error:', error);
     return json({ error: error instanceof Error ? error.message : 'Erro inesperado ao processar contrato.' }, 500);
   }
 });

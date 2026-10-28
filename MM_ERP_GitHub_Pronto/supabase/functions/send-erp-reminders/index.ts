@@ -22,6 +22,8 @@ type Alert = {
   title: string;
   body: string;
   url: string;
+  ownerId?: string | null;
+  recordCreatedAt?: string;
 };
 
 const money = (value: number) => Number(value || 0).toLocaleString('pt-BR', {
@@ -66,7 +68,7 @@ async function buildAlerts(now: Date): Promise<Alert[]> {
   const end = new Date(now.getTime() + 25 * 60 * 60000).toISOString();
   const { data: appointments, error: appointmentsError } = await supabase
     .from('appointments')
-    .select('id, client_name, appointment_type, appointment_at, address, status')
+    .select('id, client_name, appointment_type, appointment_at, address, status, created_by, created_at')
     .not('status', 'in', '(Cancelado,Concluído)')
     .gte('appointment_at', start)
     .lte('appointment_at', end);
@@ -89,13 +91,15 @@ async function buildAlerts(now: Date): Promise<Alert[]> {
       title: match.title,
       body: `${item.appointment_type || 'Agendamento'} com ${item.client_name}${item.address ? ` — ${item.address}` : ''}.`,
       url: '/app/agenda',
+      ownerId: item.created_by,
+      recordCreatedAt: item.created_at,
     });
   }
 
   const reminderStart = new Date(now.getTime() - 7 * 86400000).toISOString();
   const { data: clients, error: clientsError } = await supabase
     .from('clients')
-    .select('id, name, phone, next_contact_at, reminder_note, reminder_done')
+    .select('id, name, phone, next_contact_at, reminder_note, reminder_done, created_by, created_at')
     .eq('reminder_done', false)
     .not('next_contact_at', 'is', null)
     .gte('next_contact_at', reminderStart)
@@ -112,6 +116,8 @@ async function buildAlerts(now: Date): Promise<Alert[]> {
       title: `Retorno de cliente — ${item.name}`,
       body: item.reminder_note || `Entrar em contato com ${item.name}${item.phone ? ` — ${item.phone}` : ''}.`,
       url: '/app/clientes',
+      ownerId: item.created_by,
+      recordCreatedAt: item.created_at,
     });
   }
 
@@ -135,9 +141,13 @@ Deno.serve(async (request) => {
     const alerts = await buildAlerts(now);
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth')
+      .select('id, user_id, endpoint, p256dh, auth')
       .eq('active', true);
     if (error) throw error;
+    const { data: profiles, error: profilesError } = await supabase.from('profiles')
+      .select('id, role, active, sales_access_from').eq('active', true);
+    if (profilesError) throw profilesError;
+    const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
 
     let sent = 0;
     let skipped = 0;
@@ -145,6 +155,16 @@ Deno.serve(async (request) => {
 
     for (const subscription of subscriptions || []) {
       for (const alert of alerts) {
+        const profile = profileById.get(subscription.user_id);
+        if (!profile?.active) { skipped += 1; continue; }
+        if (profile.role === 'comercial') {
+          const ownNewRecord = alert.ownerId === subscription.user_id
+            && Boolean(alert.recordCreatedAt)
+            && new Date(alert.recordCreatedAt!).getTime() >= new Date(profile.sales_access_from).getTime();
+          if (!ownNewRecord || !['appointment', 'client_follow_up'].includes(alert.type)) {
+            skipped += 1; continue;
+          }
+        }
         const { data: existing } = await supabase
           .from('notification_deliveries')
           .select('id')
