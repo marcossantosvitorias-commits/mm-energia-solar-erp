@@ -37,6 +37,7 @@ import FluxosKanbanPage from './pages/FluxosKanbanPage.jsx';
 import CalculadoraSolarPublicaPage from './pages/CalculadoraSolarPublicaPage.jsx';
 import CalculadoraSolarErpPage from './pages/CalculadoraSolarErpPage.jsx';
 import PropostasPage from './pages/PropostasPage.jsx';
+import GeradorArtesPage from './pages/GeradorArtesPage.jsx';
 import PropostaPdfPage from './pages/PropostaPdfPage.jsx';
 import PropostaPublicaPage from './pages/PropostaPublicaPage.jsx';
 import ProspeccaoSolarPage from './pages/ProspeccaoSolarPage.jsx';
@@ -83,6 +84,7 @@ function App() {
           <Route path="/app/pre-vendas-ia" element={privateRoute(<PreVendasIAPage />, ROLES.SALES)} />
           <Route path="/app/prospeccao-solar" element={privateRoute(<ProspeccaoSolarPage />, ROLES.MANAGEMENT)} />
           <Route path="/app/calculadora-solar" element={privateRoute(<CalculadoraSolarErpPage />, ROLES.SALES)} />
+          <Route path="/app/artes-instalacoes" element={privateRoute(<GeradorArtesPage />, ROLES.SALES)} />
           <Route path="/app/propostas" element={privateRoute(<PropostasPage />, ROLES.SALES)} />
           <Route path="/app/propostas/:id/pdf" element={privateRoute(<PropostaPdfPage />, ROLES.SALES)} />
           <Route path="/app/agenda" element={privateRoute(<AgendaPage />, ROLES.SALES)} />
