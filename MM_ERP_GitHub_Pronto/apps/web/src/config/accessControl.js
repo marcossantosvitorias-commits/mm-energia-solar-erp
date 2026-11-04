@@ -6,6 +6,7 @@ export const ERP_ACCESS_OPTIONS = [
   { key: 'whatsapp', label: 'WhatsApp / Pendências' },
   { key: 'calculadora', label: 'Calculadora Solar' },
   { key: 'propostas', label: 'Propostas comerciais' },
+  { key: 'artes_instalacoes', label: 'Artes de instalações' },
   { key: 'agenda', label: 'Agenda' },
   { key: 'contratos', label: 'Contratos' },
   { key: 'cotacoes_belenus', label: 'Cotações Belenus' },
@@ -30,6 +31,7 @@ export function accessKeyForPath(pathname = '') {
   if (pathname.startsWith('/app/whatsapp')) return 'whatsapp';
   if (pathname.startsWith('/app/calculadora-solar')) return 'calculadora';
   if (pathname.startsWith('/app/propostas')) return 'propostas';
+  if (pathname.startsWith('/app/artes-instalacoes')) return 'artes_instalacoes';
   if (pathname.startsWith('/app/agenda')) return 'agenda';
   if (pathname.startsWith('/app/contratos')) return 'contratos';
   if (pathname.startsWith('/app/cotacoes-belenus')) return 'cotacoes_belenus';

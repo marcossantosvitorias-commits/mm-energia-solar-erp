@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, LayoutPanelTop, WalletCards, Calculator, SunMedium,
-  BadgeDollarSign, FileSpreadsheet, FileSignature, FileText, PackageSearch, Scale,
+  BadgeDollarSign, FileSpreadsheet, FileSignature, FileText, Images, PackageSearch, Scale,
   UserRound, UsersRound, CalendarDays, DatabaseBackup, PlugZap, RadioTower,
   ClipboardCheck, Globe2, LogOut, Menu, Download, X, UserCog, MessageCircle, Bot,
 } from 'lucide-react';
@@ -32,6 +32,7 @@ const menuSections = [
     { to: '/app/whatsapp', label: 'WhatsApp / Pendências', icon: MessageCircle, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/prospeccao-solar', label: 'Radar Solar', icon: RadioTower, roles: ['admin', 'financeiro'] },
     { to: '/app/calculadora-solar', label: 'Calculadora Solar', icon: SunMedium, roles: ['admin', 'financeiro', 'comercial'] },
+    { to: '/app/artes-instalacoes', label: 'Artes de instalações', icon: Images, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/propostas', label: 'Propostas comerciais · HISTÓRICO', icon: FileText, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'financeiro', 'comercial'] },
     { to: '/app/contratos', label: 'Contratos', icon: FileSignature, roles: ['admin', 'financeiro', 'comercial'] },
