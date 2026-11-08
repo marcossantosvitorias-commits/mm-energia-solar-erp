@@ -218,11 +218,12 @@ function WhatsAppPendenciasPage() {
     return items.filter((item) => [item.contact_name, item.phone, item.last_message_preview, item.city].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
   }, [items, search]);
 
-  const saveQualification = async () => {
+  const saveQualification = async (forceStage = null) => {
     if (!selected) return;
+    const desiredStage = typeof forceStage === 'string' ? forceStage : qualification.lead_stage;
     setSaving(true); setError(''); setNotice('');
 
-    if (qualification.lead_stage === 'not_lead') {
+    if (desiredStage === 'not_lead') {
       const { data, error: rpcError } = await supabase.rpc('mark_bad_lead', {
         p_client_id: selected.client_id || null,
         p_phone: selected.phone || null,
@@ -249,7 +250,7 @@ function WhatsAppPendenciasPage() {
 
     const bill = qualification.estimated_monthly_bill === '' ? null : Number(String(qualification.estimated_monthly_bill).replace(',', '.'));
     const { error: updateError } = await supabase.from('whatsapp_conversations').update({
-      lead_stage: qualification.lead_stage,
+      lead_stage: desiredStage,
       lead_temperature: qualification.lead_temperature,
       priority: qualification.priority,
       estimated_monthly_bill: Number.isFinite(bill) ? bill : null,
@@ -267,7 +268,7 @@ function WhatsAppPendenciasPage() {
     if (updateError) setError(updateError.message);
     else {
       await loadMetaFeedback(selected.id);
-      setNotice(qualification.lead_stage === 'qualified'
+      setNotice(desiredStage === 'qualified'
         ? 'Qualificação salva na ERP. Confira abaixo o status do evento para a Meta (o envio depende da integração).'
         : 'Qualificação salva na ERP.');
       await loadConversations();
@@ -393,7 +394,8 @@ function WhatsAppPendenciasPage() {
                     {metaFeedback.event.response?.dataset_id ? ` • Dataset ${metaFeedback.event.response.dataset_id}` : ''}
                   </p>}
             </div>
-            <button type="button" className="wa-save-btn" disabled={saving} onClick={saveQualification}><Save size={16} /> {saving ? 'Salvando...' : 'Salvar qualificação'}</button>
+            <button type="button" className="wa-save-btn" disabled={saving || !selected} onClick={() => saveQualification('qualified')}><CheckCircle2 size={16} /> {saving ? 'Salvando...' : 'Qualificar lead na ERP'}</button>
+            <button type="button" className="wa-secondary-btn" disabled={saving} onClick={() => saveQualification()}><Save size={16} /> Salvar alterações / outra etapa</button>
           </>}
         </aside>
       </div>
