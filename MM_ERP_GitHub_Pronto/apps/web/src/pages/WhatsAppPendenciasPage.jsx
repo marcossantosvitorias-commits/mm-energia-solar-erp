@@ -135,6 +135,7 @@ function WhatsAppPendenciasPage() {
   const [saving, setSaving] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [qualification, setQualification] = useState({});
+  const [metaFeedback, setMetaFeedback] = useState({ loading: false, event: null, error: '' });
   const messagesEndRef = useRef(null);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) || null, [items, selectedId]);
@@ -168,6 +169,18 @@ function WhatsAppPendenciasPage() {
     }
   }, [filter]);
 
+  // Exibe o resultado real da fila de conversões; não confunde "salvo" com "recebido pela Meta".
+  const loadMetaFeedback = useCallback(async (conversationId) => {
+    if (!conversationId || !supabase) return;
+    setMetaFeedback({ loading: true, event: null, error: '' });
+    const { data, error: metaError } = await supabase.from('meta_conversion_events')
+      .select('event_name,status,error,sent_at,created_at,response')
+      .eq('conversation_id', conversationId).eq('event_name', 'LeadQualified')
+      .order('created_at', { ascending: false }).limit(1);
+    if (metaError) setMetaFeedback({ loading: false, event: null, error: metaError.message });
+    else setMetaFeedback({ loading: false, event: data?.[0] || null, error: '' });
+  }, []);
+
   const loadMessages = useCallback(async (conversationId) => {
     if (!conversationId || !supabase) return;
     setLoadingMessages(true);
@@ -178,6 +191,7 @@ function WhatsAppPendenciasPage() {
 
   useEffect(() => { queueMicrotask(() => loadConversations({ keepSelection: false })); }, [loadConversations]);
   useEffect(() => { queueMicrotask(() => { if (selectedId) loadMessages(selectedId); else setMessages([]); }); }, [selectedId, loadMessages]);
+  useEffect(() => { if (selectedId) loadMetaFeedback(selectedId); else setMetaFeedback({ loading: false, event: null, error: '' }); }, [selectedId, loadMetaFeedback]);
   useEffect(() => {
     if (!selected) return;
     queueMicrotask(() => setQualification({
@@ -250,7 +264,14 @@ function WhatsAppPendenciasPage() {
       qualification_notes: qualification.qualification_notes?.trim() || null,
       updated_at: new Date().toISOString(),
     }).eq('id', selected.id);
-    if (updateError) setError(updateError.message); else { setNotice('Qualificação salva.'); await loadConversations(); }
+    if (updateError) setError(updateError.message);
+    else {
+      await loadMetaFeedback(selected.id);
+      setNotice(qualification.lead_stage === 'qualified'
+        ? 'Qualificação salva na ERP. Confira abaixo o status do evento para a Meta (o envio depende da integração).'
+        : 'Qualificação salva na ERP.');
+      await loadConversations();
+    }
     setSaving(false);
   };
 
@@ -361,6 +382,17 @@ function WhatsAppPendenciasPage() {
             <SelectField label="Origem do lead" value={qualification.lead_source || ''} onChange={(value) => setQualification((q) => ({ ...q, lead_source: value }))} options={LEAD_SOURCES} />
             <div className="wa-detail-card"><div className="wa-detail-label">Próxima ação</div><input className="wa-input" value={qualification.next_action || ''} onChange={(e) => setQualification((q) => ({ ...q, next_action: e.target.value }))} placeholder="Ex.: ligar, enviar proposta, pedir fatura" /><div className="wa-detail-label wa-label-spaced">Follow-up</div><input className="wa-input" type="datetime-local" value={qualification.follow_up_at || ''} onChange={(e) => setQualification((q) => ({ ...q, follow_up_at: e.target.value }))} /></div>
             <div className="wa-detail-card"><div className="wa-detail-label">Observações comerciais</div><textarea className="wa-notes" value={qualification.qualification_notes || ''} onChange={(e) => setQualification((q) => ({ ...q, qualification_notes: e.target.value }))} placeholder="Ex.: consumo alto, telhado bom, cliente quer financiar, visita marcada..." /></div>
+            <div className="wa-detail-card" role="status" aria-live="polite">
+              <div className="wa-detail-label">Qualificação → Meta Ads</div>
+              {metaFeedback.loading ? <p>Consultando evento...</p> : metaFeedback.error ? <p>Não foi possível consultar o evento: {metaFeedback.error}</p> : !metaFeedback.event
+                ? <p>{selected.meta_ctwa_clid ? 'Nenhum evento de qualificação registrado ainda. Ao salvar como Qualificado, a ERP deve colocá-lo na fila.' : 'Sem identificação de anúncio (CTWA). O lead pode ser qualificado na ERP, mas não há atribuição suficiente para enviar feedback à Meta.'}</p>
+                : <p>
+                    {metaFeedback.event.status === 'sent' ? 'Enviado à API da Meta' : metaFeedback.event.status === 'pending' ? 'Na fila de envio (ainda não confirmado pela Meta)' : metaFeedback.event.status === 'skipped' ? 'Ignorado pela regra de qualificação' : 'Erro no envio'}
+                    {metaFeedback.event.sent_at ? ` • ${formatDateTime(metaFeedback.event.sent_at)}` : ''}
+                    {metaFeedback.event.error ? ` • ${metaFeedback.event.error}` : ''}
+                    {metaFeedback.event.response?.dataset_id ? ` • Dataset ${metaFeedback.event.response.dataset_id}` : ''}
+                  </p>}
+            </div>
             <button type="button" className="wa-save-btn" disabled={saving} onClick={saveQualification}><Save size={16} /> {saving ? 'Salvando...' : 'Salvar qualificação'}</button>
           </>}
         </aside>
