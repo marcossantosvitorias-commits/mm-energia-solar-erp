@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, ExternalLink, FileCheck2, Mail, MessageCircle, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
+import { CheckCircle2, Clock3, Download, ExternalLink, Eye, FileCheck2, Mail, MessageCircle, Plus, RefreshCw, Search, Send, UserRound, XCircle } from 'lucide-react';
 import FinanceLayout from '../components/finance/FinanceLayout.jsx';
-import { formatarData, formatarMoeda } from '../components/finance/storage.js';
+import { formatarMoeda } from '../components/finance/storage.js';
 import { createClient, listClients } from '../services/clientService.js';
 import { downloadContractPdf, generateContractPdf } from '../services/contractPdfService.js';
 import { listStoredContracts, saveLocalContract, sendContractToAutentique, syncAutentiqueContracts } from '../services/autentiqueService.js';
@@ -24,20 +24,112 @@ const EMPTY_CLIENT = {
 
 const ROOF_OPTIONS = ['Telha cerâmica', 'Fibrocimento', 'Telha metálica/trapezoidal', 'Telha zipada', 'Laje', 'Solo', 'Outro'];
 
+const STATUS_LABELS = {
+  rascunho: 'Rascunho',
+  enviado: 'Enviado ao cliente',
+  visualizado: 'Cliente visualizou',
+  assinado: 'Cliente assinou',
+  recusado: 'Cliente recusou',
+  expirado: 'Assinatura expirada',
+  concluido: 'Concluído',
+  cancelado: 'Cancelado',
+};
+
+function normalizarStatus(status) {
+  return String(status || 'rascunho').trim().toLowerCase();
+}
+
+function formatarDataHora(valor) {
+  if (!valor) return '';
+  const data = new Date(String(valor).length === 10 ? `${valor}T12:00:00` : valor);
+  if (Number.isNaN(data.getTime())) return '';
+  return data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function SignatureStep({ Icon, titulo, data, concluido, atual, pendente, negativo = false }) {
+  const classe = negativo ? 'is-negative' : concluido ? 'is-complete' : atual ? 'is-current' : 'is-waiting';
+  return <div className={`contract-signature-step ${classe}`}>
+    <span className="contract-signature-icon"><Icon size={18} strokeWidth={2.4} /></span>
+    <div>
+      <strong>{titulo}</strong>
+      <small>{data ? formatarDataHora(data) : concluido ? 'Confirmado pelo Autentique' : pendente}</small>
+    </div>
+  </div>;
+}
+
+function ContractSignatureStatus({ contrato }) {
+  const status = normalizarStatus(contrato.status);
+  const enviado = status !== 'rascunho';
+  const visualizado = Boolean(contrato.visualizadoEm) || ['visualizado', 'assinado'].includes(status);
+  const assinado = Boolean(contrato.assinadoEm) || status === 'assinado';
+  const recusado = status === 'recusado';
+  const finalizadoSemAssinatura = ['recusado', 'expirado', 'cancelado'].includes(status);
+  const ultimaAtualizacao = contrato.sincronizadoEm || contrato.atualizadoEm;
+
+  return <section className="contract-signature-status" aria-label={`Acompanhamento de assinatura: ${STATUS_LABELS[status] || status}`}>
+    <div className="contract-signature-header">
+      <div>
+        <span>Acompanhamento da assinatura</span>
+        <strong>{STATUS_LABELS[status] || status}</strong>
+      </div>
+      {contrato.autentiqueId ? <small>Dados do Autentique</small> : null}
+    </div>
+
+    <div className="contract-signature-flow">
+      <SignatureStep
+        Icon={enviado ? CheckCircle2 : Send}
+        titulo="Enviado ao cliente"
+        data={enviado ? contrato.enviadoEm : null}
+        concluido={enviado}
+        atual={!enviado}
+        pendente="Ainda não enviado"
+      />
+      <SignatureStep
+        Icon={visualizado ? CheckCircle2 : Eye}
+        titulo="Cliente visualizou / leu"
+        data={contrato.visualizadoEm}
+        concluido={visualizado}
+        atual={enviado && !visualizado && !finalizadoSemAssinatura}
+        pendente={enviado ? 'Aguardando visualização' : 'Aguardando envio'}
+      />
+      {recusado ? <SignatureStep
+        Icon={XCircle}
+        titulo="Cliente recusou"
+        data={contrato.recusadoEm}
+        concluido
+        negativo
+        pendente="Recusado"
+      /> : <SignatureStep
+        Icon={assinado ? CheckCircle2 : finalizadoSemAssinatura ? Clock3 : FileCheck2}
+        titulo={status === 'expirado' ? 'Assinatura expirada' : status === 'cancelado' ? 'Assinatura cancelada' : 'Cliente assinou'}
+        data={assinado ? contrato.assinadoEm : null}
+        concluido={assinado}
+        atual={visualizado && !assinado && !finalizadoSemAssinatura}
+        negativo={finalizadoSemAssinatura}
+        pendente={visualizado ? 'Aguardando assinatura' : 'Aguardando visualização'}
+      />}
+    </div>
+
+    {ultimaAtualizacao ? <p className="contract-sync-info">Última atualização: {formatarDataHora(ultimaAtualizacao)}</p> : null}
+  </section>;
+}
+
 function fullAddress(client) {
   return [client.address, client.city, client.state, client.zipCode ? `CEP ${client.zipCode}` : ''].filter(Boolean).join(', ');
 }
 
 function mapContract(row) {
   const payload = row.payload || {};
+  const status = normalizarStatus(row.status);
   return {
     id: row.id, externalId: row.external_id, autentiqueId: row.autentique_id,
     cliente: row.client_name || 'Cliente', documento: row.client_document || '', telefone: row.client_phone || '', email: row.client_email || '',
-    endereco: payload.endereco || '', assinatura: row.signed_date || row.signed_at || row.created_at, criadoEm: row.created_at,
-    status: row.status || 'rascunho', valorTotal: Number(row.total_amount || 0), recebido: Number(row.amount_received || 0),
+    endereco: payload.endereco || '', status, valorTotal: Number(row.total_amount || 0), recebido: Number(row.amount_received || 0),
     aReceber: Number(row.amount_receivable || 0), sistema: payload.sistema || row.title || 'Contrato de energia solar',
     pagamento: payload.pagamento || '', validacao: row.signed_file_url || row.document_url || row.signing_url || row.original_file_url || '',
     arquivoOriginal: row.original_file_url || '', arquivoAssinado: row.signed_file_url || '', origem: row.source || 'ERP',
+    enviadoEm: row.created_at || null, visualizadoEm: row.viewed_at || null, assinadoEm: row.signed_at || row.signed_date || null,
+    recusadoEm: row.rejected_at || null, sincronizadoEm: row.synced_at || null, atualizadoEm: row.updated_at || null,
   };
 }
 
@@ -60,6 +152,7 @@ export default function ContratosPage() {
   const [contratos, setContratos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
   const [form, setForm] = useState(EMPTY_FORM);
   const [mensagem, setMensagem] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -163,7 +256,13 @@ export default function ContratosPage() {
     finally { setSincronizando(false); }
   };
 
-  const filtrados = useMemo(() => contratos.filter((item) => `${item.cliente} ${item.documento} ${item.telefone} ${item.email} ${item.status} ${item.origem}`.toLowerCase().includes(busca.toLowerCase())), [contratos, busca]);
+  const filtrados = useMemo(() => contratos.filter((item) => {
+    const correspondeBusca = `${item.cliente} ${item.documento} ${item.telefone} ${item.email} ${item.status} ${STATUS_LABELS[item.status] || ''} ${item.origem}`.toLowerCase().includes(busca.toLowerCase());
+    const correspondeStatus = filtroStatus === 'todos'
+      || (filtroStatus === 'pendente' && ['rascunho', 'enviado'].includes(item.status))
+      || item.status === filtroStatus;
+    return correspondeBusca && correspondeStatus;
+  }), [contratos, busca, filtroStatus]);
 
   return <FinanceLayout title="Contratos" subtitle="Crie contratos com os equipamentos do sistema e envie para assinatura.">
     <section className="finance-panel contract-generator">
@@ -234,12 +333,16 @@ export default function ContratosPage() {
     </section>
 
     <section className="finance-panel">
-      <div className="finance-panel-header"><div><h2>Histórico de todos os contratos</h2><p>Registros carregados diretamente do Supabase.</p></div><button className="finance-button" type="button" disabled={sincronizando} onClick={sincronizarAutentique}><RefreshCw size={17} /> {sincronizando ? 'Atualizando...' : 'Atualizar do Autentique'}</button></div>
-      <label className="contracts-search"><Search size={17} /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar cliente, telefone, e-mail, CPF ou status" /></label>
+      <div className="finance-panel-header"><div><h2>Histórico de todos os contratos</h2><p>Acompanhe o envio, a visualização e a assinatura pelo status do Autentique.</p></div><button className="finance-button" type="button" disabled={sincronizando} onClick={sincronizarAutentique}><RefreshCw size={17} /> {sincronizando ? 'Atualizando...' : 'Atualizar status do Autentique'}</button></div>
+      <div className="contracts-toolbar">
+        <label className="contracts-search"><Search size={17} /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar cliente, telefone, e-mail, CPF ou status" /></label>
+        <label className="contracts-status-filter"><span>Filtrar status</span><select value={filtroStatus} onChange={(event) => setFiltroStatus(event.target.value)}><option value="todos">Todos</option><option value="pendente">Aguardando cliente</option><option value="visualizado">Cliente visualizou</option><option value="assinado">Cliente assinou</option><option value="recusado">Cliente recusou</option><option value="expirado">Expirado</option><option value="cancelado">Cancelado</option><option value="rascunho">Rascunho</option></select></label>
+      </div>
       {carregando ? <p className="crm-message">Carregando contratos do banco...</p> : null}
       <div className="contracts-list">
         {filtrados.map((contrato) => <article className="contract-card" key={contrato.id}>
-          <div className="contract-card-heading"><FileCheck2 size={24} /><div><h3>{contrato.cliente}</h3><span>{contrato.assinatura ? `Data: ${formatarData(String(contrato.assinatura).slice(0, 10))}` : 'Sem data'}</span></div><span className={`finance-badge ${contrato.status === 'assinado' ? 'paga' : 'pendente'}`}>{contrato.status}</span></div>
+          <div className="contract-card-heading"><FileCheck2 size={24} /><div><h3>{contrato.cliente}</h3><span>{contrato.assinadoEm ? `Assinado em ${formatarDataHora(contrato.assinadoEm)}` : contrato.enviadoEm ? `Enviado em ${formatarDataHora(contrato.enviadoEm)}` : 'Ainda não enviado'}</span></div><span className={`finance-badge contract-status-badge contract-status-${contrato.status}`}>{STATUS_LABELS[contrato.status] || contrato.status}</span></div>
+          <ContractSignatureStatus contrato={contrato} />
           <div className="contract-details"><div><span>CPF/CNPJ</span><strong>{contrato.documento || '-'}</strong></div><div><span>Telefone</span><strong>{contrato.telefone || '-'}</strong></div><div><span>E-mail</span><strong>{contrato.email || '-'}</strong></div><div><span>Endereço</span><strong>{contrato.endereco || 'Não informado no Autentique'}</strong></div><div><span>Sistema</span><strong>{contrato.sistema || '-'}</strong></div><div><span>Origem</span><strong>{contrato.origem}</strong></div></div>
           <div className="contract-payments"><div className="received"><span>Recebido</span><strong>{formatarMoeda(contrato.recebido)}</strong></div><div className="pending"><span>A receber</span><strong>{formatarMoeda(contrato.aReceber)}</strong></div></div>
           {contrato.validacao ? <a className="finance-secondary-button contract-link" href={contrato.validacao} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Abrir contrato ou assinatura</a> : null}
