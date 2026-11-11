@@ -247,6 +247,35 @@ export default function ContratosPage() {
     finally { setEnviando(false); }
   };
 
+  const baixarContratoAssinado = async (contrato) => {
+    if (!contrato.arquivoAssinado) return;
+    setMensagem('Baixando contrato assinado...');
+    const nomeSeguro = (contrato.cliente || 'cliente')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 70);
+    const nomeArquivo = `Contrato_assinado_${nomeSeguro}.pdf`;
+    try {
+      const resposta = await fetch(contrato.arquivoAssinado);
+      if (!resposta.ok) throw new Error('Arquivo indisponível');
+      const arquivo = await resposta.blob();
+      if (!arquivo.size) throw new Error('Arquivo vazio');
+      const url = URL.createObjectURL(arquivo);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = nomeArquivo;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setMensagem('Download do contrato assinado iniciado.');
+    } catch {
+      // Alguns endereços do Autentique bloqueiam fetch entre domínios.
+      // Abrir o PDF diretamente permite usar o download do navegador.
+      window.open(contrato.arquivoAssinado, '_blank', 'noopener,noreferrer');
+      setMensagem('O PDF foi aberto em outra aba. Use a opção Baixar do navegador se necessário.');
+    }
+  };
+
   const sincronizarAutentique = async () => {
     setSincronizando(true); setMensagem('Buscando contratos no Autentique...');
     try {
@@ -345,7 +374,8 @@ export default function ContratosPage() {
           <ContractSignatureStatus contrato={contrato} />
           <div className="contract-details"><div><span>CPF/CNPJ</span><strong>{contrato.documento || '-'}</strong></div><div><span>Telefone</span><strong>{contrato.telefone || '-'}</strong></div><div><span>E-mail</span><strong>{contrato.email || '-'}</strong></div><div><span>Endereço</span><strong>{contrato.endereco || 'Não informado no Autentique'}</strong></div><div><span>Sistema</span><strong>{contrato.sistema || '-'}</strong></div><div><span>Origem</span><strong>{contrato.origem}</strong></div></div>
           <div className="contract-payments"><div className="received"><span>Recebido</span><strong>{formatarMoeda(contrato.recebido)}</strong></div><div className="pending"><span>A receber</span><strong>{formatarMoeda(contrato.aReceber)}</strong></div></div>
-          {contrato.validacao ? <a className="finance-secondary-button contract-link" href={contrato.validacao} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Abrir contrato ou assinatura</a> : null}
+          {contrato.arquivoAssinado ? <button className="finance-button contract-link" type="button" onClick={() => baixarContratoAssinado(contrato)}><Download size={16} /> Baixar contrato assinado (PDF)</button> : null}
+          {contrato.validacao ? <a className="finance-secondary-button contract-link" href={contrato.validacao} target="_blank" rel="noreferrer"><ExternalLink size={16} /> {contrato.arquivoAssinado ? 'Visualizar contrato assinado' : 'Abrir contrato ou assinatura'}</a> : null}
         </article>)}
         {!carregando && !filtrados.length ? <div className="agenda-empty"><UserRound size={36} /><strong>Nenhum contrato encontrado</strong></div> : null}
       </div>
