@@ -6,7 +6,7 @@ import ProposalGenerator from './ProposalGenerator.jsx';
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const numero = (valor) => Number(valor || 0);
 const percentual = (valor) => numero(valor) / 100;
-const QUANTIDADES_KITS = [...Array.from({ length: 19 }, (_, indice) => indice + 4), 64];
+const QUANTIDADES_KITS = [...Array.from({ length: 22 }, (_, indice) => indice + 4), 64];
 const STORAGE_KEY = 'mm-erp-inversor-config-v1';
 
 // Sempre usamos o maior valor exibido no orçamento: "Valor total".
@@ -20,6 +20,8 @@ const KITS_INVERSOR = [
   { placas: 9, potenciaPlaca: 620, valorTotalDistribuidora: 7654.62, inversor: 'Auxsol monofásico 5 kW', referencia: 'Orçamento enviado em 06/08/2026' },
   { placas: 10, potenciaPlaca: 620, valorTotalDistribuidora: 8337.49, inversor: 'Deye monofásico 6,6 kW', referencia: 'Orçamento enviado em 06/08/2026' },
   { placas: 12, potenciaPlaca: 620, valorTotalDistribuidora: 9799.71, inversor: 'Auxsol monofásico 6 kW', referencia: 'Cotação cadastrada em 10/08/2026 · produtos R$ 9.263,61 · frete R$ 536,10' },
+  { placas: 13, potenciaPlaca: 625, valorTotalDistribuidora: 11564.01, inversor: 'Auxsol monofásico 220 V 2 MPPT 6 kW', referencia: 'Belenus WEB-007190181 · 14/11/2026' },
+  { placas: 25, potenciaPlaca: 625, valorTotalDistribuidora: 21339.76, inversor: 'Auxsol monofásico 220 V 2 MPPT 10 kW', referencia: 'Belenus WEB-007190173 · 14/11/2026' },
   { placas: 64, potenciaPlaca: 620, valorTotalDistribuidora: 63161.27, inversor: 'Auxsol trifásico 20 kW 220 V, 4 MPPT', referencia: 'Orçamento WEB-006717414' },
 ];
 
@@ -135,7 +137,7 @@ export default function InversorStringPage() {
         <div className="finance-panel-header">
           <div>
             <h2>Escolha o kit com inversor</h2>
-            <p>Kits organizados de 4 até 22 placas, além do projeto especial de 64 placas. Quando ainda não houver preço cadastrado, o kit fica identificado como pendente.</p>
+            <p>Kits organizados de 4 até 25 placas, além do projeto especial de 64 placas. Quando ainda não houver preço cadastrado, o kit fica identificado como pendente.</p>
           </div>
         </div>
         <div className="belenus-quotes">
@@ -152,7 +154,7 @@ export default function InversorStringPage() {
               >
                 <div className="belenus-quote-top">
                   <span>{quantidade} placas</span>
-                  <small>{(quantidade * 620 / 1000).toFixed(2).replace('.', ',')} kWp</small>
+                  <small>{(quantidade * (kit?.potenciaPlaca || 620) / 1000).toFixed(3).replace('.', ',')} kWp</small>
                 </div>
                 <b>{kit ? kit.inversor : 'Preço pendente'}</b>
               </button>
@@ -199,7 +201,7 @@ export default function InversorStringPage() {
         key={`${form.placas}-${resultado.valorProposta.toFixed(2)}-${formaPagamento}-${inversorSelecionado}`}
         quantidadePlacas={numero(form.placas)}
         precoRecomendado={resultado.valorProposta}
-        modulo="Módulo fotovoltaico bifacial Tier 1 620 W"
+        modulo={`Módulo fotovoltaico bifacial ${numero(form.potenciaPlaca) === 625 ? 'DMEGC N-Type' : 'Tier 1'} ${numero(form.potenciaPlaca)} W`}
         inversor={inversorSelecionado}
         potenciaSistemaKw={resultado.potenciaSistema}
       />
